@@ -150,6 +150,12 @@ is an assumption, not verified historical publication timing; D+7 is unavailable
 hours are partial. The download defaults to the train/validation window. See the
 [ML handoff](docs/ml_handoff.md) for coverage, validation results, and final-test limitations.
 Missing/partial weather rows propagate `missing_weather` to prediction consumers.
+Regional features are opt-in: `make features REGIONAL=1` verifies and joins the existing
+HU/BG market handoff on the full forecast key, retaining unmatched rows and quality flags.
+The current-versus-regional experiment runs with
+`GRIDSENSE_DATA=real uv run python -m gridsense.models.regional_validation`; it scores
+validation only and saves models separately, without changing the normal model artifacts
+or the tracked training table. Default `make features` keeps the existing feature set.
 Observed weather and the new country calendars have separate contracts: the observed
 weather table is for analysis or carefully lagged inputs, never target-hour forecast features.
 Country calendars supplement rather than replace the continuous Romanian ML target calendar.

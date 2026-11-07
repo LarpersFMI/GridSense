@@ -4,6 +4,8 @@ Known at issue time (10:00 on D): prices for delivery days <= D (D's were publis
 grid actuals for days <= D-1, and weather forecasts issued on D.
 """
 
+import argparse
+
 import numpy as np
 import pandas as pd
 
@@ -225,7 +227,13 @@ def _read_optional(name: str) -> pd.DataFrame | None:
     return None
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--regional", action="store_true",
+                        help="Opt in to verified HU/BG market features; keep missing inputs flagged")
+    args = parser.parse_args(argv)
+    if args.regional and config.DATA_MODE != "real":
+        parser.error("Regional market inputs are real-only; do not mix them into fake mode")
     table = build_training_table(
         io.read("prices_hourly"),
         _read_optional("grid_hourly"),
@@ -233,6 +241,12 @@ def main() -> None:
         io.read("calendar"),
         _read_optional("load_fc_week_ahead"),
     )
+    if args.regional:
+        from gridsense.features.regional import join_regional_features, read_regional_table
+
+        regional, _ = read_regional_table()
+        table, missing = join_regional_features(table, regional)
+        print(f"[{config.DATA_MODE}] regional join: {missing:,} unmatched forecast keys (retained)")
     io.write(table, "training_table")
 
     n_features = sum(c.startswith(F) for c in table.columns)

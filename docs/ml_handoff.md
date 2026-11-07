@@ -414,20 +414,137 @@ training table is rebuilt derived data; reproducing its weather/week-ahead featu
 the documented downloads. No new test evaluation, tuning on test, or server notification
 was performed. This update supersedes the earlier inventory's July-only/stale-regional status.
 
+## HU/BG regional-feature ablation (2026-11-07, local experiment)
+
+Implemented an **opt-in** ML join in [features/regional.py](../src/gridsense/features/regional.py).
+`make features REGIONAL=1` verifies the existing regional Parquet's tracked manifest checksum
+and joins its 11 lag/spread features on issue/target/horizon. Default `make features` remains
+unchanged. No shared schema or source-table columns were changed. The join rejects duplicate
+or invalid forecast keys, unexpected feature columns and overlaps with existing ML features;
+it preserves all rows, original indices, labels and baseline features. Missing inputs are
+retained with `missing_regional` (combined with `missing_weather` when needed).
+
+Reproduce the comparison with
+`GRIDSENSE_DATA=real uv run python -m gridsense.models.regional_validation`.
+It fits **both variants from scratch**, 54 current features versus 65 with the regional input,
+using the same 132,048 train rows / 35,945 validation rows. Price scores use the same 35,932
+complete-baseline rows. All train/validation keys matched the regional table; some lag inputs
+remain missing for DST/early-history hours. The checksum matches the File Library manifest.
+
+| Price model | Current MAE | +Regional MAE | Current pinball | +Regional pinball | Current MAE ≤20 | +Regional MAE ≤20 |
+|---|---:|---:|---:|---:|---:|---:|
+| LEAR | 21.322 | 21.257 | 6.869 | 6.856 | 32.934 | 32.046 |
+| LightGBM + CQR | 22.573 | 22.627 | 7.381 | 7.389 | 34.626 | 34.734 |
+| Ensemble | 20.770 | 20.728 | 6.706 | 6.694 | 32.391 | 31.859 |
+
+Both ensembles select 70% LEAR / 30% LightGBM. Overall ensemble MAE improves only **0.2%**,
+pinball about 0.17%, and low-price-hour MAE about 1.6%. LightGBM price regression alone
+slightly worsens. This is not evidence of a large or independently significant benefit.
+
+| Horizon | Current ensemble MAE | +Regional ensemble MAE |
+|---|---:|---:|
+| D+1 | 18.002 | 17.865 |
+| D+2 | 19.880 | 19.811 |
+| D+3 | 20.596 | 20.536 |
+| D+4 | 21.427 | 21.368 |
+| D+5 | 21.670 | 21.886 |
+| D+6 | 22.054 | 22.086 |
+| D+7 | 21.759 | 21.547 |
+
+| Classifier score | Label | Current PR-AUC | +Regional PR-AUC | Current Brier | +Regional Brier |
+|---|---|---:|---:|---:|---:|
+| Raw | ≤20 €/MWh | 0.7602 | 0.7624 | 0.0779 | 0.0772 |
+| Raw | ≤0 €/MWh | 0.6274 | 0.6292 | 0.0417 | 0.0403 |
+| Platt, month cross-fit | ≤20 €/MWh | 0.7425 | 0.7456 | 0.0690 | 0.0688 |
+| Platt, month cross-fit | ≤0 €/MWh | 0.5992 | 0.6048 | 0.0323 | 0.0321 |
+
+Classification changes are also small. Near-zero raw ranking improves at each horizon, but
+cheap-hour precision@k slightly worsens. Cross-fitted probability nesting violations remain:
+3,248 current rows versus 3,427 regional rows have `p_cheap > p_near_zero`. This experiment
+does not fix the existing independent-label calibration/deployment issue.
+
+**Decision:** keep the current 54-feature defaults/production artifacts. Keep regional
+features available for further validation, not automatically promoted. Next isolate price
+and load subsets and confirm candidate gains on chronological blocks before choosing a
+per-horizon model/feature policy. D+5/D+6 price performance does not improve here.
+
+Source-vintage and archived-weather/week-ahead publication assumptions remain unchanged.
+Early stopping, price interval calibration and ensemble weighting still reuse validation;
+classifier calibration is cross-fitted by target month, not forward-only validation. Multiple
+horizons repeat target labels. The future-perturbation/sensitivity tests prove lag logic and
+join correctness, not that every historical source revision was available at issue time.
+
+Experiment models are isolated under `models/real/regional_experiment/20261107T153923-15303cd/`.
+The normal classifier/price artifact versions and tracked training table are unchanged;
+the runner verified the original training-table hash. No test evaluation, commit, push or
+agent notification was performed. Saved reports:
+[price comparison](../reports/real/eval/price_regional_val.csv),
+[classification comparison](../reports/real/eval/classify_regional_val.csv),
+[regional input coverage](../reports/real/eval/regional_feature_availability.csv),
+[P50 model gain importance](../reports/real/eval/regional_price_importance.csv), and
+[run/provenance metadata](../reports/real/eval/regional_validation.json).
+
+## Validation error decomposition and budget metrics (2026-11-07)
+
+`GRIDSENSE_DATA=real uv run python -m gridsense.models.error_analysis` refits the default
+54-feature models (no artifacts replaced; ensemble horizon MAEs reproduce the regional run's
+"current" column exactly) and writes [error breakdown](../reports/real/eval/error_breakdown_val.csv),
+[decision metrics](../reports/real/eval/decision_metrics_val.csv),
+[classification scores](../reports/real/eval/error_analysis_classify_val.csv) and
+[metadata](../reports/real/eval/error_analysis_val.json). Same 35,932 price rows.
+
+| Actual price band | Rows | Ensemble MAE | Seasonal naive MAE | Ensemble bias | Share of ensemble abs. error | P10–P90 coverage |
+|---|---:|---:|---:|---:|---:|---:|
+| ≤0 | 2,065 | 26.7 | 27.8 | +14.3 | 7.4% | 77.8% |
+| 0–20 | 3,409 | 35.8 | 32.5 | +32.2 | 16.4% | 66.8% |
+| 20–60 | 2,814 | 23.2 | 33.1 | +15.9 | 8.7% | 77.3% |
+| 60–120 | 19,076 | 13.7 | 21.1 | −1.6 | 35.1% | 87.8% |
+| 120–200 | 7,350 | 21.9 | 31.3 | −1.9 | 21.6% | 80.9% |
+| >200 | 1,218 | 66.2 | 81.7 | −55.9 | 10.8% | 54.4% |
+
+- **Low hours are systematically over-forecast** (bias +14 to +32 €/MWh, P10–P90 coverage 67% in
+	0–20). Seasonal naive beats the ensemble in the 0–20 band. **Spikes above 200 are under-forecast**
+	(coverage 54%). Overall MAE is dominated by ordinary 60–200 hours (57% of error), which barely
+	affect announcements; do not rank features by overall MAE.
+- By local hour, evening 20:00–21:00 has the largest MAE (~40) and midday 11:00–17:00 ~25–28 with
+	positive bias. March and September (transition months) are worst (~23.5); weekends are easiest.
+- Horizon decay is mild for the ensemble (18.0 at D+1 → ~21.7 at D+5–D+7).
+
+Announcement proxy: per horizon and validation month, the 70 h/month budget is filled with
+2–6 h blocks between 09:00 and 18:00 local, at most two per day, greedily by mean score (no τ).
+A slot hits only if every hour clears ≤20 €/MWh; cancellation = 1 − hit rate.
+
+| Ranker (all horizons) | Precision of top 70 h/month | Slot hit rate | Mean price announced | € /MWh above 20 on announced hours |
+|---|---:|---:|---:|---:|
+| Oracle (realised prices; upper bound) | 0.945 | 0.847 | 4.4 | 3.1 |
+| Climatology | 0.753 | 0.633 | 20.9 | 15.2 |
+| LightGBM classifier (raw = cross-fit ranking within month) | **0.792** | **0.658** | 19.6 | 14.7 |
+| Ensemble P50 (lowest first) | 0.765 | 0.647 | 19.8 | **14.2** |
+
+- The classifier beats climatology by only ~4 points of budget precision and ~2.5 points of slot
+	hit rate. The oracle gap (0.79 → 0.95) is the real headroom.
+- Ensemble P50 is the best slot ranker at D+1/D+2 (hit 0.715/0.695 vs classifier 0.664/0.665),
+	the classifier from D+3 onward. Combining both is a cheap ML-C/ML-P experiment.
+- **Filling the whole budget implies ~34% cancellations**, far above the ~10% target in
+	project_plan §7. The agent needs a τ that leaves budget unused; tune it on blocked validation.
+- Recorded for the refit rule: 132,048 train rows; P50 best iteration 150 (quantiles 61–424),
+	classifier 299 (near-zero) / 487 (cheap). Cross-fit probability-order violations: 3,248 rows.
+
 ## Real data status (current after latest pull)
 
 The training table now has **54 feature columns, 52 with any training values**: 29 price/calendar,
 D−1 actual Romanian load, two week-ahead min/max features, and 20 archived weather features.
 Actual solar/wind generation features now have later-date values but are still unavailable
-throughout the training split under the source-update mask. Regional, capacity and outage
-features are not consumed by the current feature entry point.
+throughout the training split under the source-update mask. Regional features are available
+through an opt-in build (65 columns), not enabled by default after the small ablation gain.
+Capacity and outage features are not consumed by the current feature entry point.
 
 | Data | Local status | Remaining work |
 |---|---|---|
 | RO hourly prices | 33,600 complete hours through 2026-10-31 from File Library | Final-test label gap resolved; refit and explicit authorization still required before evaluation |
 | Actual RO load | Shared grid through Oct 2026; 33,220 available load hours; D−1 daily mean used | Check missing/re-stamped hours and historical publication latency. Forecast inputs still need as-of integration |
 | Week-ahead RO load | File Library table: 1,436 delivery days, 2022-12-02→2026-11-15; 9 missing days | Already used; resolve historical publication/revision provenance before relying on the gain |
-| HU/BG prices + loads | File Library regional tables regenerated; full price coverage, 11 features still not joined into training | Join on issue/target/horizon and ablate; inspect release-aware load gaps |
+| HU/BG prices + loads | File Library tables regenerated; 11 features integrated opt-in and ablated | Current-vs-regional gain small; validate price/load subsets and chronological blocks before promotion |
 | Actual generation by type | Shared grid includes later-date solar/wind values, with source-update cutoff masking | Resolve training-history availability; actuals remain issue-relative lags, not target-hour features |
 | Installed capacity | Manual annual CSVs for 2020–2026 exist, including solar/wind/hydro/nuclear | Parse and establish publication/as-of policy; not a model feature yet |
 | Outages | Parser and as-of MW-offline helper exist, but no local extracts/table | Download versioned messages with original publication times; add features only after provenance checks |
@@ -452,7 +569,7 @@ cross-border capacity files say CET/CEST; File Library timestamps explicitly say
 |---|---|---|
 | Collected; final evaluation still gated | 1: RO prices Aug–Oct 2026 [12.1.D] | Labels and issue-day price lags now complete; final refit and explicit test authorization still required |
 | Integrated, improve provenance/coverage | Extra: archived **weather forecasts** | RO four-point GFS offsets added with conservative cutoff assumptions; next resolve exact run/release history, D+7, and HU/BG forecasts. No observed-target-weather substitution |
-| High / low additional collection effort | 4: HU/BG prices | File Library regional tables now regenerated. Integrate price lags/spreads, add future-perturbation test, then compare on the same validation rows |
+| Integrated opt-in, validate further | 4: HU/BG prices | Regional join/leakage tests and same-row ablation done; isolate feature subsets and confirm on chronological blocks |
 | High | 3: actual generation [16.1.B&C] | Solar/wind first, hydro/nuclear next; D−1 same-hour/daily and 7-day summaries, never target actuals |
 | High | 2: actual load + day-ahead forecast [6.1.A/B] | Actual load largely collected; extend it. Use target-day forecast only when original publication is before the issue cutoff; later day-ahead publications are unavailable at 10:00 |
 | Done, provenance unresolved | 5: week-ahead load [6.1.C] | No more broad-history collection needed; keep min/max, fix vintage joins, then try expected-load deviation from the recent weekday profile |
@@ -477,15 +594,40 @@ effect without an explicit later development/refit design; it is not an immediat
 
 Conventions: `data/raw/entsoe_csv/<item>/<zone>_<year>.csv`, CSV, UTC if offered, keep native resolution. Skip day-ahead wind/solar generation forecasts (published after our issue time). API token: register, then email transparency@entsoe.eu with subject "Restful API access".
 
-## Next steps for me
+## Next steps (ordered, revised 2026-11-07)
 
-1. ~~Real-data and week-ahead ablation~~ done (above); do not describe week-ahead as an established improvement.
-2. ~~Regional tables regenerated~~ landed in latest upstream. Add HU/BG lag/spread features + leakage tests next. Flag any shared schema changes with the data team.
-3. Resolve original week-ahead publication/vintage availability; Saturday masking alone is insufficient proof.
-4. ~~Integrate archived weather offsets~~ done with partial coverage and modest validation gains. Obtain exact publication-safe/full-horizon forecasts, actual generation and residual-demand features next.
-5. Use blocked/rolling validation, classifier PR-AUC/Brier/precision@k and slot metrics before spending time on broad Optuna tuning. Revisit the ensemble weight after new features.
-6. ~~Aug–Oct labels and late-2026 grid coverage~~ landed upstream; inspect remaining publication/gap limits, final refit, then single test evaluation with ML-C when explicitly authorized.
-7. Coordinate probability nesting constraints with ML-C and `missing_weather`→`degraded` export + atomic run-history writes with the main agent/watchdog owner before deployment.
+Done: real-data/week-ahead ablation, archived weather, Aug–Oct labels, regional join + leakage
+tests + same-row ablation (kept opt-in). Every gain so far is 0.2–1.5% on a validation set that
+also drives early stopping, CQR and the ensemble weight, so the order below puts the validation
+design before further keep/drop decisions.
+
+1. **Blocked validation first (ML-P, with ML-C).** Split validation into chronological blocks:
+	early stopping, calibration/conformal/ensemble weight, and scoring on separate blocks (or
+	rolling origin). Re-score the open decisions on it: regional price vs regional load subsets,
+	week-ahead load, the weather grid, and a separate no-weather D+7 model.
+2. **Rank by decision metrics, not overall MAE.** Use `models.error_analysis`: low-price-hour
+	MAE, near-zero PR-AUC, precision at the 70 h/month budget, slot hit rate and €/MWh above
+	threshold on announced hours. Revisit the ensemble weight after any feature change.
+3. **Feature candidates (each through the same harness):** capacity-scaled solar/wind
+	potential and residual-load proxy (needs a capacity publication/as-of rule); clear-sky index
+	and solar elevation; HU/BG holiday flags (extend country calendars first); GFS run-to-run
+	revision as an uncertainty feature; weather-aware LEAR (per-hour GHI/residual load only) and
+	LightGBM `linear_tree`. Weather grid status is in the section below.
+4. **Flag to ML-C (their files):** `p_cheap ≤ p_near_zero` violations (9.1% calibrated); one
+	option is deriving both from the price quantiles or a conditional model, then revalidating
+	calibration rather than clipping. `make evaluate TASK=classify` is still unregistered. The
+	slot proxy in `error_analysis.py` can seed their `metrics.slot_hit_rate`.
+5. **Data team:** publication-verifiable archived weather with full D+7; week-ahead original
+	publication times/revisions for an as-of join; why solar/wind actuals are masked across all
+	of train (do not bypass the update-time mask); sourced per-region PV/wind capacity if the
+	weather grid is to be capacity-weighted; weather archive extended through refit/inference.
+6. **Agent owner:** export `missing_weather` as `degraded` while keeping the reason, write
+	append-only run history atomically before notifying the watchdog, test on synthetic or
+	validation replay first.
+7. **Freeze, then final evaluation.** Freeze features, model settings, calibration and decision
+	thresholds. For the refit through 2026-02-28 (which adds the low-price-rich 2025 months),
+	scale boosting rounds with training size from the recorded best iterations rather than reusing
+	a fixed count. Run the single test evaluation only when explicitly authorized.
 
 ## Gotchas
 
