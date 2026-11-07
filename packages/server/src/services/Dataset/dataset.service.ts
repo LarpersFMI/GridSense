@@ -127,7 +127,7 @@ export class DatasetService implements OnModuleDestroy {
 
         if (!existsSync(path))
             throw new NotFoundException(
-                `There's no ${name} file yet (${path}). Run the pipeline, or the replay: uv run python -m gridsense.replay --from 2026-05-13 --to 2026-05-15 --step`,
+                `There's no ${name} file yet (${path}): advance the replay (the Replay card, at the bottom), or run the pipeline that writes it.`,
             );
         const connection = await this.connect();
         const reader = await connection.runAndReadAll(`describe select * from read_parquet(${quoteSqlPath(path)})`);
