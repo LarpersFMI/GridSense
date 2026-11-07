@@ -53,9 +53,9 @@ def test_asinh_round_trip_and_conformal_coverage(tiny_training_table):
 def test_train_then_predict_end_to_end(tiny_training_table, tmp_dirs):
     io.write(tiny_training_table, "training_table")
     train.main([])
-    predict.main([])
+    path = predict.main([])
 
-    preds = io.read("predictions")
+    preds = pd.read_parquet(path)
     assert len(preds) > 0
     assert preds["model_name"].iloc[0] == "lgbm_classifier+lgbm_quantile"
     assert (config.REPORTS_DIR / "experiments.csv").exists()

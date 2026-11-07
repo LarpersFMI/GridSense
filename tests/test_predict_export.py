@@ -2,7 +2,7 @@
 
 import pandas as pd
 
-from gridsense import io
+from gridsense import config, io
 from gridsense.models import predict, train
 from gridsense.models.predict import APP_DATA_QUALITY, export_data_quality
 
@@ -29,9 +29,9 @@ def test_predictions_file_is_app_compatible(tiny_training_table, tmp_dirs):
     table.loc[rng_rows, "data_quality"] = "missing_weather"
     io.write(table, "training_table")
     train.main([])
-    predict.main(["--start", "2025-08-01", "--end", "2025-08-29"])
+    path = predict.main(["--start", "2025-08-01", "--end", "2025-08-29"])
 
-    preds = io.read("predictions")
+    preds = pd.read_parquet(path)
     assert preds["data_quality"].isin(APP_DATA_QUALITY).all()
     degraded = preds["data_quality"] == "degraded"
     assert (
@@ -43,6 +43,16 @@ def test_predictions_file_is_app_compatible(tiny_training_table, tmp_dirs):
 def test_tables_without_flags_export_ok(tiny_training_table, tmp_dirs):
     io.write(tiny_training_table, "training_table")
     train.main([])
-    predict.main([])
-    preds = io.read("predictions")
+    preds = pd.read_parquet(predict.main([]))
     assert (preds["data_quality"] == "ok").all() and (preds["data_quality_reason"] == "").all()
+
+
+def test_make_predict_never_writes_the_apps_dataset(tiny_training_table, tmp_dirs):
+    """DATASET_DIR/predictions.parquet is the app's append-only history; only its pipeline writes it."""
+    io.write(tiny_training_table, "training_table")
+    train.main([])
+    path = predict.main([])
+
+    assert not (config.PROCESSED_DIR / "predictions.parquet").exists()
+    assert path.parent == config.REPORTS_DIR / "predictions"
+    io.check_columns(pd.read_parquet(path), "predictions")

@@ -150,6 +150,33 @@ PREDICTIONS = {
     "model_version": "string",
 }
 
+# model_drift.parquet: weekly drift signal of the low-price classifier (ML-C, models/drift.py), one row
+# per complete local week x label over a trailing window, appended by the app's pipeline and watched by
+# a `model_drift` trigger. TypeScript side: Dataset.ModelDrift (keep in step). Key: week_start_utc, label.
+MODEL_DRIFT = {
+    "week_start_utc": "datetime64[ns, UTC]",  # local Monday 00:00 of the week the row reports on
+    "window_start_utc": "datetime64[ns, UTC]",  # first local Monday of the trailing window
+    "window_end_utc": "datetime64[ns, UTC]",  # exclusive: the local Monday after week_start_utc
+    "label": "string",  # p_near_zero | p_cheap
+    "hours": "int64",  # forecast rows scored (every horizon of every target hour)
+    "observed": "float64",  # hours that really were low-price
+    "expected": "float64",  # sum of predicted probabilities
+    "oe_ratio": "float64",  # observed / expected; 1 = calibrated, < 1 = too optimistic
+    "z_calibration": "float64",  # (observed - expected) / se, each local day one unit
+    "brier": "float64",
+    "slots": "int64",  # announced slots (2-6 h, 09-18 local, p >= tau) in the window
+    "slot_hit_rate": "float64",  # share where every hour cleared <= the label's threshold
+    "reference_hit_rate": "float64",  # the same on validation (NaN if unknown)
+    "z_slots": "float64",
+    "calibration_drift": "bool",
+    "slot_drift": "bool",
+    "drift": "bool",  # either flag
+    "reason": "string",  # one sentence for the alert; "" when nothing is flagged
+    "tau": "float64",
+    "window_weeks": "int64",
+    "model_version": "string",  # of the latest run forecasting the window
+}
+
 TABLES = {
     "prices_hourly": PRICES_HOURLY,
     "grid_hourly": GRID_HOURLY,
@@ -162,4 +189,5 @@ TABLES = {
     "load_fc_week_ahead": LOAD_FC_WEEK_AHEAD,
     "training_table": TRAINING_TABLE,
     "predictions": PREDICTIONS,
+    "model_drift": MODEL_DRIFT,
 }

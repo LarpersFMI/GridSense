@@ -1,4 +1,13 @@
+"""Predictions for the app. Owner: ML-C.
+
+build_predictions() is the contract: the app's `forecast` pipeline (src/gridsense/pipelines) calls it on
+the day's issue rows and appends the result to DATASET_DIR/predictions.parquet, the append-only run
+history the Watchdog reads. This module's CLI (`make predict`) never writes there: it writes a local
+copy to reports/<mode>/predictions/ for inspection.
+"""
+
 import argparse
+from pathlib import Path
 
 import pandas as pd
 
@@ -6,7 +15,7 @@ from gridsense import config, io
 from gridsense.models import artifacts
 from gridsense.models.base import PRICE_COLUMNS, PROBA_COLUMNS
 from gridsense.models.classify import LowPriceClassifier
-from gridsense.models.explain import top_features
+from gridsense.models.explain import describe_top_features, top_features
 from gridsense.models.price import PriceForecaster
 
 KEY_COLUMNS = ["issue_ts", "target_ts_utc", "horizon_days"]
@@ -37,15 +46,18 @@ def build_predictions(
     price: PriceForecaster,
     model_version: str,
 ) -> pd.DataFrame:
+    """One row per (issue_ts, target_ts_utc) of `table`, with every schemas.PREDICTIONS column plus the
+    loose extras data_quality_reason and top_features_text."""
     out = table[KEY_COLUMNS].copy()
     out[list(PROBA_COLUMNS)] = classifier.predict(table)[list(PROBA_COLUMNS)]
     out[list(PRICE_COLUMNS)] = price.predict(table)[list(PRICE_COLUMNS)]
     # Per-row input flags from the training table (features/build.py); "ok" for tables without them.
     detail = table.get("data_quality", pd.Series("ok", index=table.index))
     out["data_quality"], out["data_quality_reason"] = export_data_quality(detail)
-    # Explains p_cheap (both chain steps): the probability the agent's decision rule acts on.
+    # Explains p_cheap (both chain steps), the probability that sets a slot's cost and priority.
     models = classifier.explain_models(EXPLAINED)
     out["top_features"] = top_features(models, table[classifier.features]).to_numpy()
+    out["top_features_text"] = describe_top_features(out["top_features"]).to_numpy()
     out["model_name"] = f"{classifier.name}+{price.name}"
     out["model_version"] = model_version
     return out.reset_index(drop=True)
@@ -55,9 +67,15 @@ def issue_dates_local(table: pd.DataFrame) -> pd.Series:
     return table["issue_ts"].dt.tz_convert(config.LOCAL_TZ).dt.tz_localize(None).dt.normalize()
 
 
-def main(argv: list[str] | None = None) -> None:
+def output_path(first: pd.Timestamp, last: pd.Timestamp) -> Path:
+    """reports/<mode>/predictions/predictions_<first>[_<last>].parquet: never the app's DATASET_DIR."""
+    name = f"predictions_{first:%Y-%m-%d}" + ("" if first == last else f"_{last:%Y-%m-%d}")
+    return config.REPORTS_DIR / "predictions" / f"{name}.parquet"
+
+
+def main(argv: list[str] | None = None) -> Path:
     parser = argparse.ArgumentParser(
-        description="Score issue dates and write the predictions table."
+        description="Score issue dates into a local predictions file (not the app's dataset)."
     )
     parser.add_argument(
         "--start", help="First issue date (YYYY-MM-DD). Default: latest issue date."
@@ -77,8 +95,13 @@ def main(argv: list[str] | None = None) -> None:
     classifier, clf_version = artifacts.load_latest(LowPriceClassifier.name)
     price, price_version = artifacts.load_latest(PriceForecaster.name)
     preds = build_predictions(table[mask], classifier, price, f"{clf_version}+{price_version}")
-    io.write(preds, "predictions")
-    print(f"[{config.DATA_MODE}] wrote {len(preds)} predictions to {config.PROCESSED_DIR}")
+    io.check_columns(preds, "predictions")
+
+    path = output_path(dates[mask].min(), dates[mask].max())
+    path.parent.mkdir(parents=True, exist_ok=True)
+    preds.to_parquet(path, index=False)
+    print(f"[{config.DATA_MODE}] wrote {len(preds)} predictions to {path}")
+    return path
 
 
 if __name__ == "__main__":

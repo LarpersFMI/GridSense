@@ -4,7 +4,9 @@ import pytest
 
 from gridsense import config, io
 from gridsense.models import drift, train
+from gridsense.models.drift import model_drift_rows
 from gridsense.models.metrics import DRIFT_Z, calibration_drift, slot_drift, weekly_drift
+from gridsense.schemas import MODEL_DRIFT
 
 
 def _hours(start: str, weeks: int) -> pd.Series:
@@ -112,3 +114,20 @@ def test_drift_report_end_to_end(tiny_training_table, tmp_dirs):
         report.columns
     )
     assert report["model_version"].nunique() == 1
+
+
+def test_model_drift_rows_match_the_dataset_schema_and_skip_unfinished_weeks():
+    predictions, prices = _market(weeks_ok=6, weeks_drift=6)
+    predictions["model_version"] = "v1"
+    # Prices stop mid-way through the last week: that week must not be reported yet.
+    prices = prices[prices["ts_utc"] < prices["ts_utc"].max() - pd.Timedelta(days=3)]
+    rows = model_drift_rows(predictions, prices, tau=0.2, window_weeks=3)
+
+    assert list(rows.columns) == list(MODEL_DRIFT)
+    assert set(rows.groupby("label").size()) == {11}  # 12 weeks, the unfinished one left out
+    assert not rows.duplicated(["week_start_utc", "label"]).any()
+    assert str(rows["week_start_utc"].dt.tz) == "UTC"
+    assert (rows["window_end_utc"] - rows["week_start_utc"]).eq(pd.Timedelta(days=7)).all()
+    assert (rows["model_version"] == "v1").all()
+    assert rows["drift"].equals(rows["calibration_drift"] | rows["slot_drift"])
+    io.check_columns(rows, "model_drift")
