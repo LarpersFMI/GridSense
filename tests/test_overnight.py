@@ -169,6 +169,15 @@ def test_verify_plan_rejects_changed_fingerprints_and_inventory(queue, sandbox, 
         overnight.verify_plan(run_dir, plan)
 
 
+def test_verify_plan_rejects_changed_runtime_packages(queue, monkeypatch):
+    run_dir, plan = queue
+    plan["runtime_versions"] = {"python": "3.11.15", "packages": {"lightgbm": "original"}}
+    monkeypatch.setattr(overnight, "runtime_versions", lambda: {
+        "python": "3.11.15", "packages": {"lightgbm": "different"}})
+    with pytest.raises(ValueError, match="Python/package versions differ"):
+        overnight.verify_plan(run_dir, plan)
+
+
 def test_execute_smoke_runs_only_first_job_and_month_and_resumes(queue, sandbox, monkeypatch):
     run_dir, plan = queue
     calls = []
@@ -213,6 +222,14 @@ def test_execute_refuses_a_queue_locked_by_another_executor(queue, monkeypatch):
         fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         with pytest.raises(RuntimeError, match="Another process is already executing"):
             overnight.execute(run_dir, smoke=True)
+
+
+def test_full_execution_requires_verified_smoke(queue, monkeypatch):
+    run_dir, _ = queue
+    monkeypatch.setattr(overnight.subprocess, "run", lambda *args, **kwargs: pytest.fail(
+        "Must not launch full jobs before the smoke check"))
+    with pytest.raises(RuntimeError, match="smoke test before executing"):
+        overnight.execute(run_dir)
 
 
 def test_experiment_tables_filters_test_and_unassigned_rows(development_rows, monkeypatch):

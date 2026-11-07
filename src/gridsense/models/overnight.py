@@ -8,8 +8,10 @@ feature promotion, final refit, test evaluation, commit or push occurs here.
 
 import argparse
 import fcntl
+import importlib.metadata
 import json
 import os
+import platform
 import subprocess
 from pathlib import Path
 
@@ -66,6 +68,12 @@ def production_inventory() -> dict:
 def source_hashes() -> dict:
     return {name: digest(config.PROCESSED_DIR / name) for name in SOURCES
             if (config.PROCESSED_DIR / name).is_file()}
+
+
+def runtime_versions() -> dict:
+    return {"python": platform.python_version(), "packages": {
+        name: importlib.metadata.version(name)
+        for name in ("pandas", "numpy", "pyarrow", "scikit-learn", "lightgbm", "holidays")}}
 
 
 def experiment_tables(variants: list[str]) -> dict[str, pd.DataFrame]:
@@ -131,6 +139,7 @@ def prepare(run_dir: Path, variants: list[str], profiles: list[str], months: lis
     revision = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repository_root(),
                                        text=True).strip()
     plan = {"prepared_at_utc": pd.Timestamp.now(tz="UTC").isoformat(), "git_commit": revision,
+            "runtime_versions": runtime_versions(),
             "code_sha256": code_before, "source_sha256": inputs_before,
             "production_inventory": models_before, "snapshot_sha256": hashes,
             "test_evaluated": False, "months": months, "folds": folds,
@@ -142,6 +151,8 @@ def prepare(run_dir: Path, variants: list[str], profiles: list[str], months: lis
 
 
 def verify_plan(run_dir: Path, plan: dict) -> None:
+    if "runtime_versions" in plan and plan["runtime_versions"] != runtime_versions():
+        raise ValueError("Python/package versions differ from the prepared queue")
     if plan["code_sha256"] != code_fingerprint():
         raise ValueError("Code differs from the prepared queue; prepare a new run")
     if plan["source_sha256"] != source_hashes():
@@ -177,6 +188,12 @@ def execute(run_dir: Path, *, smoke: bool = False) -> None:
             fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as error:
             raise RuntimeError("Another process is already executing this queue") from error
+        if not smoke:
+            first = plan["jobs"][0]
+            if not valid_completion(run_dir / "smoke" / first["id"],
+                                    plan["snapshot_sha256"][first["variant"]],
+                                    months=plan["months"][:1], profile=first["profile"], smoke=True):
+                raise RuntimeError("Run and verify the smoke test before executing the full queue")
         jobs = plan["jobs"][:1] if smoke else plan["jobs"]
         months = plan["months"][:1] if smoke else plan["months"]
         mode = "smoke" if smoke else "jobs"

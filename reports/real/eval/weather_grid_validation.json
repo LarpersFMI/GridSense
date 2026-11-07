@@ -1,5 +1,5 @@
 {
-  "run_at_utc": "2026-11-07T17:26:20.820996+00:00",
+  "run_at_utc": "2026-11-07T17:42:43.655760+00:00",
   "data_mode": "real",
   "test_evaluated": false,
   "production_artifacts_changed": false,
@@ -117,9 +117,10 @@
       },
       "classifier_best_iterations": {
         "p_near_zero": 323,
-        "p_cheap": 218
+        "p_cheap_given_near_zero": 132
       },
-      "probability_order_violations_crossfit": 5558
+      "classifier_structure": "chain: p_cheap = p_near_zero * P(cheap | near_zero)",
+      "probability_order_violations_crossfit": 0
     },
     "ro_grid": {
       "features": [
@@ -194,9 +195,10 @@
       },
       "classifier_best_iterations": {
         "p_near_zero": 409,
-        "p_cheap": 416
+        "p_cheap_given_near_zero": 282
       },
-      "probability_order_violations_crossfit": 4562
+      "classifier_structure": "chain: p_cheap = p_near_zero * P(cheap | near_zero)",
+      "probability_order_violations_crossfit": 0
     },
     "ro_hu_bg_grid": {
       "features": [
@@ -279,9 +281,10 @@
       },
       "classifier_best_iterations": {
         "p_near_zero": 249,
-        "p_cheap": 414
+        "p_cheap_given_near_zero": 244
       },
-      "probability_order_violations_crossfit": 3714
+      "classifier_structure": "chain: p_cheap = p_near_zero * P(cheap | near_zero)",
+      "probability_order_violations_crossfit": 0
     }
   },
   "caveats": [

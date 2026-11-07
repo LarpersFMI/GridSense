@@ -56,7 +56,7 @@ def main() -> None:
             (config.PROCESSED_DIR / "weather_fc.parquet").read_bytes()).hexdigest(),
         "caveats": [
             "Same GFS Previous Runs offsets and assumed 12 h publication buffer as weather_fc; not verified.",
-            "Extra variables are archived only from late Feb 2024, so ~40% of train rows have them.",
+            "Selected extras first appear on 2024-01-20 in this extraction; ~43% of train rows have them across horizons.",
             "Early stopping, conformal widening and ensemble weight reuse validation.",
             "Forecast rows across horizons repeat target labels and are not independent.",
         ],

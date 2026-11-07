@@ -333,7 +333,7 @@
     "2023 may only contain temperature; unsupported variables remain missing.",
     "Previous Runs only offers offsets 1..7; late long-horizon hours are unavailable.",
     "Radiation and precipitation at t+1 are aligned to delivery hour [t,t+1); other fields are at t.",
-    "Extra variables are only archived from late Feb 2024; rain/snowfall splits are not archived.",
+    "Selected extra-variable delivery values first appear on 2024-01-20 in this extraction; rain/snowfall splits are not archived.",
     "Impossible physical values are masked to NaN; unmodified responses remain cached."
   ]
 }

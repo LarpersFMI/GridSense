@@ -27,7 +27,7 @@ from gridsense.models.baselines import (
 )
 from gridsense.models.calibrate import conformal_offsets, fit_calibrator
 from gridsense.models.classify import DEFAULT_PARAMS as CLASS_PARAMS
-from gridsense.models.classify import LABELS, LowPriceClassifier
+from gridsense.models.classify import LABELS, STEPS, LowPriceClassifier
 from gridsense.models.ensemble import PriceEnsemble
 from gridsense.models.error_analysis import (
     MAX_SLOT_HOURS,
@@ -185,6 +185,18 @@ def select_policy(rows: pd.DataFrame, scores: dict[str, pd.Series]) -> tuple[dic
     return policies, candidates
 
 
+def calibrate_chain(classifier: LowPriceClassifier, calib: pd.DataFrame) -> None:
+    """Fit each conditional chain step on its own calibration population only."""
+    raw = classifier.step_probabilities(calib, apply_calibration=False)
+    for step, (label, condition) in STEPS.items():
+        selected = np.ones(len(calib), dtype=bool) if condition is None else calib[condition].to_numpy(
+            dtype=bool)
+        y = calib.loc[selected, label].to_numpy(dtype=int)
+        if np.unique(y).size != 2:
+            raise ValueError(f"Calibration block has a single class for chain step {step}")
+        classifier.calibrators[step] = fit_calibrator(np.asarray(raw[step])[selected], y, "platt")
+
+
 def fit_fold(stages: dict, profile: str = "default", smoke: bool = False) -> dict:
     """Models/calibrators consume only their designated earlier stages."""
     fit, stop, calib, selection, score = (stages[name] for name in STAGES)
@@ -203,12 +215,7 @@ def fit_fold(stages: dict, profile: str = "default", smoke: bool = False) -> dic
     lo, _, hi = config.QUANTILES
     price.conformal_offsets = conformal_offsets(calib.y_price, raw_calib[lo], raw_calib[hi],
                                                 calib.horizon_days, coverage=hi - lo)
-    raw_probability = classifier.predict(calib, apply_calibration=False)
-    for column, label in LABELS.items():
-        if calib[label].nunique() != 2:
-            raise ValueError(f"Calibration block has a single class for {label}")
-        classifier.calibrators[column] = fit_calibrator(raw_probability[column].to_numpy(),
-                                calib[label].to_numpy(), "platt")
+    calibrate_chain(classifier, calib)
     lear = LEAR().fit(fit, calib)
     baselines = [model.fit(fit) for model in (SeasonalNaivePrice(), PersistencePrice())]
     selection_price = selection.dropna(subset=[NAIVE_COLUMN, PERSISTENCE_COLUMN])
@@ -220,6 +227,8 @@ def fit_fold(stages: dict, profile: str = "default", smoke: bool = False) -> dic
             raise ValueError(f"Non-finite scored price predictions: {name}")
     raw = classifier.predict(score, apply_calibration=False)
     calibrated = classifier.predict(score)
+    if calibrated.p_cheap.gt(calibrated.p_near_zero).any() or raw.p_cheap.gt(raw.p_near_zero).any():
+        raise ValueError("Nested classifier probabilities violated logical ordering")
     classes = {"climatology": Climatology().fit(fit).predict(score), "lgbm_raw": raw,
                "lgbm_platt_forward": calibrated}
     for name, pred in classes.items():
@@ -263,6 +272,7 @@ def fit_fold(stages: dict, profile: str = "default", smoke: bool = False) -> dic
         "selection": pd.DataFrame(candidates), "policy_score": pd.DataFrame(selected),
         "metadata": {"features": feature_columns(fit), "price_params": price.params,
                      "classifier_params": classifier.params, "half_life_days": half_life,
+                     "classifier_structure": classifier.metadata().get("structure"),
                      "price_best_iterations": price.best_iterations(),
                      "classifier_best_iterations": classifier.best_iterations(),
                      "lear_weight": ensemble.weight, "conformal_offsets": price.conformal_offsets,

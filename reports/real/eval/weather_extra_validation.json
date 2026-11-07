@@ -1,5 +1,5 @@
 {
-  "run_at_utc": "2026-11-07T17:28:09.966616+00:00",
+  "run_at_utc": "2026-11-07T17:44:27.921700+00:00",
   "data_mode": "real",
   "test_evaluated": false,
   "production_artifacts_changed": false,
@@ -111,9 +111,10 @@
       },
       "classifier_best_iterations": {
         "p_near_zero": 323,
-        "p_cheap": 218
+        "p_cheap_given_near_zero": 132
       },
-      "probability_order_violations_crossfit": 5558
+      "classifier_structure": "chain: p_cheap = p_near_zero * P(cheap | near_zero)",
+      "probability_order_violations_crossfit": 0
     },
     "weather_extra": {
       "features": [
@@ -213,15 +214,16 @@
       },
       "classifier_best_iterations": {
         "p_near_zero": 473,
-        "p_cheap": 410
+        "p_cheap_given_near_zero": 255
       },
-      "probability_order_violations_crossfit": 5564
+      "classifier_structure": "chain: p_cheap = p_near_zero * P(cheap | near_zero)",
+      "probability_order_violations_crossfit": 0
     }
   },
   "weather_fc_sha256": "763df192c6c999aee4dfd91cfac013419123fde9782945dd4d3e843019b30760",
   "caveats": [
     "Same GFS Previous Runs offsets and assumed 12 h publication buffer as weather_fc; not verified.",
-    "Extra variables are archived only from late Feb 2024, so ~40% of train rows have them.",
+    "Coverage verified after fitting: selected extras first appear on 2024-01-20 in this extraction; ~43% of train rows have them across horizons.",
     "Early stopping, conformal widening and ensemble weight reuse validation.",
     "Forecast rows across horizons repeat target labels and are not independent."
   ]

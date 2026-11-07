@@ -1,8 +1,10 @@
 # ML handoff (price forecasting, ML-P)
 
-Latest execution check on **2026-11-07 at 19:28 Europe/Bucharest**: local `dev` and freshly
-fetched `origin/dev` both at `695789d`; weather comparisons completed and chronological
-runner/queue implemented, with final full tests, smoke test and commits in progress. Local `main`
+Latest integration on **2026-11-07**: local weather/chronological work committed as `c955b60`,
+then upstream `dev` at `4231d14` merged as `b2fa841`. Incoming `083c9d0` adds the nested
+classifier; validation runners are being checked against that structure before push.
+Weather comparisons, a 184-test pre-merge suite and the pre-merge real-data smoke passed.
+Final integration checks and the complete overnight queue preparation are in progress. Local `main`
 is still `63bada2`, while `origin/main` has advanced to `2da47ad`; those services have not
 been merged into ML. Earlier sections below are historical run records with their original
 inputs and model versions. Read the current checklist first, then [price_plan.md](price_plan.md),
@@ -26,6 +28,10 @@ The test-evaluation marker is absent; normal price/classifier artifact versions 
 - `make features WEATHER_EXTRA=1` opts in; wind direction enters as sine/cosine components
   before location averaging. Default features stay unchanged. Features without any training
   values are dropped. Tests cover alignment, merging, angle encoding and empty features.
+- Coverage correction after inspecting the completed extraction: all five selected extras
+	first appear on **2024-01-20** (precipitation at 11:00 UTC, the other fields at 12:00 UTC).
+	The earlier "late February" estimate was incorrect. These are earliest observed selected
+	delivery values, not a guarantee of complete intervening history or exact publication time.
 - [weather_extra_validation.py](../src/gridsense/models/weather_extra_validation.py) fits
   current versus extras on identical rows, reporting price/low-price MAE, PR-AUC/Brier and
   the 70 h/month slot-budget proxy. It does not save production models or the training table.
@@ -62,6 +68,26 @@ worsening low-price ensemble MAE and classifier slot hit. This is not a justifie
 promotion. Extras are present in ~43% of train / ~84.5% of validation rows averaged across
 all seven horizons; D+7 is still missing. Probability nesting remains unresolved: 5,558
 current versus 5,564 extras cross-fit rows violate `p_cheap <= p_near_zero`.
+
+**Upstream chain supersedes the independent-classifier nesting limitation.** Commit
+`083c9d0` now derives `p_cheap = p_near_zero * P(cheap | near_zero)`, raw and calibrated.
+The pre-chain 50-feature reports are preserved under
+`reports/real/eval/weather_independent_classifier_50/`; current parent reports are rerun
+with the chain and separate conditional-step calibration. Do not silently apply independent
+output calibration to the product: each step must be calibrated on its own eligible rows.
+Normal local classifier weights predate this change; retrain the default classifier before
+using normal `make predict`/classification evaluation. Isolated comparisons and the queue
+fit fresh models, so they do not depend on those old artifacts.
+
+The new renewable-generation handoff has zero train/validation coverage under its as-of
+policy. It is intentionally **not joined** or used as a missingness signal in these runs;
+see [the upstream handoff](renewable_generation_handoff.md).
+
+Post-merge comparisons completed at **19:42 (grid) / 19:44 (extras)** with the nested chain:
+**zero cross-fit probability-order violations in every variant**. Near-zero and price
+scores in the table above are unchanged. Cheap raw PR-AUC is now 0.6362 current, 0.6364
+extras, 0.6292 RO grid and 0.6287 RO/HU/BG grid; month cross-fit cheap Brier is
+0.0312 / 0.0308 / 0.0309 / 0.0310 respectively. This does not change the opt-in decision.
 
 Saved current reports: [extras metadata](../reports/real/eval/weather_extra_validation.json),
 [extras prices](../reports/real/eval/price_weather_extra_val.csv),
@@ -108,8 +134,8 @@ Saved current reports: [extras metadata](../reports/real/eval/weather_extra_vali
 	run `make features` or production `make train` midway through isolated comparisons.
 	The older price-ablation entry point requires week-ahead columns and saves a normal price
 	artifact, so it is not an isolated overnight task on the current default table.
-5. Coordinate the classifier's `p_cheap <= p_near_zero` issue with ML-C (latest default
-	cross-fit run: **5,558 violations**, not the historical 9.1% figure). Classification
+5. **ML-C chain integrated:** `p_cheap <= p_near_zero` is now enforced by construction;
+	the pre-chain 5,558 violations are historical, not a current chain result. Classification
 	evaluation and a threshold slot sweep are now registered in
 	[evaluate.py](../src/gridsense/models/evaluate.py); older "unregistered" notes below are
 	superseded. Do not fix nesting by clipping and retain previous calibration claims.
@@ -159,6 +185,13 @@ Completed jobs resume only when all snapshot/report checksums match. Code or sou
 changes fail fast; prepare a new run rather than changing inputs under a queued experiment.
 Large snapshots and per-job outputs under `reports/real/overnight/` are ignored, while code,
 tests, documentation and selected completed weather reports are committed.
+
+First-fold limitation: the purged March early-stop block has **only two unique cheap
+target hours** (67 near-zero hours). Cheap-step early stopping there is noisy; treat cheap
+metrics as secondary and check stability across all four later score months. The April
+calibration block has 45 cheap / 83 near-zero hours and both conditional classes, so the
+chain's forward calibration is fit-able. No arbitrary minimum-positive threshold was
+introduced to hide the difficult fold.
 
 ## Roles
 

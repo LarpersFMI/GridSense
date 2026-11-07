@@ -23,7 +23,9 @@ def development_table():
     price = np.where(
         np.arange(len(days)) % 3 == 0,
         config.CHEAP_THRESHOLD_EUR - 1,
-        config.NEAR_ZERO_THRESHOLD_EUR + 30,
+        np.where(np.arange(len(days)) % 3 == 1,
+                 (config.CHEAP_THRESHOLD_EUR + config.NEAR_ZERO_THRESHOLD_EUR) / 2,
+                 config.NEAR_ZERO_THRESHOLD_EUR + 30),
     )
     parts = []
     for horizon in config.HORIZONS_DAYS:
@@ -279,6 +281,12 @@ class _StubModel:
     def best_iterations(self):
         return {}
 
+    def step_probabilities(self, rows, **kwargs):
+        return {step: np.full(len(rows), 0.9) for step in chronological.STEPS}
+
+    def metadata(self):
+        return {"structure": "stub-chain"}
+
 
 def test_fit_fold_selects_on_selection_not_score_labels(development_table, monkeypatch):
     stages, _ = chronological.month_fold(development_table, str(_first_score_month()))
@@ -305,3 +313,26 @@ def test_fit_fold_selects_on_selection_not_score_labels(development_table, monke
         pd.testing.assert_series_equal(before["policy_score"][column], after["policy_score"][column])
     assert before["policy_score"].cancellation_rate.eq(0).all()
     assert after["policy_score"].cancellation_rate.eq(1).all()
+
+
+def test_forward_calibration_filters_conditional_step_and_ignores_score_labels(monkeypatch):
+    from gridsense.models.classify import CHEAP_GIVEN_NEAR_ZERO, NEAR_ZERO
+
+    calib = pd.DataFrame({"y_near_zero": [True, True, False], "y_cheap": [True, False, False]})
+    model = _StubModel()
+    calls = []
+
+    def calibrator(probability, labels, method):
+        calls.append((probability.copy(), labels.copy()))
+        return SimpleNamespace(predict=lambda p: p)
+
+    monkeypatch.setattr(chronological, "fit_calibrator", calibrator)
+    chronological.calibrate_chain(model, calib)
+    assert set(model.calibrators) == {NEAR_ZERO, CHEAP_GIVEN_NEAR_ZERO}
+    assert [len(values) for values, _ in calls] == [3, 2]
+    np.testing.assert_array_equal(calls[1][1], [1, 0])
+    changed = calib.copy()
+    changed.loc[~changed.y_near_zero, "y_cheap"] = True
+    calls.clear()
+    chronological.calibrate_chain(model, changed)
+    np.testing.assert_array_equal(calls[1][1], [1, 0])

@@ -42,7 +42,7 @@ EXTRA_VARIABLES = {
     "wind_speed_10m": ("wind10_ms", "m/s"),
     "wind_direction_10m": ("wind_dir_deg", "°"),
 }
-# No archived values for the extras before late Feb 2024 (checked 2026-11-07); skip older requests.
+# Selected extras begin 2024-01-20 in the current extraction; skip the empty 2023 requests.
 EXTRA_ARCHIVE_START = date(2024, 1, 1)
 # Hourly sums/means at API time t describe the preceding hour.
 PRECEDING_HOUR = {"shortwave_radiation", "precipitation"}
@@ -326,7 +326,7 @@ def main(argv: list[str] | None = None) -> None:
                   "2023 may only contain temperature; unsupported variables remain missing.",
                   "Previous Runs only offers offsets 1..7; late long-horizon hours are unavailable.",
                   "Radiation and precipitation at t+1 are aligned to delivery hour [t,t+1); other fields are at t.",
-                  "Extra variables are only archived from late Feb 2024; rain/snowfall splits are not archived.",
+                  "Selected extra-variable delivery values first appear on 2024-01-20 in this extraction; rain/snowfall splits are not archived.",
                   "Impossible physical values are masked to NaN; unmodified responses remain cached."],
     }
     (config.PROCESSED_DIR / "weather_forecasts_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")

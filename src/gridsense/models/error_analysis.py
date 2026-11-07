@@ -28,7 +28,7 @@ from gridsense.models.lear import LEAR
 from gridsense.models.metrics import price_report
 from gridsense.models.price import PriceForecaster
 from gridsense.models.regional_validation import price_scores
-from gridsense.models.weather_validation import classification_scores, cross_calibrated_predictions
+from gridsense.models.weather_validation import classification_scores
 
 PRICE_BANDS = (-np.inf, 0.0, 20.0, 60.0, 120.0, 200.0, np.inf)
 BAND_LABELS = ("<=0", "0-20", "20-60", "60-120", "120-200", ">200")
@@ -52,13 +52,15 @@ def fit_models(train: pd.DataFrame, val: pd.DataFrame, price_index: pd.Index):
     classes = {
         "climatology": Climatology().fit(train).predict(val),
         "lgbm_raw": raw,
-        "lgbm_platt_crossfit": cross_calibrated_predictions(val, raw, classifier.calibration),
+        "lgbm_platt_crossfit": classifier.predict_cross_fitted(
+            val, val.target_ts_utc.dt.tz_convert(config.LOCAL_TZ).dt.strftime("%Y-%m").to_numpy()),
     }
     info = {
         "train_rows": len(train), "val_rows": len(val), "price_scored_rows": len(rows),
         "lear_weight": ensemble.weight,
         "price_best_iterations": price.best_iterations(),
         "classifier_best_iterations": classifier.best_iterations(),
+        "classifier_structure": classifier.metadata().get("structure"),
         "probability_order_violations_crossfit": int(
             classes["lgbm_platt_crossfit"].p_cheap.gt(classes["lgbm_platt_crossfit"].p_near_zero).sum()
         ),
