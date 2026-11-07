@@ -79,11 +79,23 @@ class FileLibrary:
         return {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
 
     def _post(self, endpoint: str, body: dict) -> requests.Response:
-        response = self.session.post(
-            FILES_URL + endpoint, data=json.dumps(body), headers=self._headers(), timeout=(10, 300)
-        )
-        response.raise_for_status()
-        return response
+        for attempt in range(3):
+            try:
+                response = self.session.post(
+                    FILES_URL + endpoint,
+                    data=json.dumps(body),
+                    headers=self._headers(),
+                    timeout=(10, 300),
+                )
+                if response.status_code < 500 or attempt == 2:
+                    response.raise_for_status()
+                    return response
+            except (requests.ConnectionError, requests.Timeout):
+                if attempt == 2:
+                    raise
+            LOGGER.info("Retrying %s after a timeout or server error", endpoint)
+            time.sleep(5 * 2**attempt)
+        raise AssertionError("unreachable")
 
     def list_folder(self, folder: str) -> dict[str, str]:
         """File name -> last update timestamp."""

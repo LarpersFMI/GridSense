@@ -15,6 +15,9 @@ MIDDAY_HOURS = range(11, 15)
 EVENING_HOURS = range(18, 22)
 FOURIER_ORDER = 3
 WEATHER_VARS = {"ghi_wm2": "ghi", "cloud_cover_pct": "cloud", "wind100_ms": "wind100", "temp_c": "temp"}
+# Week-ahead load forecasts appear on Thursday around 10:00-12:00 for the week starting the
+# following Monday (measured on 2026 data). Saturday's issue is the first that safely has them.
+LOAD_FC_KNOWN_DAYS_BEFORE_MONDAY = 2
 
 
 def _local(ts_utc: pd.Series) -> pd.DataFrame:
@@ -76,6 +79,14 @@ def _daily_grid_features(grid: pd.DataFrame) -> pd.DataFrame:
 
 
 def _weather_features(weather_fc: pd.DataFrame) -> pd.DataFrame:
+    io.check_columns(weather_fc, "weather_fc")
+    if not weather_fc["lead_days"].isin(config.HORIZONS_DAYS).all():
+        raise ValueError("Weather must contain real D+1…D+7 forecast leads, not observed weather")
+    if "assumed_available_by_utc" in weather_fc:
+        # Real archived inputs carry provenance; reject cutoff/key violations before joining.
+        from gridsense.data.weather import validate_forecasts
+
+        validate_forecasts(weather_fc)
     wide = weather_fc.pivot_table(
         index=["issue_date", "lead_days", "target_ts_utc"],
         columns="location",
@@ -86,6 +97,21 @@ def _weather_features(weather_fc: pd.DataFrame) -> pd.DataFrame:
     for short in ("ghi", "cloud", "wind100", "temp"):
         wide[f"{F}{short}_mean"] = wide.filter(regex=f"^{F}{short}_").mean(axis=1)
     return wide.reset_index().rename(columns={"lead_days": "horizon_days"})
+
+
+def _week_ahead_load_features(rows: pd.DataFrame, load_fc: pd.DataFrame) -> pd.DataFrame:
+    """Target-day load forecast, NaN where it was not yet published at issue time."""
+    fc = load_fc.set_index("target_date")[["load_fc_min_mw", "load_fc_max_mw"]]
+    joined = fc.reindex(rows["target_date"]).set_axis(rows.index)
+    monday = rows["target_date"] - pd.to_timedelta(rows["target_date"].dt.day_of_week, unit="D")
+    known = rows["issue_date"] >= monday - pd.Timedelta(days=LOAD_FC_KNOWN_DAYS_BEFORE_MONDAY)
+    return pd.DataFrame(
+        {
+            f"{F}load_fc_min": joined["load_fc_min_mw"].where(known),
+            f"{F}load_fc_max": joined["load_fc_max_mw"].where(known),
+        },
+        index=rows.index,
+    )
 
 
 def _calendar_features(rows: pd.DataFrame) -> pd.DataFrame:
@@ -112,11 +138,16 @@ def build_training_table(
     grid: pd.DataFrame | None,
     weather_fc: pd.DataFrame | None,
     calendar: pd.DataFrame,
+    load_fc_week_ahead: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
     """One row per (issue_date, target_ts, horizon); every feature must be known at issue time.
 
-    Grid and weather features are skipped when their table is None.
+    Grid, weather and load forecast features are skipped when their table is None.
     """
+    if "country" in calendar and not calendar["country"].isin(["Romania", "RO"]).all():
+        raise ValueError("The ML target calendar must be Romanian; keep country calendars separate")
+    if calendar["ts_utc"].duplicated().any():
+        raise ValueError("The ML target calendar must have one row per UTC hour")
     targets = calendar.rename(columns={"ts_utc": "target_ts_utc"})
     targets = targets.join(_local(targets["target_ts_utc"])).rename(columns={"date": "target_date"})
     rows = pd.concat(
@@ -154,6 +185,8 @@ def build_training_table(
             on=["issue_date", "horizon_days", "target_ts_utc"],
             how="left",
         )
+    if load_fc_week_ahead is not None:
+        rows = rows.join(_week_ahead_load_features(rows, load_fc_week_ahead))
 
     labels = prices[["ts_utc", "price_mean"]].rename(
         columns={"ts_utc": "target_ts_utc", "price_mean": "y_price"}
@@ -172,7 +205,16 @@ def build_training_table(
 
     feature_cols = sorted(c for c in rows.columns if c.startswith(F))
     keys = ["issue_ts", "target_ts_utc", "horizon_days", "y_price", "y_near_zero", "y_cheap"]
-    table = rows[keys + feature_cols].sort_values(["issue_ts", "horizon_days", "target_ts_utc"])
+    quality_cols = []
+    if weather_fc is not None:
+        weather_prefixes = tuple(f"{F}{short}_" for short in WEATHER_VARS.values())
+        weather_columns = [c for c in feature_cols if c.startswith(weather_prefixes)]
+        complete = rows[weather_columns].notna().all(axis=1) if weather_columns else False
+        # predict.build_predictions already passes this optional column to the agent. Missing
+        # archive dates/horizons must not silently be presented as good-quality forecasts.
+        rows["data_quality"] = np.where(complete, "ok", "missing_weather")
+        quality_cols = ["data_quality"]
+    table = rows[keys + feature_cols + quality_cols].sort_values(["issue_ts", "horizon_days", "target_ts_utc"])
     return table.reset_index(drop=True)
 
 
@@ -189,6 +231,7 @@ def main() -> None:
         _read_optional("grid_hourly"),
         _read_optional("weather_fc"),
         io.read("calendar"),
+        _read_optional("load_fc_week_ahead"),
     )
     io.write(table, "training_table")
 

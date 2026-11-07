@@ -1,6 +1,6 @@
 # ML handoff (price forecasting, ML-P)
 
-State as of 2026-11-07, branch `dev` (last pushed commit `0a3673d add LEAR`). Read this first, then [price_plan.md](price_plan.md), [ml_plan.md](ml_plan.md) and the README rules.
+State checked on 2026-11-07, based on latest upstream `dev` at `2d63586` (validated File Library market datasets included); local ML/weather changes preserved and prepared for commit. Local `main` matches `origin/main` at `63bada2`; its services were inspected separately, not merged into ML. Both ML/weather backup stashes are retained. Earlier validation results below record their original inputs and model versions. Read this first, then [price_plan.md](price_plan.md), [ml_plan.md](ml_plan.md) and the README rules.
 
 ## Roles
 
@@ -61,22 +61,410 @@ Changes that got here:
 - LightGBM learns the deviation from the 7-day same-hour mean (`LEVEL_COLUMNS` in `price.py`): MAE 23.8 → 22.8, low-price MAE 46 → 35. Transform and half-life variants (asinh/raw × 180/365/∞) were within ±0.3 MAE of each other.
 - `models/ensemble.py`: quantile average, weight picked on val pinball (one parameter, so slightly optimistic on val).
 
-## Real data status (manual ENTSO-E downloads, no API token yet)
+## Validation rerun with week-ahead load (2026-11-07)
 
-In `data/entsoe/` (**untracked, not gitignored**; move to `data/raw/entsoe_csv/` or decide to commit deliberately):
+Reproducible entry point: `GRIDSENSE_DATA=real uv run python -m gridsense.models.ablate_price`.
+It does not change the training table or evaluate test. It refreshes the current 34-feature
+LightGBM artifact and writes [ablation results](../reports/real/eval/price_ablation_val.csv),
+[input hashes and run metadata](../reports/real/eval/price_ablation_val.json),
+[feature availability](../reports/real/eval/price_feature_availability.csv), and the current
+[standard validation report](../reports/real/eval/price_val.csv).
+
+Train: 132,048 labelled forecast rows. Validation: 35,945 labelled rows; all variants score
+the **same 35,932 rows / 5,134 unique target hours** after dropping missing baseline inputs.
+The repeated horizons are not independent observations. Default model settings, all seven
+internal LightGBM quantiles, same split dates. No classifier or slot evaluation was run.
+
+| Inputs | Model | MAE €/MWh | rMAE | Pinball | Coverage | MAE ≤20 €/MWh |
+|---|---|---:|---:|---:|---:|---:|
+| Prices + calendar | Seasonal naive | 27.634 | 1.000 | 9.742 | 81.3% | 30.748 |
+| Prices + calendar | LEAR | 21.057 | 0.762 | 6.805 | 79.4% | 32.753 |
+| Prices + calendar | LightGBM + CQR | 22.829 | 0.826 | 7.464 | 80.0% | 35.344 |
+| Prices + calendar | Ensemble | 20.880 | 0.756 | 6.741 | 81.3% | 32.618 |
+| + D−1 actual load | LEAR | 21.081 | 0.763 | 6.812 | 79.4% | 32.984 |
+| + D−1 actual load | LightGBM + CQR | 22.994 | 0.832 | 7.497 | 80.0% | 35.304 |
+| + D−1 actual load | Ensemble | 20.910 | 0.757 | 6.752 | 81.3% | 32.756 |
+| + D−1 load + week-ahead min/max | LEAR | 21.057 | 0.762 | 6.807 | 79.4% | 32.976 |
+| + D−1 load + week-ahead min/max | LightGBM + CQR | 22.870 | 0.828 | 7.497 | 80.0% | 34.961 |
+| + D−1 load + week-ahead min/max | Ensemble | 20.874 | 0.755 | 6.745 | 81.2% | 32.687 |
+
+**Conclusion: no meaningful overall gain yet.** Adding week-ahead to lagged load reduces
+LightGBM MAE by 0.124 €/MWh (0.54%), but its pinball is essentially unchanged and it does
+not beat the original prices/calendar model. Ensemble MAE improves only 0.036 €/MWh over
+lagged-load-only and 0.007 over prices/calendar; pinball and low-price MAE are slightly worse
+than prices/calendar. All variants choose 80% LEAR / 20% LightGBM. Keep prices/calendar as
+the reference, rather than treating this tiny difference as an established improvement.
+Seasonal naive still has lower MAE on ≤20 €/MWh hours than the ensemble; overall MAE alone
+does not establish that we can safely announce zero-cost slots.
+
+| Horizon | Week-ahead availability (val) | Ensemble MAE, prices/calendar | Ensemble MAE, +load +week-ahead |
+|---|---:|---:|---:|
+| D+1 | 100.0% | 18.169 | 18.198 |
+| D+2 | 100.0% | 20.320 | 20.243 |
+| D+3 | 85.5% | 21.112 | 21.136 |
+| D+4 | 71.0% | 21.367 | 21.346 |
+| D+5 | 57.0% | 21.474 | 21.482 |
+| D+6 | 43.0% | 21.892 | 21.901 |
+| D+7 | 29.0% | 21.827 | 21.810 |
+
+**Limitations:** week-ahead results are exploratory, not a proven leakage-free backtest.
+The builder ignores `updated_at_utc` and assumes availability from Saturday before the
+target week. Historical updates were re-stamped in the 2025 migration, and the parser keeps
+the latest revision per delivery day. A calendar mask cannot prove that this revision was
+known at issue time. Preserve original publication timestamps and forecast versions, then
+use an as-of join; otherwise document the assumption and retain the no-week-ahead baseline.
+The actual-load archive is also a revised historical source, not a real-time vintage archive.
+Early stopping, residual/conformal calibration, and ensemble weight selection reuse validation;
+coverage here is a tuning score, not an independent guarantee. All-empty solar/wind features
+were retained in the load variants to match current training; changing feature count also
+changes LightGBM's feature subsampling. Confirm candidate gains with rolling/blocked validation
+before final test. The test marker was absent and remains absent.
+
+## Classification baselines pulled (2026-11-07, before weather integration)
+
+Commit `3c7ab1c` adds `Climatology` and `SolarRule` in
+[models/baselines.py](../src/gridsense/models/baselines.py), with four baseline tests.
+Climatology fits month × weekday × local hour frequencies on **unique training target hours**,
+with shrinkage toward month × hour rates. It does not use validation labels or weather.
+SolarRule uses forecast mean irradiance ≥500 W/m² on weekends/holidays, with train-fitted
+probabilities for whether the rule fires.
+
+Real validation uses all 35,945 labelled forecast rows / 5,135 unique hours (unlike price
+evaluation, classification does not need to drop missing seasonal-naive price inputs).
+Train has 1,395 unique ≤20 €/MWh hours and 263 unique ≤0 €/MWh hours. Validation has 782
+and 295 respectively. Their frequencies increase from 7.4%→15.2% and 1.4%→5.7%, although
+the validation period is intentionally spring/summer, so this is not a season-matched drift test.
+
+| Model | Label | PR-AUC (average precision) | Precision@k | Brier |
+|---|---|---:|---:|---:|
+| Climatology | ≤20 €/MWh | 0.7051 | 0.6166 | 0.08550 |
+| Climatology | ≤0 €/MWh | 0.5896 | 0.6048 | 0.04163 |
+| LightGBM, uncalibrated | ≤20 €/MWh | 0.7463 | 0.6666 | 0.07785 |
+| LightGBM, uncalibrated | ≤0 €/MWh | 0.6003 | 0.6320 | 0.04270 |
+
+Classifier retrained with `GRIDSENSE_DATA=real uv run python -m gridsense.models.train --task classify`;
+artifact `20261107T144233-3c7ab1c`, 34 features, 197 rounds for near-zero and 377 for cheap.
+Metrics are logged in [experiments.csv](../reports/real/experiments.csv). Predictions were
+checked on the same full validation rows as climatology; every probability is finite and
+within [0,1]. **Near-zero classification beats climatology on all three metrics.** Cheap
+classification ranks slightly better but has worse Brier, so probability quality is not yet
+better. Isotonic calibration and independent/blocked validation are still needed. Early stopping
+uses this validation set; these are development scores, not untouched holdout scores. The
+week-ahead provenance limitations above also apply to this 34-feature classifier. No classifier
+feature ablation, slot evaluation, or test evaluation was performed.
+
+| Horizon | Climatology PR-AUC ≤20 | LightGBM PR-AUC ≤20 | Climatology PR-AUC ≤0 | LightGBM PR-AUC ≤0 |
+|---|---:|---:|---:|---:|
+| D+1 | 0.7051 | 0.7639 | 0.5896 | 0.6033 |
+| D+2 | 0.7051 | 0.7596 | 0.5896 | 0.6047 |
+| D+3 | 0.7051 | 0.7504 | 0.5896 | 0.6054 |
+| D+4 | 0.7051 | 0.7435 | 0.5896 | 0.6048 |
+| D+5 | 0.7051 | 0.7410 | 0.5896 | 0.5957 |
+| D+6 | 0.7051 | 0.7371 | 0.5896 | 0.5964 |
+| D+7 | 0.7051 | 0.7305 | 0.5896 | 0.6051 |
+
+`k` equals the positive count among scored forecast rows (R-precision), not the customer's
+notification budget; tied scores use the metric helper's sorting and can make precision@k
+order-sensitive. The seven repeated horizons are not independent target observations.
+
+**At this run, SolarRule was unavailable on real data:** `f_ghi_mean` and the `weather_fc` table were missing.
+Do not add a dummy zero irradiance column or observed target weather to make it run. It can
+only be compared once valid archived forecasts cover the same train/validation rows. The
+pulled class treats row-level NaN irradiance as a non-firing rule; report forecast coverage
+explicitly when evaluating it later.
+
+**Integration still pending:** [models/evaluate.py](../src/gridsense/models/evaluate.py)
+currently registers only the price task, so `make evaluate TASK=classify` is not supported.
+Flag this to ML-C: wire both baselines and the classifier into a common classification harness,
+skip SolarRule explicitly when weather is unavailable, and preserve identical scored rows.
+Isotonic calibration remains a stub; classifier probabilities are currently uncalibrated.
+
+## Archived weather integrated (2026-11-07)
+
+`make weather` now downloads **GFS Global** Previous Runs forecasts for Bucharest, Constanța,
+Craiova and Timișoara. Then run `make features train`, `make evaluate TASK=price`, and
+`GRIDSENSE_DATA=real uv run python -m gridsense.models.weather_validation` for the matched-row
+weather/no-weather comparison. The weather downloader defaults to the configured train start
+through validation end, **not test**. Its CLI supports explicit `--start`, `--end`, and
+`--locations`; extend to the final refit/inference period before using those dates operationally.
+
+The [downloader](../src/gridsense/data/weather.py) preserves the existing `WEATHER_FC` contract;
+additional source/model/offset/initialization-bound/retrieval/raw-hash columns provide provenance.
+Raw monthly multi-location responses are cached locally and reused. There are 674,660 forecast
+rows / 24,095 target UTC hours × 7 horizons × 4 locations. **No observed weather, noise-added
+reanalysis, or ECMWF hindcast was used.** The training table now has **54 features, 52 populated
+somewhere in train**: the previous 34 plus 16 location-specific weather features and 4 means.
+
+### Availability and cutoff policy
+
+The [Previous Runs API](https://open-meteo.com/en/docs/previous-runs-api) supplies fixed lead-time
+chunks, not one archived run frozen at D 10:00. Naively selecting `_previous_day{horizon}` can
+leak the issue afternoon's model runs. For every delivery interval [t,t+1h), we select:
+
+$$n = \left\lceil \frac{t+1\text{h} - \text{issue\_ts} + 12\text{h}}{24\text{h}} \right\rceil$$
+
+Use only offsets 1…7. The latest possible initialization plus the assumed 12-hour publication
+buffer must be ≤ issue time. **The buffer is conservative but not historically verified**:
+Open-Meteo does not return original release timestamps. This integration is a documented
+as-of approximation, not a certified exact operational-vintage backtest. Exact full D+1…D+7
+coverage requires an archive such as raw operational NOAA GFS, with initialization, forecast
+step, and contemporaneous object/publication evidence. Do not use Open-Meteo's older ECMWF
+[single-run archive](https://open-meteo.com/en/docs/single-runs-api) as a substitute without
+checking provenance: it explicitly includes Cycle 49R1 hindcasts.
+
+Radiation at API timestamp t+1 is the preceding-hour mean and is aligned to the delivery
+interval [t,t+1); cloud, wind and temperature use timestamp t. One extra response day protects
+end-of-month alignment. Unsupported offsets, absent history and impossible physical values
+remain NaN; no forward-fill from newer runs or observed weather. The archive contained 101%
+cloud values: 176 selected impossible values were masked, retaining original responses.
+
+Earliest non-null target dates in this extraction: temperature from the requested start;
+radiation/cloud from **2024-01-20**, 100 m wind from **2024-02-17**. These are observed coverage,
+not a promise that every intervening hour/variable is complete.
+
+| Validation horizon | Mean weather feature availability |
+|---|---:|
+| D+1…D+5 | 100% |
+| D+6 | 91.8% |
+| D+7 | 0% |
+
+All location-specific fields must be present for `data_quality="ok"`; partial locations,
+unsupported horizons and dates beyond the downloaded range get `missing_weather`. The
+existing prediction builder passes this optional flag through without a schema change.
+Location means can still use the remaining locations; the flag prevents that aggregation
+from hiding partial input quality.
+
+### Matched-row validation results
+
+Price models score the same 35,932 validation rows. Classification scores all 35,945 labelled
+validation rows. These are development scores: early stopping and price conformal calibration
+reuse validation, classification is not isotonic-calibrated, and the publication assumptions
+for weather/week-ahead remain unresolved. Test was not evaluated.
+
+| Price model / inputs | MAE €/MWh | Pinball | Coverage | MAE ≤20 €/MWh |
+|---|---:|---:|---:|---:|
+| LightGBM, previous 34 features | 22.870 | 7.497 | 80.0% | 34.961 |
+| LightGBM, +weather (54 features) | 22.573 | 7.381 | 80.0% | 34.626 |
+| Ensemble, previous 34 features | 20.874 | 6.745 | 81.2% | 32.687 |
+| Ensemble, +weather | 20.773 | 6.707 | 81.9% | 32.396 |
+
+Weather reduces LightGBM MAE by **1.3%** and pinball by **1.5%**. The weather-feature LEAR
+alone worsens (MAE 21.057→21.326); the ensemble nevertheless improves modestly and chooses
+70% LEAR / 30% LightGBM, rather than 80% / 20%. D+7 has no weather signal and the shared
+LightGBM's D+7 MAE slightly worsens; consider retaining a separate no-weather long-horizon
+model after blocked validation, not assuming every horizon benefits.
+
+| Classifier inputs | Label | PR-AUC | Precision@k | Brier |
+|---|---|---:|---:|---:|
+| Previous 34 features | ≤20 €/MWh | 0.7463 | 0.6666 | 0.07785 |
+| +Weather | ≤20 €/MWh | 0.7602 | 0.6794 | 0.07792 |
+| Previous 34 features | ≤0 €/MWh | 0.6003 | 0.6320 | 0.04270 |
+| +Weather | ≤0 €/MWh | 0.6274 | 0.6416 | 0.04167 |
+
+Ranking improves for both labels. Near-zero Brier is essentially unchanged/slightly worse;
+do not describe this as improved calibration or ready-to-announce slots.
+
+SolarRule can now be scored, **only on the same 30,388 complete-radiation rows for every
+comparator** (missing D+7/late D+6 excluded). Train-fitted default threshold is 500 W/m².
+
+| Model on complete-radiation validation | PR-AUC ≤20 | PR-AUC ≤0 |
+|---|---:|---:|
+| Climatology | 0.7051 | 0.5896 |
+| LightGBM, no weather | 0.7489 | 0.5999 |
+| LightGBM, +weather | 0.7669 | 0.6309 |
+| SolarRule | 0.4279 | 0.3701 |
+
+The two-outcome solar rule is weaker at ranking than climatology/LightGBM. Its training
+implementation treats missing irradiance as non-firing; this caveat is recorded, and its
+validation scores are not compared against models scored on a larger/different population.
+
+Artifacts: classifier `20261107T145655-3c7ab1c`, quantiles `20261107T145745-3c7ab1c`. Saved outputs:
+[weather/no-weather price comparison](../reports/real/eval/price_weather_val.csv),
+[classification + solar comparison](../reports/real/eval/classify_weather_val.csv),
+[coverage](../reports/real/eval/weather_feature_availability.csv), and
+[input hashes/provenance](../reports/real/eval/weather_validation.json).
+`make evaluate TASK=classify` remains unregistered; the dedicated weather validation runner
+provides the comparison without changing ML-C's evaluator/calibration code.
+
+## Latest dev/main integration (2026-11-07)
+
+Both remote tips were fetched and matched against local branch refs: `dev` at `4d73902`,
+`main` at `63bada2`. The local ML/weather work was reapplied and the backup stash retained;
+no commit, push, or merge of the TypeScript services into dev was made in this integration.
+
+### Useful dev changes: calibration
+
+Commit `4d73902` implements Platt scaling by default, isotonic as an option, calibration
+cross-fit by validation month, and reliability tables/plots. Retrained the existing 54-feature
+classifier using the same train/validation rows, producing artifact `20261107T152133-4d73902`.
+The quantile model remains `20261107T145745-3c7ab1c` and its previous price scores are unchanged.
+
+The [weather validation runner](../src/gridsense/models/weather_validation.py) now explicitly
+requests **raw** predictions for the original weather/no-weather comparison. Otherwise the
+new default would misleadingly compare a val-fitted calibrated model against old raw models.
+Calibration scores use leave-one-target-month-out mapping; every horizon for a target stays
+in the same held-out month. Deployment predictions use the model's all-validation calibrators.
+
+| Label, same 35,945 validation rows | Raw PR-AUC | Cross-fit Platt PR-AUC | Raw Brier | Cross-fit Platt Brier |
+|---|---:|---:|---:|---:|
+| ≤20 €/MWh | 0.7602 | 0.7425 | 0.07792 | **0.06902** |
+| ≤0 €/MWh | 0.6274 | 0.5992 | 0.04167 | **0.03229** |
+
+Brier improves by about 11.4% and 22.5% respectively. Pooled ranking drops because different
+held-out months get different mappings; a single positive-slope Platt mapping preserves rank
+within its sample. This is useful probability-quality development evidence, **not untouched
+forecast validation**: base-model early stopping still used validation, and month cross-fit
+includes other, later months rather than forward-only folds. Do not select announcement
+thresholds based on all-validation in-sample calibration scores.
+
+Updated [classification report](../reports/real/eval/classify_weather_val.csv),
+[experiment log](../reports/real/experiments.csv) and
+[protocol/provenance](../reports/real/eval/weather_validation.json); generated
+[near-zero reliability plot](../reports/real/eval/reliability_p_near_zero.png) and
+[cheap reliability plot](../reports/real/eval/reliability_p_cheap.png).
+The normal prediction builder was smoke-tested on a validation issue: 168 rows, finite
+probabilities/price medians, with missing-weather flags preserved. No test evaluation or
+server notification was sent.
+
+**Flag to ML-C before deployment:** independently trained/calibrated labels are not constrained
+to the logical ordering P(price≤0) ≤ P(price≤20). The calibrated validation artifact violates
+that ordering on 3,269 forecast rows (9.1%). Coordinate a constrained prediction/calibration
+design and revalidate it; do not silently clip probabilities and retain the old calibration
+claims. The ranking/Brier improvements do not remove this deployment issue.
+
+### Useful dev changes: dataset contracts repaired
+
+Commit `176caf3` contributes 1,019,082 observed-weather rows and Romanian/Hungarian/Bulgarian/
+Moldovan calendars. Its shared schema changes had replaced the forecast-weather columns and
+made country metadata mandatory for the single-country ML calendar, breaking existing
+forecast parsers and joins. The regression was reproduced and repaired in
+[schemas.py](../src/gridsense/schemas.py):
+
+- `WEATHER_FC` retains issue/target/lead/location and irradiance/cloud/100m wind/temperature.
+- `WEATHER_HOURLY` registers the observed table separately. Its old fabricated issue/lead
+	extras are not forecast publication evidence; the updated generator no longer creates them.
+- `CALENDAR` retains the existing continuous Romanian ML contract; `COUNTRY_CALENDAR`
+	registers the enriched exports independently, without requiring their extra fields in ML.
+- [Weather generator](../data/interim/generate_weather_parquet.py) and
+	[calendar generator](../data/interim/generate_calendar_parquets.py) now import the installed
+	`gridsense` package and use the correct separate contracts. Collected Parquets were not
+	deleted or rewritten by this repair.
+- Feature building rejects observed-weather columns, fabricated zero-day leads, non-Romanian
+	target calendars and duplicate target UTC hours. Regression tests cover these cases and
+	confirm observed-data conversion cannot overwrite archived forecasts.
+
+All seven forecast/observed/calendar tables can now be read through `gridsense.io`.
+Observed weather can help error analysis or release-safe historical lags, **not target-hour
+weather training**. The country calendars provide safe holiday information for future
+neighbour features, but their exports omit unassigned/refit periods and the target extension,
+and can contain partial foreign-country boundary days. They were not substituted for the
+continuous Romanian calendar or added as model features in this run.
+
+### Main services: useful handoff, not merged or run
+
+`main` adds the server/watchdog, dataset triggers, replay tooling and run/dataset update
+reporting. They do not add ML training inputs or a better forecaster. Inspecting their
+contracts identified the work needed before attaching real predictions:
+
+- The Parquet timestamp, horizon, probability and quantile columns match. Extra
+	`model_name`/`model_version` columns are accepted by the loose row schema and passed
+	through; **do not remove ML provenance fields**.
+- `main` accepts `data_quality` only as `ok`, `degraded`, or `failed`. Our `missing_weather`
+	must map to `degraded` at an explicit export boundary (retain the detailed reason), or the
+	teams must agree to expand the server enum. No silent relabelling to `ok`.
+- The watchdog reads the shared `DATASET_DIR` files, not an arbitrary per-run path in the
+	report body. Run history must be appended and atomically replaced before announcing the
+	update; the current ML `predict` command replaces a selected batch rather than maintaining
+	the append-only history the watchdog uses for its watermarks.
+- The reporter on `main` can send a run notification with issue timestamp, model version,
+	row count, and file path after a successful export. It was not invoked here. Agree on
+	shared/container paths and the quality mapping before connecting real outputs.
+- `central-agent` remains a placeholder in the inspected main snapshot. Trigger hits alone
+	are not completed customer-facing actions.
+
+Next integration should coordinate those contracts with the agent owner. For now the main
+services stay isolated and the existing synthetic replay is distinct from ML validation.
+
+## Latest pull before committing ML/weather work (2026-11-07)
+
+Fast-forwarded `dev` to `2d63586`, including `a47852c`'s validated File Library tables.
+Kept the **upstream** calendar, prices/native prices, price-quality report, grid and regional
+tables when resolving the stash conflicts; did not replace the new data with the older
+snapshot copies. Both pre-pull backup stashes remain available.
+
+- RO/HU/BG prices now each have **33,600 complete hours through 2026-10-31**, with no missing
+	native price intervals in the incoming reports. The Aug–Oct price-label gap is resolved.
+- Regional tables are now regenerated from File Library data rather than the stale snapshot.
+	They still need a controlled regional-feature integration/ablation before use by ML.
+- Shared grid coverage extends through October: 33,220 populated load hours, 8,171 solar
+	hours, and 7,268 wind hours after the upstream source-update cutoff mask. Early generation
+	measurements remain unavailable under that mask; do not infer full train-history coverage.
+- Rebuilt tracked `training_table` using those upstream tables plus local archived weather
+	and week-ahead data: **235,704 rows, 54 features**. Compared all train/validation keys,
+	labels and feature values with the pre-pull backup: no numerical changes. The recorded
+	validation comparisons remain applicable to those rows; their original full-input hashes
+	and timestamps are preserved rather than rewritten as if the runs were new.
+- Resolved forecast/observed schema naming using `WEATHER_ARCHIVED_FC = WEATHER_FC` for
+	compatibility with the new weather join checks; observed data uses `WEATHER_HOURLY`.
+	Core calendar building now works without the ignored raw holiday CSV, while retaining
+	country/working-holiday/split metadata when available.
+
+Raw forecasts, File Library inputs and trained model weights remain ignored. The tracked
+training table is rebuilt derived data; reproducing its weather/week-ahead features needs
+the documented downloads. No new test evaluation, tuning on test, or server notification
+was performed. This update supersedes the earlier inventory's July-only/stale-regional status.
+
+## Real data status (current after latest pull)
+
+The training table now has **54 feature columns, 52 with any training values**: 29 price/calendar,
+D−1 actual Romanian load, two week-ahead min/max features, and 20 archived weather features.
+Actual solar/wind generation features now have later-date values but are still unavailable
+throughout the training split under the source-update mask. Regional, capacity and outage
+features are not consumed by the current feature entry point.
+
+| Data | Local status | Remaining work |
+|---|---|---|
+| RO hourly prices | 33,600 complete hours through 2026-10-31 from File Library | Final-test label gap resolved; refit and explicit authorization still required before evaluation |
+| Actual RO load | Shared grid through Oct 2026; 33,220 available load hours; D−1 daily mean used | Check missing/re-stamped hours and historical publication latency. Forecast inputs still need as-of integration |
+| Week-ahead RO load | File Library table: 1,436 delivery days, 2022-12-02→2026-11-15; 9 missing days | Already used; resolve historical publication/revision provenance before relying on the gain |
+| HU/BG prices + loads | File Library regional tables regenerated; full price coverage, 11 features still not joined into training | Join on issue/target/horizon and ablate; inspect release-aware load gaps |
+| Actual generation by type | Shared grid includes later-date solar/wind values, with source-update cutoff masking | Resolve training-history availability; actuals remain issue-relative lags, not target-hour features |
+| Installed capacity | Manual annual CSVs for 2020–2026 exist, including solar/wind/hydro/nuclear | Parse and establish publication/as-of policy; not a model feature yet |
+| Outages | Parser and as-of MW-offline helper exist, but no local extracts/table | Download versioned messages with original publication times; add features only after provenance checks |
+| Weather | Archived GFS offsets now integrated through validation end; observed/reanalysis raw file remains unused | Extend archive for final refit/inference, verify original release timing, and obtain full D+7 operational runs |
+| Reservoirs / physical flows | No processed training input | Lower-priority collection; release-aware lagged reservoir levels and D−1 RO↔HU/BG flows |
+
+Manual `data/entsoe/` downloads are **gitignored** under the current root-data rules:
 
 | Folder | Actually contains | Usable? |
 |---|---|---|
-| `day_ahead/` (2026-01→2026-11-08, monthly) | **Offered cross-border capacity RO↔BG**, not prices | Only as a low-priority capacity feature; prices still needed |
-| `week_ahead/` (2026 weeks 1–16) | Week-ahead load forecast: daily min/max per day, plus actual min/max | Yes, forecast columns only; needs 2023-01→2026-10 |
-| `year_ahead/` (2020–2026) | Year-ahead load forecast: weekly min/max, plus actuals | Low value; forecast columns only |
+| `day_ahead/` (2026 monthly files) | **Offered cross-border capacity RO↔BG**, not energy prices or physical flows | Capacity candidate only; not checklist rows 1 or 9 |
+| `week_ahead/` (2026 weekly files) | Daily forecast min/max plus actual min/max | Forecast columns only; training uses the longer File Library history instead |
+| `generation_installed_capacity/` (2020–2026) | Annual installed capacity per production type | Structural candidate, not actual hourly generation |
+| `year_ahead/` (2020–2026) | Weekly forecast/actual min/max load | Low priority; forecast columns only |
 
-Leakage rules for these files:
-- `Actual min/max` columns are **not known at issue time** for the target; only use them as lags (days ≤ D-1).
-- Week-ahead forecasts are published once a week for the following week (verify the publication day). Use a forecast for target day T only if it was published on or before the issue date; otherwise NaN.
-- Timestamps are CET/CEST, not UTC or Bucharest time.
+Never use target-day `Actual min/max` columns. Native-time exports need their stated timezone:
+cross-border capacity files say CET/CEST; File Library timestamps explicitly say UTC.
 
-Still needed (checklist below): RO prices Aug–Oct 2026 (snapshot covers ≤ 2026-07-31), actual load + generation per type (RO, 2023→2026), HU/BG prices (check snapshot first), installed capacity, outages (with publication time), reservoirs.
+### What to collect or integrate next
+
+| Priority | Checklist row / extra source | Action and training use |
+|---|---|---|
+| Collected; final evaluation still gated | 1: RO prices Aug–Oct 2026 [12.1.D] | Labels and issue-day price lags now complete; final refit and explicit test authorization still required |
+| Integrated, improve provenance/coverage | Extra: archived **weather forecasts** | RO four-point GFS offsets added with conservative cutoff assumptions; next resolve exact run/release history, D+7, and HU/BG forecasts. No observed-target-weather substitution |
+| High / low additional collection effort | 4: HU/BG prices | File Library regional tables now regenerated. Integrate price lags/spreads, add future-perturbation test, then compare on the same validation rows |
+| High | 3: actual generation [16.1.B&C] | Solar/wind first, hydro/nuclear next; D−1 same-hour/daily and 7-day summaries, never target actuals |
+| High | 2: actual load + day-ahead forecast [6.1.A/B] | Actual load largely collected; extend it. Use target-day forecast only when original publication is before the issue cutoff; later day-ahead publications are unavailable at 10:00 |
+| Done, provenance unresolved | 5: week-ahead load [6.1.C] | No more broad-history collection needed; keep min/max, fix vintage joins, then try expected-load deviation from the recent weekday profile |
+| Medium / already downloaded | 6: capacity [14.1.A] | Integrate publication-safe capacity; strongest use is scaling solar/wind forecasts, not expecting a yearly scalar to explain hourly weather |
+| Medium | 7: generation outages [15.1.A–D] | Nuclear/thermal/hydro unavailable MW for the target, latest version known at issue; never use final revised outage status retroactively |
+| Medium–low | 8: reservoirs [16.1.D] | Last published weekly filling/energy level + trend, with release delay |
+| Low | 9: physical flows [12.1.G] | Actual RO↔HU/BG net import lags D−1 and rolling means; current offered-capacity exports are a different item |
+
+After weather/generation, try forecast residual demand (load minus forecast renewable output),
+then public/licensed prior-day gas and carbon closes for price-level shifts. A 15-minute-market
+flag alone has no variation in the current training period, so trees cannot learn its post-2025
+effect without an explicit later development/refit design; it is not an immediate validation gain.
 
 ## ENTSO-E download checklist (one person per row)
 
@@ -91,12 +479,13 @@ Conventions: `data/raw/entsoe_csv/<item>/<zone>_<year>.csv`, CSV, UTC if offered
 
 ## Next steps for me
 
-1. ~~Real-data run~~ done with prices + calendar (above). Rerun `make features train TASK=price evaluate` when grid/weather tables land.
-2. Neighbour price lags (HU/BG) as `f_` features + leakage test.
-3. Week-ahead load forecast feature: data is in `data/raw/entsoe_file_library/TotalLoadForecast_6.1.C_D_E_r3/` (2023–2025, RO only). `UpdateTime(UTC)` was re-stamped at the 2025 platform migration, so use the publication rule (forecast for week W known after week W-1 ends), not the timestamp.
-4. Optuna on LightGBM (~50 trials); weather forecasts are the bigger expected gain once available.
-5. ~~LEAR + LightGBM ensemble~~ done; revisit the weight after new features.
-6. Final refit, single test evaluation with ML-C, figures (rMAE and coverage by horizon, fan chart).
+1. ~~Real-data and week-ahead ablation~~ done (above); do not describe week-ahead as an established improvement.
+2. ~~Regional tables regenerated~~ landed in latest upstream. Add HU/BG lag/spread features + leakage tests next. Flag any shared schema changes with the data team.
+3. Resolve original week-ahead publication/vintage availability; Saturday masking alone is insufficient proof.
+4. ~~Integrate archived weather offsets~~ done with partial coverage and modest validation gains. Obtain exact publication-safe/full-horizon forecasts, actual generation and residual-demand features next.
+5. Use blocked/rolling validation, classifier PR-AUC/Brier/precision@k and slot metrics before spending time on broad Optuna tuning. Revisit the ensemble weight after new features.
+6. ~~Aug–Oct labels and late-2026 grid coverage~~ landed upstream; inspect remaining publication/gap limits, final refit, then single test evaluation with ML-C when explicitly authorized.
+7. Coordinate probability nesting constraints with ML-C and `missing_weather`→`degraded` export + atomic run-history writes with the main agent/watchdog owner before deployment.
 
 ## Gotchas
 

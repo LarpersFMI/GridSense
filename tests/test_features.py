@@ -77,3 +77,28 @@ def test_table_shape_and_dst(tables):
     rows = _rows_for_issue(table, pd.Timestamp("2024-03-30"))
     assert (rows["horizon_days"] == 1).sum() == 23
     assert rows[f"{FEATURE_PREFIX}ghi_mean"].notna().all()
+
+
+def test_missing_archived_weather_is_flagged_for_prediction_consumers(tables):
+    baseline = _rows_for_issue(_build(tables), ISSUE_DATE)
+    assert baseline.data_quality.eq("ok").all()
+    missing = dict(tables)
+    missing["weather_fc"] = tables["weather_fc"].loc[
+        ~tables["weather_fc"]["issue_date"].eq(ISSUE_DATE)
+    ].copy()
+    changed = _rows_for_issue(_build(missing), ISSUE_DATE)
+    assert changed.data_quality.eq("missing_weather").all()
+
+
+def test_partial_location_weather_is_not_hidden_by_the_location_mean(tables):
+    partial = dict(tables)
+    weather = tables["weather_fc"].copy()
+    idx = weather.index[weather.issue_date.eq(ISSUE_DATE)][0]
+    target = weather.loc[idx, "target_ts_utc"]
+    horizon = weather.loc[idx, "lead_days"]
+    weather.loc[idx, "ghi_wm2"] = float("nan")
+    partial["weather_fc"] = weather
+    changed = _rows_for_issue(_build(partial), ISSUE_DATE)
+    row = changed[changed.target_ts_utc.eq(target) & changed.horizon_days.eq(horizon)]
+    assert row.data_quality.eq("missing_weather").all()
+    assert row.f_ghi_mean.notna().all()  # other locations still contribute usable forecasts

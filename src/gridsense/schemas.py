@@ -16,11 +16,23 @@ GRID_HOURLY = {
     "wind_actual_mw": "float64",
 }
 
-# weather_hourly.parquet: historical weather observations.
+# weather_fc.parquet: archived forecasts, one row per (issue, target, location).
 WEATHER_FC = {
     "issue_date": "datetime64[ns]",
     "target_ts_utc": "datetime64[ns, UTC]",
     "lead_days": "int64",
+    "location": "string",
+    "ghi_wm2": "float64",
+    "cloud_cover_pct": "float64",
+    "wind100_ms": "float64",
+    "temp_c": "float64",
+}
+
+# weather_hourly.parquet: OBSERVED/reanalysis weather, never target-hour forecast features.
+# Older exports contain fabricated issue_date/lead_days extras; they are not vintage evidence.
+# Keep the upstream field names but a separate contract, so io.read("weather_fc") rejects them.
+WEATHER_HOURLY = {
+    "target_ts_utc": "datetime64[ns, UTC]",
     "location": "string",
     "country": "string",
     "latitude": "float64",
@@ -37,29 +49,35 @@ WEATHER_FC = {
     "split": "string",
 }
 
-# weather_fc.parquet: forecasts as issued, one row per (issue, target, location).
-WEATHER_ARCHIVED_FC = {
-    "issue_date": "datetime64[ns]",
-    "target_ts_utc": "datetime64[ns, UTC]",
-    "lead_days": "int64",
-    "location": "string",
-    "ghi_wm2": "float64",
-    "cloud_cover_pct": "float64",
-    "wind100_ms": "float64",
-    "temp_c": "float64",
-}
+# Compatibility name used by the upstream File Library/weather integration checks.
+WEATHER_ARCHIVED_FC = WEATHER_FC
 
 # calendar.parquet: one row per local hour. Defines the target hours of the training table, so it
 # must extend 7 days past the latest price date for the newest issue date to get all horizons.
 CALENDAR = {
     "ts_utc": "datetime64[ns, UTC]",
-    "country": "string",
     "is_holiday": "bool",
-    "is_working_holiday": "bool",
     "is_bridge_day": "bool",
     "is_dst": "bool",
     "day_hours": "int64",
+}
+
+# Country calendar exports enrich, rather than replace, the continuous Romanian ML calendar.
+# Their split metadata is informational; training must still call splits.assign_split.
+COUNTRY_CALENDAR = {
+    **CALENDAR,
+    "country": "string",
+    "is_working_holiday": "bool",
     "split": "string",
+}
+
+# load_fc_week_ahead.parquet: ENTSO-E week-ahead load forecast (TR 6.1.C), one row per local day.
+# Only the latest vintage exists; features must apply the publication rule (Thursday before the week).
+LOAD_FC_WEEK_AHEAD = {
+    "target_date": "datetime64[ns]",
+    "load_fc_min_mw": "float64",
+    "load_fc_max_mw": "float64",
+    "updated_at_utc": "datetime64[ns, UTC]",
 }
 
 # training_table.parquet: one row per (issue date, target hour, horizon). Owned by ML.
@@ -94,8 +112,13 @@ TABLES = {
     "prices_hourly": PRICES_HOURLY,
     "grid_hourly": GRID_HOURLY,
     "weather_fc": WEATHER_ARCHIVED_FC,
-    "weather_hourly": WEATHER_FC,
+    "weather_hourly": WEATHER_HOURLY,
     "calendar": CALENDAR,
+    "calendar_romania": COUNTRY_CALENDAR,
+    "calendar_hungary": COUNTRY_CALENDAR,
+    "calendar_bulgaria": COUNTRY_CALENDAR,
+    "calendar_moldova": COUNTRY_CALENDAR,
+    "load_fc_week_ahead": LOAD_FC_WEEK_AHEAD,
     "training_table": TRAINING_TABLE,
     "predictions": PREDICTIONS,
 }

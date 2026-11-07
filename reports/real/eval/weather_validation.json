@@ -1,0 +1,238 @@
+{
+  "run_at_utc": "2026-11-07T15:21:37.341714+00:00",
+  "data_mode": "real",
+  "test_evaluated": false,
+  "train_rows": 132048,
+  "val_rows": 35945,
+  "calibration_method": "platt",
+  "calibration_score_protocol": "leave-one-target-month-out",
+  "solar_scored_rows": 30388,
+  "price_scored_rows": 35932,
+  "versions": {
+    "classifier_weather": "20261107T152133-4d73902",
+    "price_weather": "20261107T145745-3c7ab1c",
+    "classifier_no_weather": "20261107T144233-3c7ab1c",
+    "price_no_weather": "20261107T143645-0c997a7"
+  },
+  "inputs_sha256": {
+    "training_table": "ac46e9be701ba7c093ea1134af59baf685225b197e8369506318a8fc5ecdb57f",
+    "weather_fc": "8cc814f7eb6691cea0e9d3755ed51cfea51956e476182d61bfc0140c905e5f2b"
+  },
+  "weather_manifest": {
+    "source_url": "https://previous-runs-api.open-meteo.com/v1/forecast",
+    "model": "gfs_global",
+    "locations": [
+      "bucuresti",
+      "constanta",
+      "craiova",
+      "timisoara"
+    ],
+    "target_start_utc": "2022-12-31T22:00:00+00:00",
+    "target_end_exclusive_utc": "2025-09-30T21:00:00+00:00",
+    "rows": 674660,
+    "publication_buffer_hours": 12,
+    "invalid_physical_values_masked": 176,
+    "historical_publication_verified": false,
+    "observed_weather_used": false,
+    "offset_rule": "ceil((delivery_hour_end - issue_time + publication_buffer) / 24h); offsets >7 are missing",
+    "availability_by_horizon": {
+      "1": {
+        "ghi_wm2": 0.6168914712595974,
+        "cloud_cover_pct": 0.6163415646399668,
+        "wind100_ms": 0.5892093795393235,
+        "temp_c": 0.9785017638514214
+      },
+      "2": {
+        "ghi_wm2": 0.6158954139863042,
+        "cloud_cover_pct": 0.615428512139448,
+        "wind100_ms": 0.5882133222660303,
+        "temp_c": 0.9775057065781283
+      },
+      "3": {
+        "ghi_wm2": 0.614899356713011,
+        "cloud_cover_pct": 0.6144532060593484,
+        "wind100_ms": 0.5872172649927371,
+        "temp_c": 0.9765096493048351
+      },
+      "4": {
+        "ghi_wm2": 0.6139032994397178,
+        "cloud_cover_pct": 0.6133741440132807,
+        "wind100_ms": 0.5862212077194439,
+        "temp_c": 0.9755135920315419
+      },
+      "5": {
+        "ghi_wm2": 0.6129072421664246,
+        "cloud_cover_pct": 0.6128657397800373,
+        "wind100_ms": 0.5852251504461506,
+        "temp_c": 0.9745175347582486
+      },
+      "6": {
+        "ghi_wm2": 0.5611952687279519,
+        "cloud_cover_pct": 0.5611537663415647,
+        "wind100_ms": 0.5358373106453621,
+        "temp_c": 0.8926748288026561
+      },
+      "7": {
+        "ghi_wm2": 0.0,
+        "cloud_cover_pct": 0.0,
+        "wind100_ms": 0.0,
+        "temp_c": 0.0
+      }
+    },
+    "raw_files": [
+      {
+        "request_sha256": "d189b584578f8b68e3d6b2d60edc5f55ced3f5e46e433a181c252032ac5eef66",
+        "raw_sha256": "d0ec6aa6f1f624237383566a2d5250c61d8a1dff57b1d1f67bd89cb155387a52"
+      },
+      {
+        "request_sha256": "a59782713a5255bf3b634b225337e4c3667065acb1c30ecd3941b6467bcea15a",
+        "raw_sha256": "6442064eb0d43a3caba6f777e743a5ebe0d5678b3215c46af4c4696ed262e42b"
+      },
+      {
+        "request_sha256": "0dfef3616a8ea39ec4b25664f5435498c078ac34c7976c9026710d16027a0d61",
+        "raw_sha256": "32310f6a5acee3d4fb408cb4c3851982a515817e2b70a07e9ff6fc2d56e066cc"
+      },
+      {
+        "request_sha256": "ea4c7f8c9bc74baf94b5d0177271047384d8f7a0ccf654d0a909edc2ae0c7457",
+        "raw_sha256": "9f4e8ddf5bbfaa84ec41cc61f36b877bf696f0a2369e1175de66308574c55f37"
+      },
+      {
+        "request_sha256": "374e23b7626ac2e94ea029b61592bdf9db2718cfcd56e72138b3df46a938e541",
+        "raw_sha256": "e4190d1101db5d36f884edf7cf4115c6b5a6b42231761ce634de083ab17c1e13"
+      },
+      {
+        "request_sha256": "68ac93e7e9471f80bf15d15f41ed385a20df693ed2a05d5aab7c9280e06005f5",
+        "raw_sha256": "14d17ab629685868ce7ad1ea2f526a72374788266e8928dcea7e6e99c0587f1e"
+      },
+      {
+        "request_sha256": "819ca020833c10443bf535666512bddca5e89fa3e2fc3e8dc9f56d609c28e6f2",
+        "raw_sha256": "66c8334ff6ecc588ca7cd708bc716d35a26740fa9db78cba9da1f9e12dac3f54"
+      },
+      {
+        "request_sha256": "317a0da0c36016379a331ebab7e681182985266af0736c91a43978b100959330",
+        "raw_sha256": "8bad32bffeef17164137fdd4717feff8086c80018a367f380caba8ccba4f8e41"
+      },
+      {
+        "request_sha256": "48e88d7a3c76f5aeb390dd12b300690ed9ca4962876dc285cc36f5f73f7ae9e5",
+        "raw_sha256": "dadaeac7c0b7bb3e664e2d5dfaac6bec37ea9cbd07874c65d169564f6b7d7843"
+      },
+      {
+        "request_sha256": "6e82d1018789866e0bce8e40f05f7133bf418a15e5d93ce094515a1b02d1f3cd",
+        "raw_sha256": "d4238efc62f6556a1db4888b452b40cffb5d4b58e4c3727981f71d699716b1e0"
+      },
+      {
+        "request_sha256": "990eb1d4aff305d407066aa9ac5745aa99eb10df9e190adaaa096570db2bd7a8",
+        "raw_sha256": "a6ab055c9c9e13eeaff418f02d63c3d3dcabe0fc06427d69513204177af859b6"
+      },
+      {
+        "request_sha256": "56be3da3f8914363da08ac0b8a14f5aebc020e3f9ab61acd01692cbddd002e6b",
+        "raw_sha256": "641ac1716a5d8e4cf6ab5353bbdc794b472b24d8387031eac4b32d8618814d2f"
+      },
+      {
+        "request_sha256": "960830ea95980ddca12bab1488626b3a90c33ce1a30309ba1ee536c7793929fb",
+        "raw_sha256": "d8f4c372fc715df6550bf35c0166a2c5f3a4c15e46ef75464a248c9ec280ebca"
+      },
+      {
+        "request_sha256": "dbee46d158a71c38873639e8a1a1d41ebcf7f35a9d9345f63cb5da8264c5c70a",
+        "raw_sha256": "83d4ea908c19730fdf743671b34a9311b1924170594b0a27c803d0f49b206eaa"
+      },
+      {
+        "request_sha256": "db05d5c1b195bcebe2a010aabdbbe9012888167a91979fabdf8affd601d85602",
+        "raw_sha256": "a990c3f7d6a91c0f17c983d64f0f8fab1ea663923b346fd048db2df445db0bdd"
+      },
+      {
+        "request_sha256": "1e4f31c4246413b294f8f476285f1f4ccb926b3db37f7e9f4d222f6fa097a176",
+        "raw_sha256": "1ccb5c99c357591213df80896363e330cf0949389c748acb0be2b1a5ce10bf32"
+      },
+      {
+        "request_sha256": "edefecf5a3050a840c4f55bc46cadc8f4287974cb48238efd9d8e04ad97c7c6f",
+        "raw_sha256": "e095c2be19f39bf6cbf3d5750f8e2216f3099a80deb4eb0b9b78023589cb8eb3"
+      },
+      {
+        "request_sha256": "00663da14861a4d6bf44041d1cc125a7d6ec114d3b050b09f456b9a639d9bfa7",
+        "raw_sha256": "baaff35f5c55206eecbca224641b457f4f4c9e9197c433bb5bbb71c807cb2278"
+      },
+      {
+        "request_sha256": "9c3bdb149dab2578cbfa9dc6639e09f9b49779ae582cbabdf93ff2b8517b4bbb",
+        "raw_sha256": "291d9c78f984801545b0b78a9d6dc4f39d45aa9f8ce9eb52046bdd22e1fd0565"
+      },
+      {
+        "request_sha256": "6dfaf5aa92baa1f9cd0d86d8fc43a7d0486af094c0dfd17f384084b570a89b4f",
+        "raw_sha256": "2956ee3c3b7196dfd2fe927b52ded1f173f18585ae083742b2ad31dacecb418b"
+      },
+      {
+        "request_sha256": "e8bfb5c6bb6bbc9d05358133403e07b6729666687c087512bbe224ef5cd17f37",
+        "raw_sha256": "1b49a3edae1e5a606df50d8b92d87d4b666a6793f874e17bafaa7c93f2ed5525"
+      },
+      {
+        "request_sha256": "e10ad0a395aeea91f698c76a053982e9f68603d58a9312d0909c1a4d47642806",
+        "raw_sha256": "528ff7515d77ba98e4f2e6d4580e9293d42812ff9e7621a3c8b42be09f3f2837"
+      },
+      {
+        "request_sha256": "0c1ca7ebfcc62f95dcc0e24243ee749ed62c25222b4e97c619ccd5b166415cb4",
+        "raw_sha256": "95b222c88f2ada05f9dbaeddeff148189945540f29f83146774430e3f565b4d2"
+      },
+      {
+        "request_sha256": "c075722534531561b188e58744f28b79f19681f321dd9837dfe5b35de168ad9d",
+        "raw_sha256": "3391165a94c6c76f266e26243ebf50df342460fdf145804b3615c40372c31475"
+      },
+      {
+        "request_sha256": "dc52645ec06d5d30e004bf65d2eeae2650700ab61da1e5ff204c951eab4a33dc",
+        "raw_sha256": "9ec2dfd8ec4cb39ff095d5f5fad6e4e0edcc24a05bfac358a754c60eab92ae02"
+      },
+      {
+        "request_sha256": "dd0081fd76d6ddf124331a44ddce470a6193f011018ef8aff59c7a31da83db0b",
+        "raw_sha256": "3dc6a86a16f8be0e1f5b7c3d687c1264136d6ec0b1f340b362d272d53acd603e"
+      },
+      {
+        "request_sha256": "2befc944d8154816aa6d0df3e411e5578a60f9fd138ccc59723ef80d6ecc71d3",
+        "raw_sha256": "1c1da951086858bf36235b233aa203a798926d785f9057e612fdea3170fef879"
+      },
+      {
+        "request_sha256": "68d9c6397429c380094ec785b9f889b0c04f2d71a88035eab93e9d48fa7858a7",
+        "raw_sha256": "dddf2abff787991ae8a9b9543f88f2881d31842731ff495599e3c5bd04d418ee"
+      },
+      {
+        "request_sha256": "6e76cc8bf33b5987a7816fd1f8b95ba82ff8d00228a4eed4f15f8e10a50c6faa",
+        "raw_sha256": "b75549bda1029815b2d36b91829d9baa1e903afeaada12f54f36f2c94ccff64a"
+      },
+      {
+        "request_sha256": "9cab4f7ebb8832a53dc544dfce0d5bf38c5d8ebf429b2ee571704b6efbc9aa48",
+        "raw_sha256": "fe23ad39fbf1938008dab12a17bde8851c6d19e3f7409f1d064dc079c6749246"
+      },
+      {
+        "request_sha256": "371528d7c6323159c05adaf15bc138c6e6d38678ef9ed4c4784041dab7c67a28",
+        "raw_sha256": "4b3738510bb715adc9e306f6f880c375ea0caefe022f3da953a3cfc01453840a"
+      },
+      {
+        "request_sha256": "8b4863118ea0a836ea9c1cf2e3759b43da02e273a218fe5a55575228a375c70c",
+        "raw_sha256": "d9ed617cf0e1bcd68f03a939fac10439d5d60ba3f0ee8e2ec3a7eeb86b15eafd"
+      },
+      {
+        "request_sha256": "2e31c83cbb457491eff12a703769efc5d04914427ae2d4feff894b4eb7144acc",
+        "raw_sha256": "37e51e4629a6e6525b23ec8ce5afa4624f221c56963221ac39588059b4136cc3"
+      },
+      {
+        "request_sha256": "10950d9f1dbafb877291149011ce0e9a47ff88030b5ee189e8d1ff9d6ecdb6cd",
+        "raw_sha256": "3bd75400d4693f9b4535446574c6c1f5801888a4f134b7df1964816a23d95cbd"
+      }
+    ],
+    "notes": [
+      "Older runs are selected; these are not exact 10:00 issue snapshots.",
+      "12 hours is an assumed buffer, not verified historical publication latency.",
+      "2023 may only contain temperature; unsupported variables remain missing.",
+      "Previous Runs only offers offsets 1..7; late long-horizon hours are unavailable.",
+      "Radiation at t+1 is aligned to delivery hour [t,t+1); other fields are at t.",
+      "Impossible physical values are masked to NaN; unmodified responses remain cached."
+    ]
+  },
+  "caveats": [
+    "Validation was also used for early stopping and price calibration.",
+    "Raw classifier scores are used for weather comparisons. Calibrated scores are cross-fitted by target month, not scored on calibration fit rows.",
+    "Month cross-fit uses other months including future months; it is not forward-chaining validation.",
+    "Archived weather uses assumed availability, not original publication timestamps.",
+    "SolarRule.fit treats missing training radiation as not firing; its validation scores exclude missing radiation.",
+    "Precision@k uses the positive count; tied baseline scores may affect ranking.",
+    "Forecast rows across horizons repeat target labels and are not independent."
+  ]
+}
