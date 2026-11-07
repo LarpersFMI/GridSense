@@ -128,6 +128,37 @@ cleared before issue time, with a conservative previous auction cutoff until pub
 times and revisions are independently verified. The market delivery day follows CET/CEST
 and starts at 01:00 in Bucharest; keep that distinction when deriving auction dates.
 
+### Price features and weather join check
+
+Call `gridsense.data.price_features.add_price_features(rows, prices)` with
+`issue_ts` and `target_ts_utc` on the forecast rows, and the hourly price table.
+The function requires the configured 10:00 Bucharest issue and a configured
+future delivery day. It maps the target's local clock hour to issue day D and D−6,
+then looks up the exact UTC delivery intervals. Missing, nonexistent or ambiguous
+lag hours stay null.
+
+The D midday mean and minimum require all four prices for 11:00–15:00 local.
+The seven-day midday minimum and negative-hour count use observed prices from
+D−7 through D−1. The matching coverage columns report the observed fraction of
+expected hours, including DST. The day D features rely on the prior auction's
+publication schedule. The snapshot does not establish which revisions were available
+at the issue time.
+
+With the local `prices_hourly.parquet` in place, run:
+
+```bash
+uv run python -m gridsense.data.check_weather_join
+uv run python -m gridsense.data.check_weather_join --weather /path/to/weather_fc.parquet
+```
+
+The first command writes `weather_fc.synthetic.parquet` and
+`price_weather_join.synthetic.parquet` under the ignored
+`data/interim/weather_join_2025-03-30/` directory. The fixture has 92 synthetic
+weather rows for four cities. After pivoting, the check requires one real price
+label for each of the 23 UTC delivery hours on March 30 in Bucharest. The second
+command checks the same issue and delivery day in a supplied file. The synthetic
+outputs are integration fixtures.
+
 ## Optional grid signals
 
 ENTSO-E documents the following sources in its
