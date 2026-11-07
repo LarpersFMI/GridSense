@@ -72,6 +72,11 @@ def main(argv: list[str] | None = None) -> None:
         action="store_true",
         help="Write validated observations and complete hours even if coverage has gaps",
     )
+    parser.add_argument(
+        "--replace-existing",
+        action="store_true",
+        help="Explicitly replace existing price data when the new build differs",
+    )
     args = parser.parse_args(argv)
     if config.DATA_MODE != "real":
         parser.error("Set GRIDSENSE_DATA=real to build real market data")
@@ -99,6 +104,18 @@ def main(argv: list[str] | None = None) -> None:
     print(report, flush=True)
     if hourly.empty or (summary["missing_native_intervals"] and not args.allow_gaps):
         parser.exit(1, "Incomplete price coverage. See the report above. No outputs written.\n")
+
+    # Check both files before writing either: a partial-window run must not silently
+    # replace the team's longer historical dataset, even with --allow-gaps.
+    if not args.replace_existing:
+        for name, candidate in (("prices_hourly", hourly), ("prices_native", native)):
+            path = config.PROCESSED_DIR / f"{name}.parquet"
+            if path.exists() and not pd.read_parquet(path).equals(candidate.reset_index(drop=True)):
+                parser.exit(
+                    1,
+                    f"{path} differs from the new build. No outputs written; "
+                    "review it and use --replace-existing to replace it.\n",
+                )
 
     io.write(hourly, "prices_hourly")
     native.to_parquet(config.PROCESSED_DIR / "prices_native.parquet", index=False)

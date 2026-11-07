@@ -222,6 +222,9 @@ def read_export(
     unique_key(frame, key, name)
     return frame.sort_values(key, ignore_index=True), {
         "source_files": len(paths),
+        "source_sha256": {
+            str(path.relative_to(root.parent)): sha256_file(path) for path in paths
+        },
         "selected_rows": selected_rows,
         "duplicates_removed": selected_rows - len(frame),
     }
@@ -359,6 +362,7 @@ def build_tables(
             "first_missing_hours_utc": [ts.isoformat() for ts in missing[:12]],
         }
     integration = {
+        "legacy_load_input_sha256": sha256_file(destination / "regional_load_hourly.parquet"),
         "legacy_load_rows_by_country": legacy["country_code"].value_counts().to_dict(),
         "file_library_load_hours_by_country": additions["country_code"].value_counts().to_dict(),
         "late_file_library_load_hours_by_country": late_load["country_code"]
@@ -372,7 +376,32 @@ def build_tables(
     return tables, inputs, price_reports, integration
 
 
-def build(selection: Path, destination: Path) -> None:
+def install_staged(
+    staged: Path, destination: Path, names: list[str], *, replace_existing: bool = False
+) -> None:
+    """Check the complete set before replacing any existing build output."""
+    missing = [name for name in names if not (staged / name).is_file()]
+    if missing:
+        raise ValueError(f"Missing staged outputs: {', '.join(missing)}. No outputs written.")
+    if not replace_existing:
+        different = [
+            name
+            for name in names
+            if (destination / name).exists()
+            and sha256_file(destination / name) != sha256_file(staged / name)
+        ]
+        if different:
+            raise ValueError(
+                f"Existing outputs differ: {', '.join(different)}. No outputs written; "
+                "review the inputs and existing outputs; use --replace-existing to replace them."
+            )
+    for name in names:
+        path = destination / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        (staged / name).replace(path)
+
+
+def build(selection: Path, destination: Path, *, replace_existing: bool = False) -> None:
     start = local_midnight(config.TRAIN_START.date())
     end = local_midnight(config.TEST_END.date() + pd.Timedelta(days=1))
     tables, inputs, price_reports, integration = build_tables(selection, destination, start, end)
@@ -432,10 +461,7 @@ def build(selection: Path, destination: Path) -> None:
         }
         for name, report in reports.items():
             (staged / name).write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-        for name in (*outputs, *reports):
-            path = destination / name
-            path.parent.mkdir(parents=True, exist_ok=True)
-            (staged / name).replace(path)
+        install_staged(staged, destination, [*outputs, *reports], replace_existing=replace_existing)
     print(
         f"Wrote {len(outputs)} unique-key Parquet tables. See {destination / SOURCE / 'manifest.json'}"
     )
@@ -444,10 +470,21 @@ def build(selection: Path, destination: Path) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--selection", type=Path, default=DEFAULT_SELECTION)
+    parser.add_argument(
+        "--destination",
+        type=Path,
+        default=config.PROCESSED_DIR,
+        help="Output directory, which must contain an existing regional_load_hourly.parquet",
+    )
+    parser.add_argument(
+        "--replace-existing",
+        action="store_true",
+        help="Replace differing existing outputs after reviewing the inputs and existing outputs",
+    )
     args = parser.parse_args()
     if config.DATA_MODE != "real":
         parser.error("Use GRIDSENSE_DATA=real to build real market and grid data")
-    build(args.selection, config.PROCESSED_DIR)
+    build(args.selection, args.destination, replace_existing=args.replace_existing)
 
 
 if __name__ == "__main__":

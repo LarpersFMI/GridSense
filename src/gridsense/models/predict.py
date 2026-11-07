@@ -6,9 +6,11 @@ from gridsense import config, io
 from gridsense.models import artifacts
 from gridsense.models.base import PRICE_COLUMNS, PROBA_COLUMNS
 from gridsense.models.classify import LowPriceClassifier
+from gridsense.models.explain import top_features
 from gridsense.models.price import PriceForecaster
 
 KEY_COLUMNS = ["issue_ts", "target_ts_utc", "horizon_days"]
+EXPLAINED = "p_cheap"
 
 
 def build_predictions(
@@ -22,7 +24,9 @@ def build_predictions(
     out[list(PRICE_COLUMNS)] = price.predict(table)[list(PRICE_COLUMNS)]
     # Until data/quality.py feeds per-row flags into the training table.
     out["data_quality"] = table.get("data_quality", "ok")
-    out["top_features"] = ""
+    # Explains p_cheap: the probability the agent's decision rule acts on.
+    model = classifier.models[EXPLAINED]
+    out["top_features"] = top_features(model, table[classifier.features]).to_numpy()
     out["model_name"] = f"{classifier.name}+{price.name}"
     out["model_version"] = model_version
     return out.reset_index(drop=True)
@@ -33,8 +37,12 @@ def issue_dates_local(table: pd.DataFrame) -> pd.Series:
 
 
 def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(description="Score issue dates and write the predictions table.")
-    parser.add_argument("--start", help="First issue date (YYYY-MM-DD). Default: latest issue date.")
+    parser = argparse.ArgumentParser(
+        description="Score issue dates and write the predictions table."
+    )
+    parser.add_argument(
+        "--start", help="First issue date (YYYY-MM-DD). Default: latest issue date."
+    )
     parser.add_argument("--end", help="Last issue date (YYYY-MM-DD). Default: same as --start.")
     args = parser.parse_args(argv)
 
