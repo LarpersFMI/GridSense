@@ -1,6 +1,6 @@
 # ML handoff (price forecasting, ML-P)
 
-Latest integration on **2026-11-07**: local weather/chronological work committed as `c955b60`,
+Latest published integration on **2026-11-07**: local weather/chronological work committed as `c955b60`,
 nested-chain integration as `b3fc575`, and upstream data-quality work through `99ae96d`
 merged as `e105713`. **203 tests and lint pass; all 28 tracked Parquets are readable.**
 The default 235,704-row/50-feature table is unchanged. Refreshed comparisons and the
@@ -10,6 +10,163 @@ is still `63bada2`, while `origin/main` has advanced to `2da47ad`; those service
 been merged into ML. Earlier sections below are historical run records with their original
 inputs and model versions. Read the current checklist first, then [price_plan.md](price_plan.md),
 [ml_plan.md](ml_plan.md) and the README rules.
+
+## Forecast engineering from archived inputs (opt-in)
+
+The [new module](../src/gridsense/features/forecast_engineering.py) reuses the incoming
+augmentation's **ideas**, not its observed data, delivery-relative price features or
+permutation ranking. No remote changes were merged and no shared Parquet schema changed.
+
+- Weather input is the existing `weather_fc` Previous Runs selection for București,
+	Constanța, Craiova and Timișoara. Source/horizon/physical/cutoff validation runs before
+	engineering. The existing 12-hour publication assumption is **not** upgraded into
+	verified operational-vintage evidence. Missing D+7/partial D+6 and early history persist.
+- New features: dimensionless solar geometry/cloud potential; heating/cooling degree
+	proxies; dry surface-air density and **10 m** wind-power-density proxy; wind U/V vectors.
+	Nonlinear operations occur per point before strict equal-point means. These are not
+	measured solar irradiance, turbine power or country renewable-generation estimates.
+- Thermal bases and price-memory windows come from shared configuration. Extra pressure,
+	wind speed or direction absent from the archive remain NaN, not observed-weather fills.
+	A separate `f_feng_missing_weather` flag records derived-weather completeness; original
+	control columns including `data_quality` remain unchanged.
+- Calendar additions are hour/weekday sine/cosine. Price additions are **3/6/24 elapsed
+	hours before `issue_ts`**, mean/std only when the whole window is present. No delivery-
+	relative windows, future prices or target labels enter these features. UTC windows retain
+	distinct DST hours; local dates determine the horizon and configured daily issue cutoff.
+- The fixed opt-in set adds up to **51 `f_feng_` columns**. Empty-training features are
+	dropped by the existing fit-availability policy. No feature ranking/selection is imported
+	from the leaky upstream hourly-price experiment.
+
+`make features FORECAST_ENGINEERED=1` explicitly builds an engineered normal training table,
+like the other feature flags; **it was not run against shared data during implementation**.
+For safe comparison, choose `VARIANTS="current forecast_engineered"` when preparing a new
+overnight run. The [queue integration](../src/gridsense/models/overnight.py) appends features
+only to labelled train/validation snapshots, asserts every original control column matches,
+and preserves the original six default variants. No new download is required for the core
+four-point candidate. This is a candidate, not a demonstrated quality improvement.
+
+Verified in memory on real data: **167,993 labelled development rows** (132,048 train /
+35,945 validation), **50 → 101 features**, no empty-training engineered columns and exact
+equality of every original control column. Derived-weather completeness is **43.24% train /
+84.37% validation**, across all horizons; missing archive coverage is not filled. Shared
+training-table and forecast-source hashes match their pre-adaptation values.
+**235 tests and lint pass**. The
+[31 engineering regressions](../tests/test_forecast_engineering.py) cover observation rejection,
+availability/horizon checks, future-price/label perturbations, full-key joins, empty/missing
+weather, nonlinear point means, units, price gaps, UTC/DST and explicit CLI opt-in. The queue
+also has a regression proving that this extra candidate receives only development rows and
+does not enter the six default variants.
+
+**New queue prepared and verified:**
+[the plan](../reports/real/overnight/20261107-forecast-engineering/plan.json) has seven
+candidates (the original six plus `forecast_engineered`) × three profiles (`default`,
+`recent`, `regularized`) × four June–September scoring folds: **21 jobs / 84 folds**.
+The first job is the engineered candidate so the smoke actually exercises all 101 features.
+Its eight-round June smoke passed with **zero nesting violations**; snapshot/report/code/
+runtime/source checksums and production-model inventory all verify. The
+[completion marker](../reports/real/overnight/20261107-forecast-engineering/smoke/forecast_engineered__default/completed.json)
+is explicitly smoke-only, not quality evidence. **The full queue has not started** and no
+test-evaluation marker exists. Run/resume the new plan with
+`make overnight RUN_DIR=reports/real/overnight/20261107-forecast-engineering` only when ready
+to start the full experiments. Do not alter implementation, sources or production models
+underneath this prepared plan. Large queue artifacts remain ignored.
+
+**Queue fingerprint boundary:** adding this module/configuration/integration changes Python
+checksums. The previous `20261107-validation` snapshots/reports remain untouched, but their
+plan cannot execute under this newer code; choose a new directory and smoke-test again.
+The incoming-data audit below describes the earlier read-only state, before this adaptation.
+
+## Incoming data audit: origin/dev 9839df0
+
+Read-only audit on **2026-11-07**, after fetching remote refs without merging. The local
+implementation remains `bb7a847`; the incoming tip is `9839df054b975a8a236059a9955a4207c21bd449`.
+The four incoming commits are `a7c9ada` (per-step classifier recency), `74c0c70` (renewable
+source investigation), `dcfb8b3` (observed-weather augmentation) and merge `9839df0`.
+All **29 incoming processed Parquets have readable metadata**; all four changed/new
+Parquets were decoded and inspected. This is a data-suitability review, not a full incoming
+code/test certification. No training, feature rebuild, test-set scoring or customer action
+was run. The local default-table hash remains
+`e1b8a8345afe81e65b34129ad500187dc4e491a150777f36ca6073cc619b5108`.
+
+### Decision: do not use the augmented table as forecast inputs
+
+The [incoming augmentation builder](https://github.com/LarpersFMI/GridSense/blob/9839df054b975a8a236059a9955a4207c21bd449/src/gridsense/features/feature_augmentation.py#L69-L140)
+reads **observed** weather, joins it to prices on delivery timestamp and pivots to one row
+per delivery hour. The new table has **29,973 rows / 36 columns**, including 30 selected
+features; it has no `issue_ts`, no `horizon_days` and no `f_` features. The model feature
+contract therefore cannot consume it directly.
+
+- **Target-hour truth leaks:** `temp_c_oradea` exactly matches the observed temperature at
+	the target hour on all **24,093 train/validation delivery rows**. The cloud-derived solar
+	proxies and wind/thermal variables likewise originate from target-hour observations,
+	not archived forecasts. Do not relabel them as forecasts or simply add `f_` prefixes.
+- **Price memory uses the wrong clock:** the
+	[lag/window construction](https://github.com/LarpersFMI/GridSense/blob/9839df054b975a8a236059a9955a4207c21bd449/src/gridsense/features/feature_augmentation.py#L159-L181)
+	applies row shifts and rolling windows immediately before *delivery*. Train/validation
+	checks reproduce those shifts exactly. For longer horizons those prices are not yet
+	published at issue time; some D+1 evening windows also include unpublished D+1 prices.
+	Recompute price memory relative to the issue date, using the established availability rule.
+- **Discontinuous history:** the inner join omits the refit gap and has a **3,626-hour jump**
+	before the test period. Row shifts are not elapsed-hour lags across that boundary. No
+	test prediction or metric was computed during this inspection.
+- **Permutation ranking is not deployment evidence:** the
+	[ranking routine](https://github.com/LarpersFMI/GridSense/blob/9839df054b975a8a236059a9955a4207c21bd449/src/gridsense/features/feature_ranking.py#L48-L97)
+	fits on train and ranks on validation, but its inputs have the leakage above. The saved
+	artifact is only a 444-name list, without scores, source hashes or model provenance.
+	Do not reuse this ranking to select production forecast features.
+- **Inference is incomplete:** the
+	[new-data transform](https://github.com/LarpersFMI/GridSense/blob/9839df054b975a8a236059a9955a4207c21bd449/src/gridsense/features/feature_selection.py#L108-L135)
+	does not reproduce the training price lags/windows or all cyclic encodings, and silently
+	omits absent selected features. It is not ready to provide the same training/inference matrix.
+- The variable called `solar_proxy_wm2` is a **dimensionless 0–1 cloud-adjusted solar-angle
+	proxy**, not measured W/m² (train/validation RO maximum approximately 0.935). Keep its
+	meaning and units explicit if adapting the idea.
+
+**Reusable ideas, not reusable target-hour values:** solar geometry is known in advance;
+wind vectors, heating/cooling degree hours, cloud-adjusted solar proxies and regional
+aggregates can be rebuilt from archived forecasts selected at the existing issue cutoff.
+Use the full forecast key, `f_` names, train-availability checks and source provenance;
+select/freeze features on earlier development blocks, then score later chronological blocks.
+Keep the current 50-feature default until that comparison justifies a change.
+
+### Other incoming data and experiment changes
+
+- [Observed weather](../data/processed/weather_hourly.parquet) has **1,019,082 rows** over
+	34 locations, with unique `(target_ts_utc, location)` keys. Every timestamp and numeric
+	value is unchanged from local HEAD; only split strings changed to lowercase
+	`train` / `validation` / `test`. Our splitter uses `val`, so normalize through
+	`assign_split`, not the stored spelling. This is not additional forecast coverage.
+- [Hungarian calendar](../data/processed/calendar_hungary.parquet) is value-identical.
+	[Bulgarian calendar](../data/processed/calendar_bulgaria.parquet) changes 48 holiday flags
+	and 24 bridge flags: it removes non-working holidays **2025-12-31 and 2026-01-02** that
+	the installed `holidays` package still identifies as non-working days. These dates are
+	outside train/validation, so this provides no current training gain; verify the removals
+	with the data owner before adopting them.
+- The [renewable investigation](https://github.com/LarpersFMI/GridSense/blob/9839df054b975a8a236059a9955a4207c21bd449/docs/renewable_generation_handoff.md)
+	adds documentation, not verified issue-known history. Existing renewable inputs still
+	have zero eligible train/validation coverage and remain excluded.
+- Classifier recency **730 days near-zero / 90 days conditional cheap** is a legitimate
+	development candidate, not new data or forward-only confirmation. Its sweep reuses
+	validation for early stopping and target-month cross-fitted calibration. Compare it
+	explicitly against equal per-step half-lives in the chronological runner before promotion.
+	If merged unchanged, its conditional override also makes the current queue's nominal
+	365/180-day profiles use 90 days for that step; set and record both half-lives explicitly
+	when preparing that new comparison.
+
+### Overnight and documentation boundary
+
+The existing prepared queue remains `smoke_passed`, with no full queue started and no
+test-evaluation marker. Its source inventory excludes the observed augmentation and
+neighbour calendars, so these new data tables do not improve its current candidates.
+However, **merging the incoming Python/schema changes invalidates its code fingerprint**:
+prepare a new run and smoke-test it after any such integration. README/handoff-only edits
+do not change the implementation fingerprint. No remote changes were merged by this audit.
+
+The README diagram now explicitly separates implemented data/forecasting from the planned
+customer-facing agent. Local planner/actions/wording remain stubs; the separate `main`
+central-agent is also a placeholder. Generic trigger infrastructure or UI toast messages
+are not zero-cost customer notifications. The pitch describes a design goal, not a proven
+operational guarantee against expensive free-energy offers.
 
 ## Resume checklist: commit and overnight experiments
 

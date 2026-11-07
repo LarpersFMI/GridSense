@@ -254,6 +254,8 @@ def main(argv: list[str] | None = None) -> None:
                         help="Opt in to week-ahead load min/max; historical publication vintages are unverified")
     parser.add_argument("--weather-extra", action="store_true",
                         help="Opt in to humidity, precipitation, pressure and 10 m wind forecast features")
+    parser.add_argument("--forecast-engineered", action="store_true",
+                        help="Opt in to archived-forecast physical features and issue-time price memory")
     args = parser.parse_args(argv)
     if args.regional and config.DATA_MODE != "real":
         parser.error("Regional market inputs are real-only; do not mix them into fake mode")
@@ -265,6 +267,10 @@ def main(argv: list[str] | None = None) -> None:
         _read_optional("load_fc_week_ahead") if args.week_ahead else None,
         weather_extra=args.weather_extra,
     )
+    if args.forecast_engineered:
+        from gridsense.features.forecast_engineering import join_engineered_features
+
+        table = join_engineered_features(table, io.read("weather_fc"), io.read("prices_hourly"))
     split = assign_split(table["target_ts_utc"]).fillna("unassigned")
     table, empty = drop_untrainable(table)
     if empty:

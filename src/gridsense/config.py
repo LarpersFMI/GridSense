@@ -34,6 +34,11 @@ CHEAP_THRESHOLD_EUR = 0.0
 NEAR_ZERO_THRESHOLD_EUR = 20.0
 QUANTILES = (0.1, 0.5, 0.9)
 
+# Opt-in forecast engineering; thermal bases are demand proxies, not comfort guarantees.
+HEATING_BASE_C = 18.0
+COOLING_BASE_C = 22.0
+PRICE_MEMORY_WINDOWS_HOURS = (3, 6, 24)
+
 WEATHER_POINTS = {
     "bucuresti": (44.43, 26.11, "Romania"),
     "cluj_napoca": (46.77, 23.62, "Romania"),

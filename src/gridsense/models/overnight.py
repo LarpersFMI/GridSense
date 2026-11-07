@@ -19,6 +19,7 @@ import pandas as pd
 
 from gridsense import config, io
 from gridsense.features.build import EXTRA_WEATHER_VARS, build_training_table, drop_untrainable
+from gridsense.features.forecast_engineering import PREFIX, join_engineered_features
 from gridsense.features.regional import (
     REGIONAL_COLUMNS,
     REGIONAL_LOAD_COLUMNS,
@@ -29,8 +30,9 @@ from gridsense.features.weather_grid import fetch_grid, grid_features, join_grid
 from gridsense.models.chronological import PROFILES, default_score_months, digest, month_fold
 from gridsense.splits import assign_split
 
-VARIANTS = ("current", "weather_extra", "ro_grid", "ro_hu_bg_grid",
-            "regional_prices", "regional_load")
+DEFAULT_VARIANTS = ("current", "weather_extra", "ro_grid", "ro_hu_bg_grid",
+                    "regional_prices", "regional_load")
+VARIANTS = (*DEFAULT_VARIANTS, "forecast_engineered")
 SOURCES = ("training_table.parquet", "prices_hourly.parquet", "grid_hourly.parquet",
            "calendar.parquet", "weather_fc.parquet", "regional_market_features.parquet",
            "regional_market_manifest.json")
@@ -83,12 +85,17 @@ def experiment_tables(variants: list[str]) -> dict[str, pd.DataFrame]:
     pd.testing.assert_frame_equal(stored, rebuilt)
     extras = tuple(f"f_{name}_" for name in EXTRA_WEATHER_VARS.values())
     forbidden = [column for column in stored if column.startswith(
-        (*extras, "f_wgrid_", "f_load_fc_")) or column in REGIONAL_COLUMNS]
+        (*extras, "f_wgrid_", "f_load_fc_", PREFIX)) or column in REGIONAL_COLUMNS]
     if forbidden:
         raise ValueError(f"Queue control must be the non-opt-in default table, found {forbidden}")
     allowed = assign_split(stored.target_ts_utc).isin(["train", "val"]) & stored.y_price.notna()
     current = stored[allowed].copy()
     result = {"current": current}
+    if "forecast_engineered" in variants:
+        table, _ = drop_untrainable(join_engineered_features(
+            current, io.read("weather_fc"), io.read("prices_hourly")))
+        pd.testing.assert_frame_equal(table[stored.columns], current)
+        result["forecast_engineered"] = table
     if "weather_extra" in variants:
         table, _ = drop_untrainable(build_training_table(
             io.read("prices_hourly"), io.read("grid_hourly"), io.read("weather_fc"),
@@ -235,7 +242,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--prepare", action="store_true")
     parser.add_argument("--execute", action="store_true")
     parser.add_argument("--smoke", action="store_true")
-    parser.add_argument("--variants", nargs="+", choices=VARIANTS, default=list(VARIANTS))
+    parser.add_argument("--variants", nargs="+", choices=VARIANTS, default=list(DEFAULT_VARIANTS))
     parser.add_argument("--profiles", nargs="+", choices=PROFILES, default=["default"])
     parser.add_argument("--months", nargs="+", default=default_score_months())
     args = parser.parse_args(argv)
