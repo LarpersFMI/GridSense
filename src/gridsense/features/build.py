@@ -14,12 +14,19 @@ from gridsense.splits import assign_split
 MIDDAY_HOURS = range(11, 15)
 EVENING_HOURS = range(18, 22)
 FOURIER_ORDER = 3
-WEATHER_VARS = {"ghi_wm2": "ghi", "cloud_cover_pct": "cloud", "wind100_ms": "wind100", "temp_c": "temp"}
+
 # Week-ahead load forecasts appear on Thursday around 10:00-12:00 for the week starting the
 # following Monday (measured on 2026 data). Saturday's issue is the first that safely has them.
 LOAD_FC_KNOWN_DAYS_BEFORE_MONDAY = 2
 
 
+WEATHER_VARS = {"cloud_cover_pct": "cloud", "wind10_ms": "wind10", "temp_c": "temp",
+                "relative_humidity_pct": "humidity",
+                "precip_mm": "precipitation",
+                "rain_mm": "rain",
+                "snowfall_cm": "snowfall",
+                "pressure_hpa": "pressure",
+                "wind_dir_deg": "wind_direction",}
 def _local(ts_utc: pd.Series) -> pd.DataFrame:
     local = ts_utc.dt.tz_convert(config.LOCAL_TZ)
     return pd.DataFrame(
@@ -135,14 +142,14 @@ def _calendar_features(rows: pd.DataFrame) -> pd.DataFrame:
 
 def build_training_table(
     prices: pd.DataFrame,
-    grid: pd.DataFrame | None,
-    weather_fc: pd.DataFrame | None,
+    grid: pd.DataFrame,
+    weather_fc: pd.DataFrame,
     calendar: pd.DataFrame,
-    load_fc_week_ahead: pd.DataFrame | None = None,
+    load_fc_week_ahead: pd.DataFrame,
 ) -> pd.DataFrame:
     """One row per (issue_date, target_ts, horizon); every feature must be known at issue time.
 
-    Grid, weather and load forecast features are skipped when their table is None.
+    Grid and weather features are skipped when their table is None.
     """
     if "country" in calendar and not calendar["country"].isin(["Romania", "RO"]).all():
         raise ValueError("The ML target calendar must be Romanian; keep country calendars separate")
@@ -218,7 +225,7 @@ def build_training_table(
     return table.reset_index(drop=True)
 
 
-def _read_optional(name: str) -> pd.DataFrame | None:
+def _read_optional(name: str) -> pd.DataFrame:
     if (config.PROCESSED_DIR / f"{name}.parquet").is_file():
         return io.read(name)
     print(f"[{config.DATA_MODE}] no {name} table; building without its features")
