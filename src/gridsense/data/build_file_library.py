@@ -223,7 +223,7 @@ def read_export(
     return frame.sort_values(key, ignore_index=True), {
         "source_files": len(paths),
         "source_sha256": {
-            str(path.relative_to(root.parent)): sha256_file(path) for path in paths
+            path.relative_to(root.parent).as_posix(): sha256_file(path) for path in paths
         },
         "selected_rows": selected_rows,
         "duplicates_removed": selected_rows - len(frame),
