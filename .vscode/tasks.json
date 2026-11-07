@@ -1,0 +1,68 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "ML: validation queue (prepared forecast-recency)",
+			"type": "shell",
+			"command": "make",
+			"args": [
+				"overnight",
+				"RUN_DIR=reports/real/overnight/20261107-forecast-recency"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "ML: slot-level vs hourly validation",
+			"type": "shell",
+			"command": "env",
+			"args": [
+				"GRIDSENSE_DATA=real",
+				"caffeinate",
+				"-i",
+				"uv",
+				"run",
+				"python",
+				"-m",
+				"experiments.slot_validation",
+				"--execute",
+				"--run-dir",
+				"reports/real/overnight/20261107-slot-comparison"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "ML: dedicated D+1 cancellation target",
+			"type": "shell",
+			"command": "env",
+			"args": [
+				"GRIDSENSE_DATA=real",
+				"caffeinate",
+				"-i",
+				"uv",
+				"run",
+				"python",
+				"-m",
+				"experiments.day_ahead_validation",
+				"--execute",
+				"--run-dir",
+				"reports/real/overnight/20261107-d1-cancellation-v2"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "ML: assigned Mac48 overnight D+1 experiments",
+			"type": "shell",
+			"command": "caffeinate",
+			"args": ["-i", "zsh", "experiments/train_mac48.zsh"],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		}
+	]
+}
