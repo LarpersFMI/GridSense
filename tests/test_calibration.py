@@ -83,8 +83,10 @@ def test_classifier_calibrates_on_val(tiny_training_table, method):
     tr, val = tiny_training_table[split == "train"], tiny_training_table[split == "val"]
     model = LowPriceClassifier(calibration=method).fit(tr, val)
 
-    assert set(model.calibrators) == {"p_near_zero", "p_cheap"}
-    assert model.metadata() == {"calibration": method, "calibrated": ["p_cheap", "p_near_zero"]}
+    assert set(model.calibrators) == {"p_near_zero", "p_cheap_given_near_zero"}
+    meta = model.metadata()
+    assert meta["calibration"] == method
+    assert meta["calibrated"] == ["p_cheap_given_near_zero", "p_near_zero"]
     raw = model.predict(val, apply_calibration=False)
     cal = model.predict(val)
     assert not np.allclose(raw["p_near_zero"], cal["p_near_zero"])

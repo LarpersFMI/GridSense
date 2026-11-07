@@ -60,18 +60,26 @@ def fit_calibrator(p_val: np.ndarray, y_val: np.ndarray, method: str = "platt"):
 
 
 def cross_fit(
-    p: np.ndarray, y: np.ndarray, groups: np.ndarray, method: str = "platt"
+    p: np.ndarray,
+    y: np.ndarray,
+    groups: np.ndarray,
+    method: str = "platt",
+    fit_mask: np.ndarray | None = None,
 ) -> np.ndarray:
     """Calibrated probabilities where each group is mapped by a calibrator fitted on the others.
 
     Scoring a calibrator on the rows it was fitted on looks better than it is. This gives honest
     calibrated validation scores; the model itself is still calibrated on all of validation.
+    fit_mask limits which rows calibrators are fitted on (e.g. a conditional model that only
+    applies to near-zero hours); every row is still mapped.
     """
     p, y, groups = np.asarray(p, dtype=float), np.asarray(y, dtype=float), np.asarray(groups)
+    fit_mask = np.ones(len(p), dtype=bool) if fit_mask is None else np.asarray(fit_mask, dtype=bool)
     out = np.empty_like(p)
     for g in np.unique(groups):
         held = groups == g
-        out[held] = fit_calibrator(p[~held], y[~held], method).predict(p[held])
+        fit = ~held & fit_mask
+        out[held] = fit_calibrator(p[fit], y[fit], method).predict(p[held])
     return out
 
 

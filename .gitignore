@@ -32,6 +32,8 @@ reports/real/overnight/
 !data/processed/training_table.parquet
 !data/processed/load_fc_week_ahead_asof.parquet
 !data/processed/load_fc_week_ahead_asof_manifest.json
+!data/processed/renewable_generation_asof.parquet
+!data/processed/renewable_generation_asof_manifest.json
 !data/processed/entsoe_file_library/
 data/processed/entsoe_file_library/*
 !data/processed/entsoe_file_library/*.parquet
