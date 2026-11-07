@@ -16,6 +16,7 @@ data/raw/*
 data/interim/*
 data/processed/*
 data/synthetic/*
+data/replay/
 data/fake/
 reports/fake/
 reports/real/overnight/
@@ -52,3 +53,5 @@ models/*
 data.zip
 
 .idea/
+node_modules/
+dist/

@@ -1,0 +1,43 @@
+{
+    "name": "gridsense",
+    "version": "0.0.1",
+    "private": true,
+    "workspaces": [
+        "packages/*"
+    ],
+    "scripts": {
+        "dev:all": "npm run env && npm run infra && npm run dev",
+        "env": "test -f .env || cp .env.example .env",
+        "infra": "docker compose up -d --wait postgres redis",
+        "dev": "concurrently -n server,watchdog,pipelines,frontend -c cyan,magenta,yellow,green \"npm:dev:server\" \"npm:dev:watchdog\" \"npm:dev:pipeline-runner\" \"npm:dev:frontend\"",
+        "dev:server": "npm run dev --workspace=packages/server",
+        "dev:watchdog": "npm run dev --workspace=packages/watchdog",
+        "dev:pipeline-runner": "npm run dev --workspace=packages/pipeline-runner",
+        "dev:frontend": "npm run dev --workspace=packages/frontend",
+        "test": "npm run test --workspace=packages/shared --workspace=packages/pipeline-runner",
+        "typecheck": "npm run typecheck --workspace=packages/shared --workspace=packages/server --workspace=packages/watchdog --workspace=packages/pipeline-runner --workspace=packages/frontend"
+    },
+    "dependencies": {
+        "@duckdb/node-api": "1.4.5-r.1",
+        "@nestjs/bullmq": "^11.0.2",
+        "@nestjs/common": "^11.1.16",
+        "@nestjs/core": "^11.1.16",
+        "@nestjs/platform-express": "^11.1.16",
+        "axios": "^1.13.4",
+        "bullmq": "^5.67.2",
+        "dotenv": "^17.3.1",
+        "ioredis": "^5.9.2",
+        "reflect-metadata": "^0.2.2",
+        "rxjs": "^7.8.2",
+        "zod": "^4.3.6"
+    },
+    "devDependencies": {
+        "@types/node": "^22.10.2",
+        "concurrently": "^9.2.1",
+        "nodemon": "^3.1.14",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.9.3",
+        "vite": "^7.1.0",
+        "vitest": "5.0.4"
+    }
+}

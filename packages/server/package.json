@@ -1,0 +1,22 @@
+{
+    "name": "@gridsense/server",
+    "version": "0.0.1",
+    "private": true,
+    "description": "NestJS server: owns Postgres (runs, triggers), serves the browser (/api) and the workers (/internal), relays live events at /socket.",
+    "scripts": {
+        "dev": "nodemon -w src -w migrations -w ../shared -e ts,json,sql --exec ts-node src/api.ts",
+        "typecheck": "tsc --noEmit -p tsconfig.json"
+    },
+    "dependencies": {
+        "@gridsense/shared": "*",
+        "@nestjs/platform-ws": "^11.2.7",
+        "@nestjs/websockets": "^11.2.7",
+        "kysely": "^0.28.9",
+        "pg": "^8.16.3",
+        "ws": "^8.21.2"
+    },
+    "devDependencies": {
+        "@types/pg": "^8.15.6",
+        "@types/ws": "^8.18.2"
+    }
+}

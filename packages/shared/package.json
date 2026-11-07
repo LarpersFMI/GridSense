@@ -1,0 +1,11 @@
+{
+    "name": "@gridsense/shared",
+    "version": "0.0.1",
+    "private": true,
+    "sideEffects": false,
+    "scripts": {
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "typecheck": "tsc --noEmit -p tsconfig.json"
+    }
+}

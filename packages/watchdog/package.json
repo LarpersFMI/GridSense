@@ -1,0 +1,13 @@
+{
+    "name": "@gridsense/watchdog",
+    "version": "0.0.1",
+    "private": true,
+    "description": "Checks the admin's triggers when datasets update and on schedules; hands each hit to the agent. NestJS + BullMQ, no database: reads triggers and runs through the server's /internal API, parquet through DuckDB.",
+    "scripts": {
+        "dev": "nodemon -w src -w ../shared -e ts,json --exec ts-node src/main.ts",
+        "typecheck": "tsc --noEmit -p tsconfig.json"
+    },
+    "dependencies": {
+        "@gridsense/shared": "*"
+    }
+}

@@ -1,0 +1,84 @@
+/*
+ * Tailwind for layout and spacing only: no preflight, so Blueprint's own reset and styles stay as they are.
+ * Its utilities are in a layer and Blueprint's CSS isn't, so on the same element Blueprint wins (bp6-fill beats w-60):
+ * size a Blueprint control from a wrapping div.
+ */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+html,
+body,
+#root {
+    height: 100%;
+    margin: 0;
+}
+
+body {
+    background: #f6f7f9;
+}
+
+/*
+ * The dataset preview's headers, as in Foundry: the name over its type, in two lines, so taller than Blueprint's
+ * one-line 30px header. Unlayered, like Blueprint's own, and after it: these win.
+ */
+.dataset-preview .bp6-table-column-name-text {
+    line-height: 1.35;
+    padding: 6px 4px 6px 10px;
+}
+
+.dataset-preview .bp6-table-column-name {
+    font-weight: 400;
+}
+
+/* The header's ▾ always shows, as in Foundry; Blueprint shows it on hover only. */
+.dataset-preview .bp6-table-th-menu-container {
+    opacity: 1;
+    top: 6px;
+}
+
+/* The navbar's section tabs fill its height, so the selected tab's underline sits on the navbar's bottom edge. */
+.bp6-navbar .bp6-tab-list > .bp6-tab {
+    line-height: 50px;
+}
+
+/*
+ * Form fields one per row: the label on the left, in one column for every row, the control and its help on the
+ * right (FormGroup `inline` inside a `.field-rows`).
+ */
+.field-rows .bp6-form-group.bp6-inline > .bp6-label {
+    flex: 0 0 120px;
+    line-height: 30px;
+}
+
+/*
+ * The pipelines table: every cell centred on the row (Blueprint aligns them to the top), and everything but the
+ * description on one line — the controls never wrap. The Switch loses its form margin here.
+ */
+/* As specific as Blueprint's own compact-table rules (table.bp6-html-table.bp6-compact td), and after them. */
+table.bp6-html-table.pipelines-table td {
+    vertical-align: middle;
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+/* Air between the header and its line, and between the line and the first row. */
+table.bp6-html-table.pipelines-table th {
+    padding-bottom: 10px;
+}
+
+table.bp6-html-table.pipelines-table tbody tr:first-child td {
+    padding-top: 14px;
+}
+
+.pipelines-table th,
+.pipelines-table td:not(:first-child) {
+    white-space: nowrap;
+}
+
+.pipelines-table td:last-child {
+    text-align: right;
+}
+
+.pipelines-table .bp6-control.bp6-switch {
+    margin-bottom: 0;
+}
