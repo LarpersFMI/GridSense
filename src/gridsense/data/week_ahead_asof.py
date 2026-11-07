@@ -1,13 +1,16 @@
 """Build a conservative, issue-time-safe Romanian week-ahead forecast handoff."""
 
-import hashlib
+import argparse
 import json
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import numpy as np
 import pandas as pd
 
 from gridsense import config
+from gridsense.data.build_file_library import install_staged
+from gridsense.data.build_regional import sha256_file
 
 KEYS = ["issue_ts", "target_ts_utc", "horizon_days"]
 VALUES = ["load_fc_min_mw", "load_fc_max_mw", "load_fc_updated_at_utc"]
@@ -87,7 +90,12 @@ def build_asof(keys: pd.DataFrame, vintages: pd.DataFrame) -> pd.DataFrame:
     return result.sort_values("_order", ignore_index=True)[KEYS + VALUES]
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--replace-existing", action="store_true", help="Replace reviewed, differing outputs"
+    )
+    args = parser.parse_args(argv)
     if config.DATA_MODE != "real":
         raise SystemExit("Set GRIDSENSE_DATA=real to build this handoff")
     keys_path = config.PROCESSED_DIR / "training_table.parquet"
@@ -95,35 +103,25 @@ def main() -> None:
     keys = pd.read_parquet(keys_path, columns=KEYS)
     source = pd.read_parquet(source_path)
     result = build_asof(keys, source)
-    path = config.PROCESSED_DIR / "load_fc_week_ahead_asof.parquet"
-    if path.exists() and not pd.read_parquet(path).equals(result):
-        raise SystemExit(f"{path} differs from this build; review it before replacing it")
-    manifest_path = config.PROCESSED_DIR / "load_fc_week_ahead_asof_manifest.json"
-    if not path.exists():
-        if manifest_path.exists():
-            raise SystemExit(f"{path} is missing while its manifest exists; review both")
-        result.to_parquet(path, index=False)
-
-    def sha256(file: Path) -> str:
-        with file.open("rb") as stream:
-            return hashlib.file_digest(stream, "sha256").hexdigest()
-
-    manifest = {
-        "inputs_sha256": {
-            "training_table.parquet": sha256(keys_path),
-            "entsoe_file_library/week_ahead_load.parquet": sha256(source_path),
-        },
-        "output_sha256": sha256(path),
-        "rows": len(result),
-        "rows_with_forecast": int(result.load_fc_min_mw.notna().sum()),
-        "join_keys": KEYS,
-        "selection": "latest recorded update at or before issue for local target date",
-    }
-    contents = json.dumps(manifest, indent=2, sort_keys=True) + "\n"
-    if manifest_path.exists() and manifest_path.read_text() != contents:
-        raise SystemExit(f"{manifest_path} differs from this build; review it before replacing it")
-    manifest_path.write_text(contents)
-    print(f"{path}: {len(result):,} rows; {result.load_fc_min_mw.notna().sum():,} available")
+    output = "load_fc_week_ahead_asof.parquet"
+    report = "load_fc_week_ahead_asof_manifest.json"
+    with TemporaryDirectory(prefix=".week-ahead-asof-", dir=config.PROCESSED_DIR) as tmp:
+        staged = Path(tmp)
+        result.to_parquet(staged / output, index=False)
+        manifest = {
+            "inputs_sha256": {
+                "training_table.parquet": sha256_file(keys_path),
+                "entsoe_file_library/week_ahead_load.parquet": sha256_file(source_path),
+            },
+            "output_sha256": sha256_file(staged / output),
+            "rows": len(result),
+            "rows_with_forecast": int(result.load_fc_min_mw.notna().sum()),
+            "join_keys": KEYS,
+            "selection": "latest recorded update at or before issue for local target date",
+        }
+        (staged / report).write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+        install_staged(staged, config.PROCESSED_DIR, [output, report], replace_existing=args.replace_existing)
+    print(f"{config.PROCESSED_DIR / output}: {len(result):,} rows; {result.load_fc_min_mw.notna().sum():,} available")
 
 
 if __name__ == "__main__":

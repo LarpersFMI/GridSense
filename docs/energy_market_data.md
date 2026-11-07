@@ -343,7 +343,9 @@ be backfilled with the latest value or with realized load. It contains no labels
 
 Regenerate with `uv run python -m gridsense.data.week_ahead_asof`; it reads the
 current training keys and `entsoe_file_library/week_ahead_load.parquet` and
-refuses to replace a differing existing handoff without review. On the checked-in
+refuses to replace a differing existing handoff without review. After reviewing
+an intentional input change, use `--replace-existing` to refresh the table and
+its manifest together. On the checked-in
 inputs, the result has 235,704 unique keys and 44,184 non-null records, all with
 update time at or before issue. `load_fc_week_ahead_asof_manifest.json` records
 input and output SHA-256 checksums and row counts. Using target timestamps and the configured split
@@ -366,6 +368,13 @@ been established. For outages, the REST API's
 [update-time filter](https://transparencyplatform.zendesk.com/hc/en-us/articles/15696716612372-Request-Parameters)
 is documented as returning the latest updated version in the specified window;
 it should not be assumed to reconstruct all historical versions.
+
+The original June 2024 `TotalLoadForecast_6.1.C_D_E_r3` File Library ZIP was
+checked against the selected Romanian week-ahead rows: all 30 match. Its raw
+columns expose `UpdateTime(UTC)` but no separate original publication timestamp;
+the earliest update among those 30 records is 2025-09-29. This is evidence for
+that extract only, not proof that older forecast values were never published or
+that every File Library history is irretrievable.
 
 The normalized outage table is retained for investigation, not as a model-ready
 feature: it contains publication and update timestamps, but some rows are
@@ -398,6 +407,40 @@ whose available capacity exceeds the matched installed capacity, and 25 whose
 end is later than the matched reference validity period. Investigate these
 cases and split intervals at capacity changes before calculating offline MW;
 do not silently clip inconsistencies to zero.
+
+The separate `entsoe_file_library/outage_quality_exceptions.parquet` contains
+the source segments and diagnostic flags for investigation, with input and
+output hashes in `outage_quality_manifest.json`. It is retrospective and must
+not be joined as an ML feature. The current report has 257 affected rows:
+5 missing available capacities, 4 available capacities above the matched
+installed value, 25 validity-boundary crossings, and 227 rows belonging to
+instance/version groups with multiple publication timestamps. Counts overlap.
+The four capacity mismatches are Cernavodă unit 2 records; the 25 boundary
+crossings concern Turceni 7, Craiova 2 and Turceni 5. These are records and
+versions, not necessarily distinct real-world outages. Rebuild with
+`uv run python -m gridsense.data.outage_quality`; differing existing files are
+protected from accidental replacement.
+
+An older reference is available in `unit_reference/jrc_2019_units.parquet`:
+73 Romanian rows from the initial 2021 mirror commit of the European
+Commission's [JRC-PPDB-OPEN v1.0 inventory](https://data.jrc.ec.europa.eu/dataset/9810feeb-f062-49cd-8e76-8d8cfd488a05),
+published in 2019. Its provenance, pinned mirror URL, hashes and CC BY 4.0
+attribution are in `jrc_2019_manifest.json`. We could not verify the mirror
+file byte-for-byte against the official archive. The comparison in
+`jrc_2019_comparison.json` matches 2,461 production segments and 4,082 of
+5,404 generation segments to both inventories; respectively 2,027 and 3,350
+of those segment comparisons have different capacities. Segments include
+revisions, so these are not counts of independent outages. These differences
+do not establish which capacity was valid at an outage or available when a
+forecast was made. Do not use the 2019 snapshot to fill outage features.
+
+Rebuild the comparison with `uv run python -m gridsense.data.compare_historical_capacity`.
+To rebuild the inventory, obtain the pinned CSV linked in its manifest and pass
+it to `uv run python -m gridsense.data.historical_unit_reference --input PATH`;
+the builder filters Romanian rows. The tracked manifest hashes the locally
+filtered input, so a full CSV will have a different input hash even when its
+Romanian contents match. Review changes before replacing existing outputs with
+`--replace-existing`.
 
 The source ZIP is kept locally as the ignored
 `data/raw/entsoe_file_library/unit_capacity_reference.zip`. Regenerate the

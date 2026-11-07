@@ -1,7 +1,7 @@
 {
   "inputs_sha256": {
     "entsoe_file_library/week_ahead_load.parquet": "f18cd67e006b9a9f49a588a6c743031bc26afcfcea0d8433615f30f688199965",
-    "training_table.parquet": "8329e42ac60f7b12f1fda8ce47511d4ed92dd679076ffa23a16c8dc04b34a05e"
+    "training_table.parquet": "e1b8a8345afe81e65b34129ad500187dc4e491a150777f36ca6073cc619b5108"
   },
   "join_keys": [
     "issue_ts",
