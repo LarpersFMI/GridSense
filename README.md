@@ -2,6 +2,7 @@
 
 Smarthack XI 2026, PPC challenge "24h to Power PPC" ([brief](docs/Smarthack_XI_2026_Tema_PPC.pdf), in Romanian).
 Full plan, rationale and timeline: [docs/project_plan.md](docs/project_plan.md).
+Agent layer (alerts, dashboard, chatbot): [docs/agent_design.md](docs/agent_design.md).
 
 GridSense forecasts which hours will have negative or near-zero electricity prices in Romania,
 1–7 days ahead. It then plans "zero-cost hour" slots for PPC Energie customers, confirms or
