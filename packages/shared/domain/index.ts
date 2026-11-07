@@ -1,4 +1,5 @@
 export { Foundations } from "./Foundations"
+export { Realtime }    from "./Realtime/Realtime"
 export { Dataset }     from "./Dataset"
 export { Forecaster }  from "./Forecaster"
 export { Time }        from "./Time"

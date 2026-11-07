@@ -12,7 +12,7 @@ export namespace Queue {
     export const Result = z.object({ outcome: Outcome })
     export type  Result = z.infer<typeof Result>
 
-    /** Decide and act on one hit. Its job id is `Trigger.Hit.getQueueJobId`, which is also its graph's thread. */
+    /** Decide and act on one hit. Its job id is the hit's `Foundations.Thread.Id` (`Trigger.Hit.getThreadId`). */
     export namespace HandleHit {
 
         export const Definition = Foundations.Queue.define({
@@ -30,7 +30,7 @@ export namespace Queue {
         export type  Decision = z.infer<typeof Decision>
 
         export const Job = z.object({
-            threadId: z.string().min(1),
+            threadId: Foundations.Thread.Id,
             decision: Decision,
             note:     z.string().nullable(),
         })

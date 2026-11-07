@@ -142,6 +142,6 @@ describe("Trigger.evaluate", () => {
         })
 
         expect(hits).toHaveLength(1)
-        expect(Trigger.Hit.getQueueJobId(hits[0])).toBe(`${report.id}_run_schedule-${Date.parse("2026-05-11T05:00:00Z")}`)
+        expect(Trigger.Hit.getThreadId(hits[0])).toBe(`${report.id}_run_schedule-${Date.parse("2026-05-11T05:00:00Z")}`)
     })
 })

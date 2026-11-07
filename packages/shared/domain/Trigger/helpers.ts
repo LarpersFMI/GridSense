@@ -1,4 +1,5 @@
 import type { z } from "zod"
+import type { Foundations } from "../Foundations"
 import type { Predictions } from "../Dataset/Predictions"
 import type { PricesHourly } from "../Dataset/PricesHourly"
 import { Local } from "../Time/Local"
@@ -268,10 +269,10 @@ export function getHitCooldownKey(hit: Trigger.Hit): string {
 }
 
 /**
- * The agent job's id, also its graph's thread: one per trigger, window and occasion — the run,
- * the auction day or the schedule's firing — so the same hit reported twice is ignored.
+ * The hit's thread: one per trigger, window and occasion — the run, the auction day or the
+ * schedule's firing — so the same hit reported twice is handled once.
  */
-export function getHitQueueJobId(hit: Trigger.Hit): string {
+export function getHitThreadId(hit: Trigger.Hit): Foundations.Thread.Id {
     let occasion: string
 
     if (hit.cause.type === "schedule")
@@ -283,5 +284,5 @@ export function getHitQueueJobId(hit: Trigger.Hit): string {
     else
         occasion = `signal-${Date.now()}`
 
-    return `${getHitCooldownKey(hit)}_${occasion}`
+    return `${getHitCooldownKey(hit)}_${occasion}` as Foundations.Thread.Id
 }

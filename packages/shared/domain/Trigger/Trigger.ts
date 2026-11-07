@@ -180,7 +180,7 @@ export namespace Trigger {
             evidence:     z.record(z.string(), z.number()),
         })
 
-        export import getQueueJobId = HelpersMod.getHitQueueJobId
+        export import getThreadId = HelpersMod.getHitThreadId
         export import getCooldownKey = HelpersMod.getHitCooldownKey
     }
     export type Hit = z.infer<typeof Hit.Schema>
