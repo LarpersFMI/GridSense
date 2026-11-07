@@ -107,7 +107,7 @@ cp .env.example .env   # add your ENTSO-E API token
 ## Reproduce
 
 ```bash
-make data       # download + clean raw data into data/processed/
+make data       # build real day-ahead prices with ENTSOE_API_TOKEN
 make features   # build the (issue_date, target_ts, horizon) training table
 make train      # train both models on train, early-stop on val (TASK=price or TASK=classify for one)
 make predict    # write the predictions table for the agent
@@ -139,8 +139,9 @@ covers spring and summer on purpose, because winter has almost no negative-price
 
 ## Status
 
-Scaffold only: modules are stubs that raise `NotImplementedError`. The `make` targets will
-fail until each stage is implemented.
+The [Romanian day-ahead price pipeline](docs/energy_market_data.md) writes native and hourly
+Parquet files from ENTSO-E, with a pinned snapshot option that needs no token. See that guide
+for date ranges, coverage checks and the weather join. Other real data stages are still stubs.
 
 ## Data sources
 
