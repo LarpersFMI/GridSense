@@ -154,3 +154,24 @@ def test_cli_gap_policy(tmp_path, monkeypatch, capsys):
     build.main([*args, "--allow-gaps"])
     assert (tmp_path / "prices_hourly.parquet").is_file()
     assert (tmp_path / "prices_quality.json").is_file()
+
+
+def test_cli_refuses_to_replace_existing_data_without_explicit_opt_in(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(config, "PROCESSED_DIR", tmp_path)
+    monkeypatch.setattr(config, "DATA_MODE", "real")
+    first = native_from_xml(price_xml([(1, -1)]))
+    replacement = native_from_xml(price_xml([(1, 20)]))
+    monkeypatch.setattr(build, "fetch_snapshot_prices", lambda start, end: first)
+    args = ["--source", "snapshot", "--start", "2025-10-01", "--end", "2025-10-01", "--allow-gaps"]
+    build.main(args)
+    before = {p.name: p.read_bytes() for p in tmp_path.iterdir()}
+
+    monkeypatch.setattr(build, "fetch_snapshot_prices", lambda start, end: replacement)
+    with pytest.raises(SystemExit) as error:
+        build.main(args)
+    assert error.value.code == 1
+    assert "differs from the new build" in capsys.readouterr().err
+    assert {p.name: p.read_bytes() for p in tmp_path.iterdir()} == before
+
+    build.main([*args, "--replace-existing"])
+    assert pd.read_parquet(tmp_path / "prices_hourly.parquet").price_mean.iloc[0] == 20
