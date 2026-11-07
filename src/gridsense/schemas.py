@@ -48,6 +48,48 @@ WEATHER_HOURLY = {
     "wind_dir_deg": "float64",
     "split": "string",
 }
+WEATHER_HOURLY_AUGMENTED = {
+    # Timestamps & Metadata
+    "ts_utc": "datetime64[ns, UTC]",
+    "target_ts_utc": "datetime64[ns, UTC]",
+    "split": "string",
+    # Price Targets & Memory Features
+    "price_mean": "float64",
+    "price_min": "float64",
+    "price_max": "float64",
+    "price_lag_24h": "float64",
+    "price_lag_48h": "float64",
+    "price_lag_168h": "float64",
+    "price_roll_mean_3h": "float64",
+    "price_roll_std_3h": "float64",
+    "price_roll_mean_6h": "float64",
+    "price_diff_24h": "float64",
+    # Temporal & Cyclical Features
+    "hour": "int64",
+    "dayofweek": "int64",
+    "hour_sin": "float64",
+    "hour_cos": "float64",
+    "dayofyear_sin": "float64",
+    # Spatial Macro & Location-Specific Weather Features
+    "solar_proxy_wm2_ro_mean": "float64",
+    "solar_proxy_wm2_ro_max": "float64",
+    "solar_proxy_wm2_neighbors_mean": "float64",
+    "temp_c_ro_mean": "float64",
+    "temp_c_oradea": "float64",
+    "temp_c_paks": "float64",
+    "relative_humidity_pct_arad": "float64",
+    "pressure_hpa_cluj_napoca": "float64",
+    "solar_proxy_wm2_paks": "float64",
+    "solar_proxy_wm2_pitesti": "float64",
+    "solar_proxy_wm2_balti": "float64",
+    "solar_proxy_wm2_ramnicu_valcea": "float64",
+    "solar_proxy_wm2_arad": "float64",
+    "solar_proxy_wm2_kozlodui": "float64",
+    "wind_u_ploiesti": "float64",
+    "wind_v_dobrici": "float64",
+    "wind_v_budapesta": "float64",
+    "wind10_ms_debretin": "float64",
+}
 
 # Compatibility name used by the upstream File Library/weather integration checks.
 WEATHER_ARCHIVED_FC = WEATHER_FC
@@ -113,6 +155,7 @@ TABLES = {
     "grid_hourly": GRID_HOURLY,
     "weather_fc": WEATHER_ARCHIVED_FC,
     "weather_hourly": WEATHER_HOURLY,
+    "weather_hourly_augmented": WEATHER_HOURLY_AUGMENTED,
     "calendar": CALENDAR,
     "calendar_hungary": COUNTRY_CALENDAR,
     "calendar_bulgaria": COUNTRY_CALENDAR,

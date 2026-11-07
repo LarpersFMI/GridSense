@@ -35,9 +35,9 @@ HOURLY_VARIABLES = [
 
 
 SPLIT_RANGES_UTC = {
-    "Train": (TRAIN_START.tz_convert("UTC"), TRAIN_END.tz_convert("UTC")),
-    "Validation": (VAL_START.tz_convert("UTC"), VAL_END.tz_convert("UTC")),
-    "Test": (TEST_START.tz_convert("UTC"), TEST_END.tz_convert("UTC")),
+    "train": (TRAIN_START.tz_convert("UTC"), TRAIN_END.tz_convert("UTC")),
+    "validation": (VAL_START.tz_convert("UTC"), VAL_END.tz_convert("UTC")),
+    "test": (TEST_START.tz_convert("UTC"), TEST_END.tz_convert("UTC")),
 }
 
 
