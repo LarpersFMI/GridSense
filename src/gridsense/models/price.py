@@ -26,6 +26,9 @@ DEFAULT_PARAMS = {
 
 # Extra quantiles give an approximate distribution (e.g. P(price <= 20)); only P10/P50/P90 are exported.
 TRAIN_QUANTILES = (0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95)
+# Trees can't extrapolate across price-level shifts, so they learn the deviation from a recent
+# level instead: the first available of these columns per row.
+LEVEL_COLUMNS = ("f_price_same_hour_mean_7d", "f_d_mean", "f_mean_30d")
 
 
 @dataclass
@@ -36,6 +39,7 @@ class PriceForecaster:
     target_transform: Literal["asinh", "none"] = "asinh"
     conformal: bool = True
     half_life_days: float | None = 365.0
+    level_columns: tuple[str, ...] = LEVEL_COLUMNS
     early_stopping_rounds: int = 100
     features: list[str] = field(default_factory=list, init=False)
     models: dict[float, lgb.LGBMRegressor] = field(default_factory=dict, init=False)
@@ -53,19 +57,30 @@ class PriceForecaster:
             return z
         return self.center + self.scale * np.sinh(z)
 
+    def _level(self, table: pd.DataFrame) -> pd.Series:
+        """Recent price level per row; 0 (absolute prices) if the table has no level column."""
+        columns = [c for c in self.level_columns if c in table]
+        level = pd.Series(np.nan if columns else 0.0, index=table.index)
+        for col in columns:
+            level = level.fillna(table[col])
+        return level
+
     def fit(self, train: pd.DataFrame, val: pd.DataFrame | None = None) -> "PriceForecaster":
         self.features = feature_columns(train)
-        y = train["y_price"]
+        train = train[self._level(train).notna()]
+        y = train["y_price"] - self._level(train)
         self.center = float(y.median())
         self.scale = max(float((y - self.center).abs().median()), 1.0)
         weights = recency_weights(train, self.half_life_days)
+        if val is not None:
+            val = val[self._level(val).notna()]
         for q in self.quantiles:
             model = lgb.LGBMRegressor(objective="quantile", alpha=q, **self.params)
             fit_kwargs = {}
             if val is not None:
                 fit_kwargs = {
                     "eval_X": (val[self.features],),
-                    "eval_y": (self._to_model_scale(val["y_price"]),),
+                    "eval_y": (self._to_model_scale(val["y_price"] - self._level(val)),),
                     "callbacks": [lgb.early_stopping(self.early_stopping_rounds, verbose=False)],
                 }
             model.fit(train[self.features], self._to_model_scale(y), sample_weight=weights, **fit_kwargs)
@@ -84,7 +99,8 @@ class PriceForecaster:
         """All trained quantiles in price units, without conformal adjustment."""
         raw = np.column_stack([self.models[q].predict(table[self.features]) for q in self.quantiles])
         # Separate quantile models can cross; sorting restores monotone quantiles.
-        return pd.DataFrame(self._to_price(np.sort(raw, axis=1)), index=table.index, columns=self.quantiles)
+        price = self._to_price(np.sort(raw, axis=1)) + self._level(table).to_numpy()[:, None]
+        return pd.DataFrame(price, index=table.index, columns=self.quantiles)
 
     def predict(self, table: pd.DataFrame, apply_conformal: bool = True) -> pd.DataFrame:
         q = self.predict_quantiles(table)
@@ -104,6 +120,7 @@ class PriceForecaster:
         return {
             "quantiles": self.quantiles,
             "target_transform": self.target_transform,
+            "level_columns": self.level_columns,
             "center": self.center,
             "scale": self.scale,
             "conformal_offsets": self.conformal_offsets,

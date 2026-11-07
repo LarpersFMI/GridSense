@@ -18,6 +18,7 @@ from gridsense.models.baselines import (
     PersistencePrice,
     SeasonalNaivePrice,
 )
+from gridsense.models.ensemble import PriceEnsemble
 from gridsense.models.lear import LEAR
 from gridsense.models.metrics import by_horizon, price_report
 from gridsense.models.price import PriceForecaster
@@ -34,8 +35,10 @@ def price_models(
     train: pd.DataFrame, val: pd.DataFrame
 ) -> dict[str, Callable[[pd.DataFrame], pd.DataFrame]]:
     models = {}
-    for baseline in (SeasonalNaivePrice(), PersistencePrice(), LEAR()):
+    for baseline in (SeasonalNaivePrice(), PersistencePrice()):
         models[baseline.name] = baseline.fit(train, val).predict
+    lear = LEAR().fit(train, val)
+    models[lear.name] = lear.predict
     try:
         lgbm, _ = artifacts.load_latest(PriceForecaster.name)
     except FileNotFoundError:
@@ -44,6 +47,9 @@ def price_models(
     models[lgbm.name] = lgbm.predict
     if lgbm.conformal_offsets:
         models[f"{lgbm.name}_no_conformal"] = partial(lgbm.predict, apply_conformal=False)
+    ensemble = PriceEnsemble(lear.predict, lgbm.predict).fit(val.dropna(subset=[NAIVE_COLUMN]))
+    print(f"ensemble weight on {lear.name}: {ensemble.weight}")
+    models[ensemble.name] = ensemble.predict
     return models
 
 

@@ -6,7 +6,7 @@ import pandas as pd
 import requests
 
 from gridsense import config
-from gridsense.data.entsoe import LOGGER, download, normalize_native
+from gridsense.data.entsoe import LOGGER, RESOLUTIONS, download, normalize_native
 
 REVISION = "d96677b452e97ebbeec83f9c00939a46e9c21c43"
 URL = f"https://huggingface.co/datasets/hsilvosa/entsoe-day-ahead/resolve/{REVISION}"
@@ -16,6 +16,22 @@ SHARDS = {
 }
 SNAPSHOT_END = pd.Timestamp("2026-08-01", tz="UTC")
 EUR_START = pd.Timestamp("2021-06-17 22:00", tz="UTC")
+
+
+def expand_a03(df: pd.DataFrame) -> pd.DataFrame:
+    """Fill the points an A03 curve omits because they repeat the previous price that day."""
+    parts = [df[df["curve_type"] != "A03"]]
+    a03 = df[df["curve_type"] == "A03"]
+    # Delivery days run from midnight CET/CEST.
+    day = a03["timestamp_utc"].dt.tz_convert("Europe/Brussels").dt.normalize()
+    for (start, resolution), block in a03.groupby([day, "resolution"]):
+        grid = pd.date_range(
+            start, start + pd.DateOffset(days=1), freq=RESOLUTIONS[resolution], inclusive="left"
+        ).tz_convert("UTC")
+        block = block.drop_duplicates("timestamp_utc").set_index("timestamp_utc")
+        filled = block.reindex(grid.as_unit(block.index.unit)).ffill()
+        parts.append(filled.dropna(subset=["price"]).rename_axis("timestamp_utc").reset_index())
+    return pd.concat(parts, ignore_index=True).sort_values("timestamp_utc", ignore_index=True)
 
 
 def fetch_snapshot_prices(start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
@@ -44,6 +60,8 @@ def fetch_snapshot_prices(start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFram
     for column, expected in (("currency", "EUR"), ("unit", "MWH"), ("contract_type", "A01")):
         if not df[column].eq(expected).fillna(False).all():
             raise ValueError(f"Snapshot contains unexpected {column}; expected {expected}")
+    df = expand_a03(df)
+    df = df[(df["timestamp_utc"] >= start) & (df["timestamp_utc"] < end)]
     df["document_created_at_utc"] = pd.NaT
     columns = {
         "timestamp_utc": "ts_utc",

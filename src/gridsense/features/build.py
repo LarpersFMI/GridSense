@@ -50,6 +50,20 @@ def _hourly_prices(prices: pd.DataFrame) -> pd.DataFrame:
     return p.groupby(["date", "hour"], as_index=False)["price_mean"].mean()
 
 
+def _same_hour_history(hourly: pd.DataFrame) -> pd.DataFrame:
+    """Per local hour: day D-1 and the 7 days ending on D, keyed by (issue_date, hour)."""
+    wide = hourly.pivot(index="date", columns="hour", values="price_mean").asfreq("D")
+    week = wide.rolling(7, min_periods=4)
+    parts = {
+        f"{F}price_same_hour_dm1": wide.shift(1),
+        f"{F}price_same_hour_mean_7d": week.mean(),
+        f"{F}price_same_hour_min_7d": week.min(),
+        f"{F}price_same_hour_max_7d": week.max(),
+    }
+    long = pd.concat({name: df.stack() for name, df in parts.items()}, axis=1)
+    return long.rename_axis(["issue_date", "hour"]).reset_index()
+
+
 def _daily_grid_features(grid: pd.DataFrame) -> pd.DataFrame:
     g = grid.join(_local(grid["ts_utc"])).groupby("date")
     return pd.DataFrame(
@@ -95,11 +109,14 @@ def _calendar_features(rows: pd.DataFrame) -> pd.DataFrame:
 
 def build_training_table(
     prices: pd.DataFrame,
-    grid: pd.DataFrame,
-    weather_fc: pd.DataFrame,
+    grid: pd.DataFrame | None,
+    weather_fc: pd.DataFrame | None,
     calendar: pd.DataFrame,
 ) -> pd.DataFrame:
-    """One row per (issue_date, target_ts, horizon); every feature must be known at issue time."""
+    """One row per (issue_date, target_ts, horizon); every feature must be known at issue time.
+
+    Grid and weather features are skipped when their table is None.
+    """
     targets = calendar.rename(columns={"ts_utc": "target_ts_utc"})
     targets = targets.join(_local(targets["target_ts_utc"])).rename(columns={"date": "target_date"})
     rows = pd.concat(
@@ -118,6 +135,7 @@ def build_training_table(
         on=["issue_date", "hour"],
         how="left",
     )
+    rows = rows.merge(_same_hour_history(hourly), on=["issue_date", "hour"], how="left")
     rows["week_before_target"] = rows["target_date"] - pd.Timedelta(days=7)
     rows = rows.merge(
         hourly.rename(columns={"date": "week_before_target", "price_mean": f"{F}price_same_hour_target_m7"}),
@@ -126,10 +144,16 @@ def build_training_table(
     )
     rows = rows.merge(_daily_price_features(prices), left_on="issue_date", right_index=True, how="left")
     rows["day_before_issue"] = rows["issue_date"] - pd.Timedelta(days=1)
-    rows = rows.merge(_daily_grid_features(grid), left_on="day_before_issue", right_index=True, how="left")
-    rows = rows.merge(
-        _weather_features(weather_fc), on=["issue_date", "horizon_days", "target_ts_utc"], how="left"
-    )
+    if grid is not None:
+        rows = rows.merge(
+            _daily_grid_features(grid), left_on="day_before_issue", right_index=True, how="left"
+        )
+    if weather_fc is not None:
+        rows = rows.merge(
+            _weather_features(weather_fc),
+            on=["issue_date", "horizon_days", "target_ts_utc"],
+            how="left",
+        )
 
     labels = prices[["ts_utc", "price_mean"]].rename(
         columns={"ts_utc": "target_ts_utc", "price_mean": "y_price"}
@@ -152,9 +176,19 @@ def build_training_table(
     return table.reset_index(drop=True)
 
 
+def _read_optional(name: str) -> pd.DataFrame | None:
+    if (config.PROCESSED_DIR / f"{name}.parquet").is_file():
+        return io.read(name)
+    print(f"[{config.DATA_MODE}] no {name} table; building without its features")
+    return None
+
+
 def main() -> None:
     table = build_training_table(
-        io.read("prices_hourly"), io.read("grid_hourly"), io.read("weather_fc"), io.read("calendar")
+        io.read("prices_hourly"),
+        _read_optional("grid_hourly"),
+        _read_optional("weather_fc"),
+        io.read("calendar"),
     )
     io.write(table, "training_table")
 

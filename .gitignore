@@ -16,3 +16,6 @@ reports/fake/
 
 models/*
 !models/.gitkeep
+data.zip
+
+data/

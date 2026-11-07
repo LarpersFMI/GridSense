@@ -173,5 +173,6 @@ Collect them separately from prices and keep their availability metadata.
 | Solar and wind generation | A75 actual by type | Use lagged actuals; never join on future target time as a feature. |
 | Total / wind / solar forecasts | A71 / A69 day-ahead | Require publication time and revision history before using at the 10:00 cutoff. |
 | Cross-border physical flows | A11 actual | Use lagged values with directional border metadata; actual flows arrive after delivery. |
+| Generation unit unavailability | A80 (TR 15.1), File Library `UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1` | Planned and forced. Use only the latest version of each message published by issue time (`gridsense.data.outages.offline_mw_as_of`). |
 
 Live grid acquisition and verification of forecast vintages are separate follow-up work.

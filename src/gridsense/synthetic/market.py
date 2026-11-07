@@ -7,11 +7,11 @@ year, so negative hours cluster on sunny spring/summer weekends and become more 
 
 import argparse
 
-import holidays
 import numpy as np
 import pandas as pd
 
 from gridsense import config, io
+from gridsense.data.calendar import calendar_for_hours
 
 FAKE_START = "2023-01-01"
 FAKE_END = "2026-10-31"
@@ -41,27 +41,6 @@ def _hours(start: str, end: str) -> pd.DatetimeIndex:
     first = pd.Timestamp(start, tz=config.LOCAL_TZ)
     last = pd.Timestamp(f"{end} 23:00", tz=config.LOCAL_TZ)
     return pd.date_range(first, last, freq="h")
-
-
-def _calendar(ts: pd.DatetimeIndex) -> pd.DataFrame:
-    date = ts.tz_localize(None).normalize()
-    years = range(date.year.min(), date.year.max() + 1)
-    holiday_days = pd.DatetimeIndex(list(holidays.country_holidays("RO", years=years)))
-
-    days = pd.date_range(date.min(), date.max(), freq="D")
-    off = pd.Series(days.isin(holiday_days) | (days.day_of_week >= 5), index=days)
-    bridge = days[(~off & off.shift(1, fill_value=False) & off.shift(-1, fill_value=False)).to_numpy()]
-
-    hours_per_day = pd.Series(date).value_counts()
-    return pd.DataFrame(
-        {
-            "ts_utc": ts.tz_convert("UTC"),
-            "is_holiday": date.isin(holiday_days),
-            "is_bridge_day": date.isin(bridge),
-            "is_dst": np.array([t.dst() != pd.Timedelta(0) for t in ts]),
-            "day_hours": pd.Series(date).map(hours_per_day).to_numpy(dtype="int64"),
-        }
-    )
 
 
 def _weather_truth(ts: pd.DatetimeIndex, is_dst: np.ndarray, rng: np.random.Generator) -> pd.DataFrame:
@@ -189,7 +168,7 @@ def generate(
 ) -> dict[str, pd.DataFrame]:
     rng = np.random.default_rng(seed)
     ts = _hours(start, end)
-    calendar = _calendar(ts)
+    calendar = calendar_for_hours(ts)
     truth = _weather_truth(ts, calendar["is_dst"].to_numpy(), rng)
     weather_fc = _weather_forecasts(truth, rng)
     grid, prices = _grid_and_prices(ts, truth, calendar["is_holiday"].to_numpy(), rng)
