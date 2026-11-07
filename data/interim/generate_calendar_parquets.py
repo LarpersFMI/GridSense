@@ -72,6 +72,8 @@ def build_country_calendar(
 
     date_series = pd.to_datetime(unique_dates)
     is_nw = pd.Series(date_series.strftime("%Y-%m-%d").isin(non_working_dates))
+    is_wknd = date_series.dayofweek >= 5
+
     bridge_monday = (
         (date_series.dayofweek == 0)
         & (~is_nw)
