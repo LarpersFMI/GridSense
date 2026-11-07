@@ -1,0 +1,36 @@
+{
+  "source": "ENTSO-E Transparency Platform File Library",
+  "source_archive_sha256": "c3557c70107b861cd0b69acac795cf3fd39a42fa9ee8f377aeb5e448ac559581",
+  "warning": "Snapshot reference only; update timestamps do not establish earlier availability.",
+  "tables": {
+    "production_units": {
+      "source_file": "InstalledGenerationCapacityPerProductionUnit_14.1.B_r3.1.csv",
+      "source_sha256": "887ebe5392ee882a378910d25d375a61695955d71dc49ba0c8e89c6986af46fa",
+      "rows": 148,
+      "key": [
+        "production_unit_code",
+        "valid_from_utc",
+        "valid_to_utc"
+      ],
+      "duplicate_keys": 0,
+      "updated_at_utc_min": "2026-11-07T15:00:51+00:00",
+      "updated_at_utc_max": "2026-11-07T15:00:51+00:00",
+      "output_sha256": "45d3e3db27816e40c5483ba6ce199ec0041e2c674ec70798dceeaf5c0768dba1"
+    },
+    "generation_units": {
+      "source_file": "ProductionAndGenerationUnits_r3.1.csv",
+      "source_sha256": "2c3ef1be8e1f9d0e349d2ffa6eb2b5aa33b8c2ddafb939c4e091c1933871b535",
+      "rows": 306,
+      "key": [
+        "production_unit_code",
+        "generation_unit_code",
+        "valid_from_utc",
+        "valid_to_utc"
+      ],
+      "duplicate_keys": 0,
+      "updated_at_utc_min": "2026-11-07T15:00:51+00:00",
+      "updated_at_utc_max": "2026-11-07T15:03:10+00:00",
+      "output_sha256": "cc62366a030a48cae3dbc45acbc90baf0e010788369acdb57f08e714d33664d2"
+    }
+  }
+}

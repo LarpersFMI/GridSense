@@ -24,7 +24,13 @@ from gridsense.models.calibrate import cross_fit, plot_reliability, reliability_
 from gridsense.models.classify import LABELS, LowPriceClassifier
 from gridsense.models.ensemble import PriceEnsemble
 from gridsense.models.lear import LEAR
-from gridsense.models.metrics import by_horizon, classification_report, price_report
+from gridsense.models.metrics import (
+    block_slots,
+    by_horizon,
+    classification_report,
+    price_report,
+    slot_outcomes,
+)
 from gridsense.models.price import PriceForecaster
 from gridsense.splits import assign_split
 
@@ -121,9 +127,9 @@ def evaluate_classify(train: pd.DataFrame, val: pd.DataFrame, rows: pd.DataFrame
     """One row per (label, model, horizon); saves a reliability plot per label next to the CSV."""
     on_val = bool(rows.index.isin(val.index).any())
     split_name = "val" if on_val else "test"
-    reports, curves = [], {col: {} for col in LABELS}
+    reports, curves, preds = [], {col: {} for col in LABELS}, {}
     for name, predict in classify_models(train, val, on_val).items():
-        pred = predict(rows)
+        pred = preds[name] = predict(rows)
         for col, label in LABELS.items():
             scored = pd.DataFrame(
                 {"horizon_days": rows["horizon_days"], "y": rows[label].astype(int), "p": pred[col]}
@@ -146,7 +152,70 @@ def evaluate_classify(train: pd.DataFrame, val: pd.DataFrame, rows: pd.DataFrame
         print(
             f"{LowPriceClassifier.name}: calibration cross-fitted by val month (honest val score)"
         )
+
+    slots = slot_sweep(rows, preds)
+    slots.to_csv(config.REPORTS_DIR / "eval" / f"classify_slots_{split_name}.csv", index=False)
+    best = slots[(slots["model"] == LowPriceClassifier.name) & (slots["horizon"] == "all")]
+    if not best.empty:
+        with pd.option_context("display.float_format", "{:.3f}".format):
+            print(f"[{config.DATA_MODE}] slots from {LowPriceClassifier.name} on {split_name}")
+            print(best.drop(columns=["model", "horizon"]).set_index(["label", "tau"]).to_string())
     return out
+
+
+# Probability thresholds tau to try when announcing slots, and the price each label's slot must
+# clear in every hour to count as a hit.
+TAUS = (0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8)
+SLOT_THRESHOLDS = {
+    "p_near_zero": config.NEAR_ZERO_THRESHOLD_EUR,
+    "p_cheap": config.CHEAP_THRESHOLD_EUR,
+}
+
+
+def slot_sweep(rows: pd.DataFrame, preds: dict[str, pd.DataFrame]) -> pd.DataFrame:
+    """Slot metrics per (model, label, tau, horizon), with the block_slots stand-in slot builder.
+
+    hit_rate: share of slots where every hour cleared at or below the label's threshold
+    (1 - hit_rate = slots the agent would cancel). cheap_hours_captured: share of the cheap hours
+    inside the slot window that fell inside an announced slot.
+    """
+    prices = rows.drop_duplicates("target_ts_utc").rename(
+        columns={"target_ts_utc": "ts_utc", "y_price": "price_mean"}
+    )[["ts_utc", "price_mean"]]
+    lo, hi = 9, 18  # block_slots' default window
+    hour = rows["target_ts_utc"].dt.tz_convert(config.LOCAL_TZ).dt.hour
+    in_window = (hour >= lo) & (hour < hi)
+    horizons = ["all", *sorted(rows["horizon_days"].unique())]
+
+    out = []
+    for name, pred in preds.items():
+        for col, label in LABELS.items():
+            table = rows[["issue_ts", "horizon_days", "target_ts_utc"]].assign(p=pred[col])
+            chances = rows.loc[in_window & rows[label].astype(bool), "horizon_days"].value_counts()
+            for tau in TAUS:
+                slots = block_slots(table, "p", tau, window=(lo, hi))
+                outcomes = slot_outcomes(slots, prices, SLOT_THRESHOLDS[col])
+                slots = slots.join(outcomes[["cheap_hours", "hit"]])
+                for h in horizons:
+                    s = slots if h == "all" else slots[slots["horizon_days"] == h]
+                    n_chances = chances.sum() if h == "all" else chances.get(h, 0)
+                    out.append(
+                        {
+                            "model": name,
+                            "label": col,
+                            "tau": tau,
+                            "horizon": h,
+                            "slots": len(s),
+                            "slot_hours": int(s["hours"].sum()),
+                            "hit_rate": float(s["hit"].mean()) if len(s) else float("nan"),
+                            "cheap_hours_captured": (
+                                float(s["cheap_hours"].sum() / n_chances)
+                                if n_chances
+                                else float("nan")
+                            ),
+                        }
+                    )
+    return pd.DataFrame(out)
 
 
 TASKS = {"price": evaluate_price, "classify": evaluate_classify}
