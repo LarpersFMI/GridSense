@@ -1,8 +1,8 @@
 import { existsSync } from 'node:fs';
-import { BadRequestException, Injectable, type OnModuleDestroy } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, type OnModuleDestroy } from '@nestjs/common';
 import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
 import { Dataset, Watchdog } from '@gridsense/shared/domain';
-import { getDatasetPath, quoteSqlIdentifier, quoteSqlPath } from '@gridsense/shared/server/datasets';
+import { getDatasetPath, quoteSqlIdentifier, quoteSqlPath, toPlainRow } from '@gridsense/shared/server/datasets';
 import { QueueProducer } from '@gridsense/shared/server/queue';
 
 /** DuckDB's type names, by how a condition compares them. */
@@ -62,9 +62,72 @@ export class DatasetService implements OnModuleDestroy {
         return latest;
     }
 
-    /** Described from its file in DATASET_DIR, as it is now. */
+    /**
+     * The latest rows of its file: newest first by `orderBy` (a timestamp column; default the file's first), then by
+     * the other timestamp columns, oldest first — a run's hours in order. Timestamps come back as ISO strings.
+     */
+    public async getPreview(name: Dataset.Name, query: Dataset.API.GetPreview.Query): Promise<Dataset.Preview> {
+        const description = await this.describe(name);
+        const columns = description.columns.filter((column) => !column.computed);
+        const timestamps = columns.filter((column) => column.type === 'timestamp').map((column) => column.name);
+        const orderBy = query.orderBy ?? timestamps[0] ?? columns[0].name;
+
+        if (!columns.some((column) => column.name === orderBy))
+            throw new BadRequestException(`${orderBy} isn't a column of ${name}`);
+
+        const order = [`${quoteSqlIdentifier(orderBy)} desc`];
+
+        for (const column of timestamps)
+            if (column !== orderBy)
+                order.push(`${quoteSqlIdentifier(column)} asc`);
+
+        const path = quoteSqlPath(getDatasetPath(name));
+        const connection = await this.connect();
+
+        const reader = await connection.runAndReadAll(`
+            select * from read_parquet(${path})
+            order by ${order.join(', ')}
+            limit ${query.limit}
+        `);
+
+        const rows: Dataset.Preview.Row[] = [];
+
+        for (const row of reader.getRowObjectsJS()) {
+            const cells: Dataset.Preview.Row = {};
+
+            for (const [column, value] of Object.entries(toPlainRow(row))) {
+                if (value instanceof Date)
+                    cells[column] = value.toISOString();
+                else if (typeof value === 'number' || typeof value === 'string' || typeof value === 'boolean')
+                    cells[column] = value;
+                else if (value === null || value === undefined)
+                    cells[column] = null;
+                else
+                    cells[column] = String(value);
+            }
+
+            rows.push(cells);
+        }
+
+        const counted = await connection.runAndReadAll(`select count(*) as total from read_parquet(${path})`);
+        const total = Number(counted.getRowObjectsJS()[0].total);
+
+        return {
+            columns,
+            rows,
+            orderBy,
+            total,
+        };
+    }
+
+    /** Described from its file in DATASET_DIR, as it is now; 404 while there's no file yet. */
     public async describe(name: Dataset.Name): Promise<Dataset.Description> {
         const path = getDatasetPath(name);
+
+        if (!existsSync(path))
+            throw new NotFoundException(
+                `There's no ${name} file yet (${path}). Run the pipeline, or the replay: uv run python -m gridsense.replay --from 2026-05-13 --to 2026-05-15 --step`,
+            );
         const connection = await this.connect();
         const reader = await connection.runAndReadAll(`describe select * from read_parquet(${quoteSqlPath(path)})`);
 

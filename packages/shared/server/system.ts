@@ -55,7 +55,7 @@ class LogService {
         let line = `${DIM}${time}${RESET} ${this.appName} ${COLOR[level]}${level.toUpperCase().padEnd(7)}${RESET} ${CONTEXT_COLOR}[${context}]${RESET} ${message}`
 
         if (meta !== undefined)
-            line += ` ${DIM}${JSON.stringify(meta, (_, value) => value instanceof Error ? value.message : value)}${RESET}`
+            line += ` ${DIM}${JSON.stringify(meta, (_, value) => value instanceof Error ? describeError(value) : value)}${RESET}`
 
         if (level === "error")
             console.error(line)
@@ -68,4 +68,23 @@ class LogService {
 export namespace System {
 
     export const log = new LogService()
+}
+
+/**
+ * An error as one line: its message, or — when it has none, like the AggregateError pg throws when every address
+ * refuses (ECONNREFUSED on ::1 and 127.0.0.1) — its inner errors, its code, or its name.
+ */
+function describeError(error: Error): string {
+    if (error instanceof AggregateError && error.errors.length > 0)
+        return error.errors.map((inner: unknown) => inner instanceof Error ? describeError(inner) : String(inner)).join("; ")
+
+    if (error.message)
+        return error.message
+
+    const code = (error as { code?: unknown }).code
+
+    if (typeof code === "string")
+        return code
+
+    return error.name
 }

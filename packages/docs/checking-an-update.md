@@ -1,41 +1,24 @@
 # Checking a dataset update
 
-A job on `watchdog.dataset-updated`: a `Dataset.Update`, saying only **which dataset's file changed**.
+A job on `watchdog.dataset-updated`: a `Dataset.Update`, saying **which dataset** changed and **which hours**.
 
 ```jsonc
-{ "dataset": "predictions" }   // a run appended its rows — queued by ForecasterService.reportRun
-{ "dataset": "prices" }        // a day's cleared prices were appended — POST /internal/datasets/prices/updates
+{ "dataset": "predictions", "start": "2026-05-13T21:00:00Z", "end": "2026-05-20T21:00:00Z", "runId": "0196…a" }   // a run's forecast
+{ "dataset": "prices",      "start": "2026-05-15T21:00:00Z", "end": "2026-05-16T21:00:00Z", "runId": null }      // the auction cleared Saturday 16
 ```
 
-The update doesn't say which rows are new: **each trigger finds its own**, past its **watermark** on its **incremental column** — a timestamp column that only grows as rows are appended.
-
-```jsonc
-"on": { "type": "dataset", "dataset": "predictions", "incrementalColumn": "issue_ts" }   // a run's rows
-"on": { "type": "dataset", "dataset": "prices",      "incrementalColumn": "ts_utc" }     // a cleared day's hours
-```
+`Dataset.Update` (`shared/domain/Dataset/Update.ts`): `dataset`, `[start, end)`, and `runId` — the run that wrote predictions, `null` otherwise. Its key, `Dataset.Update.getKey`, is the job id: `predictions_<runId>` or `prices_<window key>`, so the same update reported twice is checked once.
 
 | Who reports it | When | How |
 |---|---|---|
-| `ForecasterService.reportRun` | Python reported a run ([reporting-a-run.md](reporting-a-run.md)) | queues `{ dataset: "predictions" }` |
-| `DatasetService.reportUpdate` | Python appended a day's cleared prices | `POST /internal/datasets/prices/updates` (no body) — `Dataset.API.Internal.ReportUpdate` |
+| `ForecasterService.reportRun` | Python reported a run ([reporting-a-run.md](reporting-a-run.md)) | `{ dataset: "predictions", start, end, runId }` from the report |
+| `DatasetService.reportUpdate` | Python ingested the auction's prices for a day | `POST /internal/datasets/prices/updates { start, end }` — `Dataset.API.Internal.ReportUpdate`, local midnight to local midnight |
 
-From Python: `gridsense.report_dataset_updated` (`report_run`, `report_dataset_updated`).
-
-## Watermarks
-
-`gridsense.trigger.watermark` — the largest value of the trigger's incremental column the Watchdog has read. It isn't part of `Trigger.Schema`: the admin never sees or sends it.
-
-| When | Watermark |
-|---|---|
-| A trigger on a dataset is created | the column's current max in the file (`DatasetService.getLatest`): it reads only rows appended after it was saved. Null if there's no file yet (then it reads everything once). 400 if the column isn't in the file or isn't a timestamp |
-| It's updated onto another dataset or column | reset the same way; otherwise kept |
-| The Watchdog checks it | moved to the max of the new rows it read (`PUT /internal/triggers/:id/watermark`), after its hits are raised |
-
-A repeated or lost update costs nothing: the next one finds exactly the rows past the watermark. A crash between raising hits and moving the watermark re-reads the same rows; the hits' thread ids are the same, so the agent handles them once.
+A trigger says which dataset it watches: `on: { type: "dataset", dataset: "prices" }`. The Watchdog doesn't know *why* the hours changed — a new run, an auction — only what changed.
 
 ## The flow
 
-`DatasetUpdatedProcessor` (`packages/watchdog/src/processors/dataset-updated.processor.ts`), concurrency 1 — updates in order, so the prices check sees the run reported before it.
+`DatasetUpdatedProcessor` (`packages/watchdog/src/processors/dataset-updated.processor.ts`), concurrency 1: updates are checked one at a time, in order — the prices check must see the run reported before it.
 
 ```mermaid
 sequenceDiagram
@@ -44,49 +27,54 @@ sequenceDiagram
     participant UP as DatasetUpdatedProcessor
     participant API as server /internal
     participant H as HourService
-    participant D as DatasetService (DuckDB, DATASET_DIR)
+    participant D as DatasetService (DuckDB)
+    participant T as Trigger.evaluate
     participant HS as HitService
+    participant R as Redis pub/sub
 
-    Q->>UP: job { dataset }
+    Q->>UP: job (parsed with Dataset.Update.Schema)
     UP->>API: GET /internal/triggers?dataset=<dataset>
-    API-->>UP: { triggers, watermarks }
+    API-->>UP: enabled triggers on this dataset, by id
+    UP->>H: forUpdate(update)
+    alt update has a run
+        H->>API: GET /internal/runs/:runId
+    else
+        H->>API: GET /internal/runs/latest?before=<start>
+    end
+    opt there is a run
+        H->>API: GET /internal/runs/:id/previous
+        H->>D: readPredictions(run), readPredictions(previous)
+        H->>H: the run's hours in [start, end), + computed columns
+    end
+    H->>D: readPrices(start, end)
+    H-->>UP: { runId, hours } — each hour with predictions and/or prices
+    UP->>UP: check = { cause: { type: dataset, update }, runId, hours }
     loop every trigger
-        UP->>H: forNewRows(trigger.on, watermark)
-        H->>D: select * where <incrementalColumn> > watermark
-        alt no new rows
-            H-->>UP: null — not checked
-        else
-            H->>D: the other datasets' values for those hours
-            H->>API: GET /internal/runs?issueTs= — the forecast's run
-            H-->>UP: { upTo, runId, hours }
-            UP->>UP: Trigger.evaluate(trigger, check)
-            UP->>HS: raise each hit — see raising-a-hit.md
-            UP->>API: PUT /internal/triggers/:id/watermark { upTo }
+        UP->>T: evaluate(trigger, check)
+        T-->>UP: hits (0..n)
+        loop every hit
+            UP->>HS: raise(trigger, hit) — see raising-a-hit.md
         end
     end
-    UP->>UP: watchdog:check:completed { source: { dataset }, triggersChecked, hits, cooledDown }
+    UP->>R: watchdog:check:completed { cause, triggersChecked, hits, cooledDown } on watchdog:activity
 ```
-
-A trigger whose incremental column has gone from the file is logged and skipped; the others are still checked.
 
 ## The hours
 
-`HourService.forNewRows` turns the new rows into the hours they're about, each with every dataset's values that exist for it:
+One rule, whatever the dataset: **the hours in `[start, end)`, each with every dataset's values that exist for it.**
 
-- **predictions**: each hour's latest forecast among the new rows (one run, usually), with the cleared prices of hours already delivered (mostly none).
-- **prices**: the cleared hours, with the forecast **each day had** — the latest run issued before the day's local midnight (`DatasetService.getLatestIssueTs`). That's how T3 "forecast miss" (`predictions.p_near_zero ≥ 0.7` and `prices.price_mean > 20`) compares what we said with what cleared.
+- **Prices**: the cleared prices of those hours, where they exist.
+- **Predictions**: the forecast of the update's run if it has one; otherwise the **latest run issued before `start`** — what we knew when the hours began. `runId` in the check is that run, or `null` if there was none (then the hours have only prices).
 
-`runId` in the check is the run of that forecast (`Forecaster.API.Internal.findRun` by `issueTs`), or null if it was never reported.
-
-Both files are read from `DATASET_DIR`: every run appends to the same `predictions.parquet`, one `issue_ts` per run. `Run.predictionsPath` is kept for the record only.
+So a `predictions` update checks the run's 168 hours, with prices only for hours already delivered (mostly none). A `prices` update for an auction day checks that day's 23–25 hours, with their prices and the forecast the day had. A trigger that joins both (T3 "forecast miss": `predictions.p_near_zero ≥ 0.7` and `prices.price_mean > 20`) belongs on `prices`.
 
 A `Trigger.Check` (`shared/domain/Trigger/Check.ts`):
 
 ```ts
 interface Check {
-    cause: Check.Cause    // { type: "dataset", dataset, incrementalColumn, after, upTo } | { type: "schedule", firedAt }
+    cause: Check.Cause            // { type: "dataset", update } | { type: "schedule", firedAt }
     runId: Run.Id | null
-    hours: Check.Hour[]   // sorted by time
+    hours: Check.Hour[]           // sorted by time
 }
 
 // One delivery hour, with every dataset's values that exist for it.
@@ -97,13 +85,13 @@ type Hour = {
 ```
 
 ```jsonc
-// an hour of run B's new rows, Saturday 16 May 12:00 local
+// an hour of the predictions update for run B, Saturday 16 May 12:00 local
 {
   "at": "2026-05-16T09:00:00Z",
   "values": {
     "predictions": {
       "p_near_zero": 0.86, "p_cheap": 0.91, "price_p10": -38, "price_p50": 2, "price_p90": 24,
-      "horizon_days": 2, "data_quality": "ok",
+      "horizon_days": 3, "data_quality": "ok",
       "local_hour": 12, "weekday": 5, "interval_width": 62, "p_near_zero_change": 0.04   // computed
     }
     // no "prices": this hour hasn't cleared yet
@@ -112,32 +100,36 @@ type Hour = {
 ```
 
 - **Every column of the file comes along** (`select *`, loose row schemas): a column Python adds reaches the triggers with no change here.
-- **Computed columns** are added next to the file's: `Dataset.Predictions.compute(row, previous)` → `local_hour`, `weekday`, `interval_width`, `p_near_zero_change` (against the same hour in the run issued before, from the same file); `Dataset.PricesHourly.compute(row)` → `local_hour`, `weekday`.
-- **Bad input data** is a column, not an event: `data_quality` (`ok` · `degraded` · `failed`). T4 "degraded data" is a trigger on `predictions` with `data_quality in [degraded, failed]`.
+- **Computed columns** are added next to the file's: `Dataset.Predictions.compute(row, previous)` → `local_hour`, `weekday`, `interval_width`, `p_near_zero_change`; `Dataset.PricesHourly.compute(row)` → `local_hour`, `weekday`. `p_near_zero_change` needs the same hour in the run before; on an hour's first forecast it's absent.
+- **Bad input data** is a column, not an event: `data_quality` (`ok` · `degraded` · `failed`) on every prediction. T4 "degraded data" is a trigger on `predictions` with `data_quality in [degraded, failed]`.
 
 ## Evaluating
 
 `Trigger.evaluate(trigger, check)` (`shared/domain/Trigger/evaluate.ts`) — pure, tested in `Trigger/tests`:
 
 1. A trigger on a schedule holds once: one hit, no window, no evidence ([scheduled-triggers.md](scheduled-triggers.md)).
-2. Otherwise each hour is matched against the conditions (`match: all | any`). A condition reads `hour.values[dataset][column]`; **a missing value, or one of the wrong type, doesn't hold** — conditions' columns aren't validated on save.
+2. Otherwise each hour is matched against the conditions (`match: all | any`). A condition reads `hour.values[dataset][column]`; **a missing value, or one of the wrong type, doesn't hold** — there's no column validation on save, so this is where a typo or a dropped column ends up.
 3. No matching hour → no hits.
-4. The matching hours are split by `grouping`: `hour` — one hit per hour; `window { minHours, maxHours }` — consecutive hours within a local day, cut at `maxHours`, pieces under `minHours` dropped; `run` — one hit for all of them, no window.
+4. The matching hours are split by `grouping`:
+   - `hour` — one hit per hour;
+   - `window { minHours, maxHours }` — consecutive hours within a local day, cut at `maxHours`, pieces under `minHours` dropped (`Time.Window.group`);
+   - `run` — one hit for all of them, no window.
 5. Each hit carries `evidence`: for each column the conditions read, `<dataset>.<column>.min / .mean / .max`, or `<dataset>.<column>=<value>` counts for text.
 
 ```jsonc
-// T3 "Forecast miss" on Saturday's prices, one of five hours (from the replay)
+// T1 "Zero-cost window" on run A's update
 {
   "triggerId": "0196…",
-  "cause": { "type": "dataset", "dataset": "prices", "incrementalColumn": "ts_utc", "after": "2026-05-15T20:00:00Z", "upTo": "2026-05-16T20:00:00Z" },
-  "runId": "0196…c",
-  "window": { "key": "20260516T0700Z-20260516T0800Z", "start": "2026-05-16T07:00:00Z", "end": "2026-05-16T08:00:00Z", "hours": 1 },
-  "matchedHours": 1,
-  "evidence": { "predictions.p_near_zero.min": 0.7594, "predictions.p_near_zero.mean": 0.7594, "predictions.p_near_zero.max": 0.7594,
-                "prices.price_mean.min": 77.64, "prices.price_mean.mean": 77.64, "prices.price_mean.max": 77.64 }
+  "cause": { "type": "dataset", "update": { "dataset": "predictions", "start": "…", "end": "…", "runId": "0196…a" } },
+  "runId": "0196…a",
+  "window": { "key": "20260516T0800Z-20260516T1300Z", "start": "2026-05-16T08:00:00Z", "end": "2026-05-16T13:00:00Z", "hours": 5 },
+  "matchedHours": 5,
+  "evidence": { "predictions.p_near_zero.min": 0.81, "predictions.p_near_zero.mean": 0.86, "predictions.p_near_zero.max": 0.9,
+                "predictions.local_hour.min": 11, "predictions.local_hour.mean": 13, "predictions.local_hour.max": 15,
+                "predictions.data_quality=ok": 5 }
 }
 ```
 
-## Replaying the dummy week
+## When it fails
 
-`uv run python -m gridsense.replay --from 2026-05-13 --to 2026-05-15 --create-triggers` (with `DATASET_DIR=data/replay`) starts the files at what was known on the 13th, saves T1–T5, then appends each day's run (10:00) and the next day's prices (14:00) and reports them. On 15 May's auction, T3 raises five hits for Saturday 16, 10:00–15:00 local — the forecast the agent announced and must cancel.
+A thrown error fails the job (BullMQ keeps the last 1000 failed). A server that's down, a missing file, a row that doesn't parse — the whole check fails. Hits raised before the failure stay raised; their thread ids make a retry harmless.

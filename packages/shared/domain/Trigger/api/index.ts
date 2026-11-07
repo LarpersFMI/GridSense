@@ -1,6 +1,7 @@
 import { z } from "zod"
 import type { AxiosInstance } from "axios"
-import { TriggerId } from "../../ids"
+import { ThreadId, TriggerId } from "../../ids"
+import { Hit } from "../Hit"
 import { Schema } from "../Schema"
 import * as InternalMod from "./internal"
 
@@ -50,6 +51,19 @@ export namespace API {
         export type  Response = z.infer<typeof Response>
     }
 
+    /** The latest hits, newest first, from the agent's queue — optionally one trigger's. */
+    export namespace ListHits {
+
+        export const Query = z.object({
+            triggerId: TriggerId.optional(),
+            limit:     z.coerce.number().int().min(1).max(1000).default(200),
+        })
+        export type Query = z.infer<typeof Query>
+
+        export const Response = z.object({ hits: z.record(ThreadId, Hit.Queued.Schema) })
+        export type  Response = z.infer<typeof Response>
+    }
+
     export async function list(api: AxiosInstance): Promise<List.Response> {
         const { data } = await api.get("/api/triggers")
 
@@ -72,6 +86,12 @@ export namespace API {
         const { data } = await api.put(`/api/triggers/${request.id}`, request)
 
         return Update.Response.parse(data)
+    }
+
+    export async function listHits(api: AxiosInstance, query: z.input<typeof ListHits.Query> = {}): Promise<ListHits.Response> {
+        const { data } = await api.get("/api/hits", { params: query })
+
+        return ListHits.Response.parse(data)
     }
 
     export async function remove(api: AxiosInstance, id: TriggerId): Promise<Delete.Response> {

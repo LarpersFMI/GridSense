@@ -6,12 +6,15 @@
         "packages/*"
     ],
     "scripts": {
-        "infra": "docker compose up -d postgres redis",
-        "dev": "concurrently -n server,watchdog -c cyan,magenta \"npm:dev:server\" \"npm:dev:watchdog\"",
+        "dev:all": "npm run env && npm run infra && npm run dev",
+        "env": "test -f .env || cp .env.example .env",
+        "infra": "docker compose up -d --wait postgres redis",
+        "dev": "concurrently -n server,watchdog,frontend -c cyan,magenta,green \"npm:dev:server\" \"npm:dev:watchdog\" \"npm:dev:frontend\"",
         "dev:server": "npm run dev --workspace=packages/server",
         "dev:watchdog": "npm run dev --workspace=packages/watchdog",
+        "dev:frontend": "npm run dev --workspace=packages/frontend",
         "test": "npm run test --workspace=packages/shared",
-        "typecheck": "npm run typecheck --workspace=packages/shared --workspace=packages/server --workspace=packages/watchdog"
+        "typecheck": "npm run typecheck --workspace=packages/shared --workspace=packages/server --workspace=packages/watchdog --workspace=packages/frontend"
     },
     "dependencies": {
         "@duckdb/node-api": "1.4.5-r.1",

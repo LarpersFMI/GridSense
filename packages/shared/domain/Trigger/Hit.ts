@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { RunId, TriggerId, type ThreadId } from "../ids"
+import { RunId, ThreadId, TriggerId } from "../ids"
 import { Window } from "../Time/Window"
 import { Check } from "./Check"
 import type { Condition } from "./Condition"
@@ -64,6 +64,21 @@ export namespace Hit {
 
         return evidence
     }
+
+    /** A hit as the agent's queue holds it: its thread, when it was raised, and whether the agent has taken it yet. */
+    export namespace Queued {
+
+        export const Status = z.enum(["waiting", "active", "completed", "failed"])
+        export type  Status = z.infer<typeof Status>
+
+        export const Schema = z.object({
+            threadId: ThreadId,
+            hit:      Hit.Schema,
+            raisedAt: z.coerce.date(),
+            status:   Status,
+        })
+    }
+    export type Queued = z.infer<typeof Queued.Schema>
 
     /** The same window of the same trigger hits at most once per cooldown. */
     export function getCooldownKey(hit: Hit): string {

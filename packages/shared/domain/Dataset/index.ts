@@ -3,6 +3,7 @@ import * as DescriptionMod  from "./Description"
 import * as PredictionsMod  from "./Predictions"
 import * as PricesHourlyMod from "./PricesHourly"
 import * as UpdateMod       from "./Update"
+import * as PreviewMod      from "./Preview"
 import * as ApiMod          from "./api"
 
 /**
@@ -18,6 +19,9 @@ export namespace Dataset {
 
     /** Some hours of a dataset changed: what the Watchdog checks triggers on. */
     export import Update       = UpdateMod.Update
+
+    /** Its latest rows, for the dataset viewer. */
+    export import Preview      = PreviewMod.Preview
 
     /** `Dataset.API.describe(api, name)` for the condition editor; `Dataset.API.Internal.reportUpdate` for Python. */
     export import API = ApiMod.API

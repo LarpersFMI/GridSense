@@ -1,6 +1,6 @@
 """Replays the SYNTHETIC dummy week as if it were happening now, for the demo: the agent can't wait a day per run.
 
-    uv run python -m gridsense.replay --from 2026-05-13 --to 2026-05-15 --create-triggers
+    uv run python -m gridsense.replay --from 2026-05-13 --to 2026-05-15 --create-triggers --step
 
 The files start with what was known at local midnight on --from: the runs issued before it, and the prices of every
 day whose auction had cleared (up to --from itself). Then, for each day, in order:
@@ -8,7 +8,7 @@ day whose auction had cleared (up to --from itself). Then, for each day, in orde
     10:00  the day's run: its rows are appended to predictions.parquet, then reported (POST /internal/runs)
     14:00  the auction for the next day: its prices are appended to prices_hourly.parquet, then reported
 
-with --pause seconds between steps. Each trigger finds its own new rows past its watermark, so the Watchdog sees the
+with --pause seconds between steps, or, with --step, one step each time you press Enter (for a live demo). Each trigger finds its own new rows past its watermark, so the Watchdog sees the
 week arrive the way it would live.
 
 It writes into DATASET_DIR (.env), which the server and the Watchdog read: point it at a folder of its own
@@ -126,6 +126,7 @@ def main() -> None:
     parser.add_argument("--from", dest="first", required=True, help="first local day, e.g. 2026-05-13")
     parser.add_argument("--to", dest="last", required=True, help="last local day, e.g. 2026-05-15")
     parser.add_argument("--pause", type=float, default=5, help="seconds between steps")
+    parser.add_argument("--step", action="store_true", help="wait for Enter before each step instead of --pause")
     parser.add_argument("--create-triggers", action="store_true", help="save T1-T5 before the first step")
     args = parser.parse_args()
 
@@ -156,6 +157,12 @@ def main() -> None:
             post("/api/triggers", {"id": uuid7(), "enabled": True, "match": "all", **trigger})
             print(f"  saved trigger: {trigger['name']}")
 
+    def wait(next_step: str) -> None:
+        if args.step:
+            input(f"  Enter: {next_step} ")
+        else:
+            time.sleep(args.pause)
+
     for day in days:
         issue_ts = (pd.Timestamp(day.date()) + pd.Timedelta(hours=ISSUE_HOUR)).tz_localize(LOCAL_TZ).tz_convert("UTC")
         run = predictions[predictions["issue_ts"] == issue_ts]
@@ -163,7 +170,7 @@ def main() -> None:
         if run.empty:
             print(f"{day.date()} 10:00  no run in the dummy for {issue_ts.isoformat()}, skipped")
         else:
-            time.sleep(args.pause)
+            wait(f"{day.date()} 10:00, the day's run")
             known_predictions = pd.concat([known_predictions, run], ignore_index=True)
             write(known_predictions, target / PREDICTIONS_FILE)
             report_run(target / PREDICTIONS_FILE, MODEL_VERSION, issue_ts)
@@ -173,7 +180,7 @@ def main() -> None:
         cleared = prices[(prices["ts_utc"] >= local_midnight(next_day))
                          & (prices["ts_utc"] < local_midnight(next_day + pd.Timedelta(days=1)))]
 
-        time.sleep(args.pause)
+        wait(f"{day.date()} 14:00, the auction for {next_day.date()}")
         known_prices = pd.concat([known_prices, cleared], ignore_index=True)
         write(known_prices, target / PRICES_FILE)
         report_dataset_updated("prices")

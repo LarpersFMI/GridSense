@@ -10,7 +10,7 @@ A trigger, as saved (`Trigger.Schema`, `shared/domain/Trigger/Schema.ts`):
   "name":            "Forecast miss",
   "description":     "Hours we called near zero that cleared above 20 €/MWh.",
   "enabled":         true,
-  "on":              { "type": "dataset", "dataset": "prices", "incrementalColumn": "ts_utc" },   // or { type: "schedule", cron }
+  "on":              { "type": "dataset", "dataset": "prices" },            // or { type: "schedule", cron }
   "match":           "all",                                                  // or "any"
   "conditions": [
     { "dataset": "predictions", "column": "p_near_zero", "operator": ">=", "value": 0.7 },
@@ -21,7 +21,7 @@ A trigger, as saved (`Trigger.Schema`, `shared/domain/Trigger/Schema.ts`):
 }
 ```
 
-`Trigger.Schema` checks the shape and what doesn't depend on any file: no conditions on a trigger on the clock (it has no hours), `minHours ≤ maxHours`, a value that fits its operator (`between` takes `[low, high]`, `in` a list). It does **not** check that a condition's column exists, or its type: the files belong to Python and change under us. The editor asks instead. The **incremental column** is the exception: saving a trigger reads its current max from the file to start the watermark, so a column that isn't there, or isn't a timestamp, is a 400 ([checking-an-update.md](checking-an-update.md#watermarks)).
+`Trigger.Schema` checks the shape and what doesn't depend on any file: no conditions on a trigger on the clock (it has no hours), `minHours ≤ maxHours`, a value that fits its operator (`between` takes `[low, high]`, `in` a list). It does **not** check that a column exists, or its type: the files belong to Python and change under us. The editor asks instead.
 
 ## 1. Describing a dataset
 
@@ -55,7 +55,7 @@ sequenceDiagram
 ] } }
 ```
 
-The editor offers the `timestamp` columns for the incremental column, number operators (`>=`, `<=`, `>`, `<`, `between`) on `number` columns and `==`, `!=`, `in` on `text`. Predictions are described from the **latest run's** file — the one the next check will look like; prices from `DATASET_DIR`.
+The editor offers number operators (`>=`, `<=`, `>`, `<`, `between`) on `number` columns and `==`, `!=`, `in` on `text`. Predictions are described from the **latest run's** file — the one the next check will look like; prices from `DATASET_DIR`.
 
 ## 2. Saving
 
@@ -63,8 +63,8 @@ Create and update are two endpoints. The id is the client's, so a retried create
 
 | Request | Does | Errors |
 |---|---|---|
-| `POST /api/triggers` — body `Trigger` | watermark = the incremental column's max now; `insert … on conflict (id) do nothing` | 400 schema or incremental column · **409** the id exists |
-| `PUT /api/triggers/:id` — body `Trigger` | updates every field, `updated_at = now()`; the watermark restarts if the dataset or incremental column changed | 400 schema · **400** body id ≠ path id · 404 |
+| `POST /api/triggers` — body `Trigger` | `insert … on conflict (id) do nothing` | 400 schema · **409** the id exists |
+| `PUT /api/triggers/:id` — body `Trigger` | updates every field, `updated_at = now()` | 400 schema · **400** body id ≠ path id · 404 |
 | `DELETE /api/triggers/:id` | deletes, returns what it was | 404 |
 | `GET /api/triggers`, `GET /api/triggers/:id` | by id | 404 |
 
@@ -97,4 +97,4 @@ Disabling (`enabled: false`) leaves the trigger saved; the queries filter on `en
 
 ## Storage
 
-`gridsense.trigger`: `on` → `checked_on` (jsonb), `match` → `match_mode`, `conditions` (jsonb), `grouping` → `hit_grouping` (jsonb), `cooldown_minutes`, `watermark` (the Watchdog's). The jsonb columns hold the zod-validated shapes as they are and are parsed again on the way out (`TriggerDB.toDomain`). An index on `checked_on ->> 'dataset'` where enabled serves the Watchdog's lookup.
+`gridsense.trigger`: `on` → `checked_on` (jsonb), `match` → `match_mode`, `conditions` (jsonb), `grouping` → `hit_grouping` (jsonb), `cooldown_minutes`. The jsonb columns hold the zod-validated shapes as they are and are parsed again on the way out (`TriggerDB.toDomain`). An index on `checked_on ->> 'dataset'` where enabled serves the Watchdog's lookup.
