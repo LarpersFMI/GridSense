@@ -235,8 +235,11 @@ compare model variants on the same validation hours.
 Romanian price and grid tables, their quality reports, and the baseline calendar
 and training Parquet. Regenerate the baseline with
 `uv run python -m gridsense.data.calendar` and `make features`. The training table
-uses the calendar, Romanian prices, and grid lags. Raw inputs, normalized File
-Library extracts, and synthetic fixtures stay in ignored directories. The source dataset card
+uses the calendar, Romanian prices, and grid lags. Normalized File Library
+Parquets and their manifest are included under `data/processed/entsoe_file_library/`.
+These tables are derived from ENTSO-E Transparency Platform extracts filtered to
+the documented areas and period. Raw inputs and synthetic fixtures stay in
+ignored directories. The source dataset card
 uses `license: other` and refers users to the applicable ENTSO-E terms. The ENTSO-E
 website's disclaimer also restricts redistribution of website content without
 written permission, so the team needs to establish the applicable rights for these

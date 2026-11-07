@@ -1,0 +1,287 @@
+{
+  "start_utc": "2022-12-31T22:00:00+00:00",
+  "end_exclusive_utc": "2026-10-31T22:00:00+00:00",
+  "inputs": {
+    "prices": {
+      "source_files": 47,
+      "selected_rows": 388704,
+      "duplicates_removed": 5856
+    },
+    "actual_load": {
+      "source_files": 51,
+      "selected_rows": 149123,
+      "duplicates_removed": 0
+    },
+    "day_ahead_load": {
+      "source_files": 47,
+      "selected_rows": 134400,
+      "duplicates_removed": 0
+    },
+    "generation": {
+      "source_files": 47,
+      "selected_rows": 1270504,
+      "duplicates_removed": 0
+    },
+    "week_ahead_load": {
+      "source_files": 47,
+      "selected_rows": 1391,
+      "duplicates_removed": 0
+    },
+    "installed_capacity": {
+      "source_files": 1,
+      "selected_rows": 38,
+      "duplicates_removed": 0
+    },
+    "hydro_storage": {
+      "source_files": 4,
+      "selected_rows": 199,
+      "duplicates_removed": 0
+    },
+    "outages": {
+      "source_files": 47,
+      "selected_rows": 7865,
+      "duplicates_removed": 0
+    },
+    "physical_flows": {
+      "source_files": 47,
+      "selected_rows": 336000,
+      "duplicates_removed": 0
+    }
+  },
+  "outputs": {
+    "entsoe_file_library/prices.parquet": {
+      "rows": 382848,
+      "key": [
+        "bidding_zone",
+        "ts_utc",
+        "sequence"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 4001742,
+      "sha256": "f46ff77ec3528abea0c4dce139ac543f28d7a2e5fbfdcdbe2bccccc106a046ba"
+    },
+    "entsoe_file_library/actual_load.parquet": {
+      "rows": 149123,
+      "key": [
+        "area_code",
+        "ts_utc"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 2034482,
+      "sha256": "a5552af79255e322833b7a287f849edfe8d65fd3f45e0c4dabb30c459d648e3e"
+    },
+    "entsoe_file_library/day_ahead_load.parquet": {
+      "rows": 134400,
+      "key": [
+        "area_code",
+        "ts_utc",
+        "updated_at_utc"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 1452990,
+      "sha256": "7cd829195f6413a76ae3e40e3a04ba5770412eae15c85c89b1cc36147e66f818"
+    },
+    "entsoe_file_library/generation.parquet": {
+      "rows": 1270504,
+      "key": [
+        "area_code",
+        "production_type",
+        "ts_utc"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 13232175,
+      "sha256": "74f46e57502b8116590702e2afbfd6cdc5f7e8427a9b6f6ec4905c815453e7e4"
+    },
+    "entsoe_file_library/week_ahead_load.parquet": {
+      "rows": 1391,
+      "key": [
+        "area_code",
+        "ts_utc",
+        "updated_at_utc"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 25583,
+      "sha256": "f18cd67e006b9a9f49a588a6c743031bc26afcfcea0d8433615f30f688199965"
+    },
+    "entsoe_file_library/installed_capacity.parquet": {
+      "rows": 38,
+      "key": [
+        "area_code",
+        "year",
+        "production_type"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 6010,
+      "sha256": "20c77c015b7eed6b2bfc90d3af1225c752860293d83c8272ace13d62a6313976"
+    },
+    "entsoe_file_library/hydro_storage.parquet": {
+      "rows": 199,
+      "key": [
+        "area_code",
+        "year",
+        "week"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 8793,
+      "sha256": "f9a1e32c07cd5dbad866984a1f83799b42542ab3ab6d4e570159e58adfbfe504"
+    },
+    "entsoe_file_library/outages.parquet": {
+      "rows": 7865,
+      "key": [
+        "area_code",
+        "instance_code",
+        "version",
+        "asset_code",
+        "segment_start_utc",
+        "segment_end_utc"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 290957,
+      "sha256": "abd640c2705014f66fcc80c2e805c94d73b6c9878534d23dcf03a16df2ab2c66"
+    },
+    "entsoe_file_library/physical_flows.parquet": {
+      "rows": 336000,
+      "key": [
+        "out_area_code",
+        "in_area_code",
+        "ts_utc"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 4026208,
+      "sha256": "c657691aba3f16947409a8d9535ff0844916ce5ace8191a06cbcec2f96cc44b7"
+    },
+    "prices_native.parquet": {
+      "rows": 62112,
+      "key": [
+        "ts_utc"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 1376975,
+      "sha256": "8fe4220a7e4774c627349f4c6a55414361443cbd51753de2457346469d403c0f"
+    },
+    "prices_hourly.parquet": {
+      "rows": 33600,
+      "key": [
+        "ts_utc"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 730851,
+      "sha256": "65a64f71b3f153691d507ecbc7226bf6e232debbfbdfdfab65a175f5ffdb3303"
+    },
+    "regional_prices_hourly.parquet": {
+      "rows": 100800,
+      "key": [
+        "country_code",
+        "ts_utc"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 1382471,
+      "sha256": "ae3c3a9b2869fc3e892650bfd9bcfe0a63bdaa4cf1be35a1a3fc804313cc03bf"
+    },
+    "regional_load_hourly.parquet": {
+      "rows": 100786,
+      "key": [
+        "country_code",
+        "ts_utc"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 1089985,
+      "sha256": "465318340b0c2b831256af4324acf3d4eeca6338d4820a0722a99796ef925e7f"
+    },
+    "entsoe_file_library/grid_actual_hourly.parquet": {
+      "rows": 33600,
+      "key": [
+        "ts_utc"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 591559,
+      "sha256": "d118cdad28ead562ff4db0bdd2bfcc437d7fb28ef062538754bb97531483893d"
+    },
+    "grid_hourly.parquet": {
+      "rows": 33600,
+      "key": [
+        "ts_utc"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 488220,
+      "sha256": "9bbf124ef0e60df60ebd01f4e8a24217679f37040cf2699f1bf6327e26e34279"
+    },
+    "regional_market_features.parquet": {
+      "rows": 235200,
+      "key": [
+        "issue_ts",
+        "target_ts_utc",
+        "horizon_days"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 2146848,
+      "sha256": "0a64b87ea2d0bfb8ed74c8325fe00ce5342a2c387bc4885cb3ec20aa7d778090"
+    }
+  },
+  "integration": {
+    "legacy_load_rows_by_country": {
+      "BG": 30648,
+      "HU": 30646,
+      "RO": 30643
+    },
+    "file_library_load_hours_by_country": {
+      "RO": 2955,
+      "HU": 2950,
+      "BG": 2944
+    },
+    "late_file_library_load_hours_by_country": {
+      "BG": 2872,
+      "RO": 378,
+      "HU": 73
+    },
+    "load_coverage_by_country": {
+      "RO": {
+        "missing_hours": 2,
+        "missing_hours_since_power_stats_end": 1,
+        "first_missing_hours_utc": [
+          "2026-05-27T06:00:00+00:00",
+          "2026-10-02T20:00:00+00:00"
+        ]
+      },
+      "HU": {
+        "missing_hours": 4,
+        "missing_hours_since_power_stats_end": 0,
+        "first_missing_hours_utc": [
+          "2022-12-31T22:00:00+00:00",
+          "2022-12-31T23:00:00+00:00",
+          "2023-06-20T20:00:00+00:00",
+          "2023-06-20T21:00:00+00:00"
+        ]
+      },
+      "BG": {
+        "missing_hours": 8,
+        "missing_hours_since_power_stats_end": 6,
+        "first_missing_hours_utc": [
+          "2022-12-31T22:00:00+00:00",
+          "2022-12-31T23:00:00+00:00",
+          "2026-10-24T21:00:00+00:00",
+          "2026-10-24T22:00:00+00:00",
+          "2026-10-24T23:00:00+00:00",
+          "2026-10-25T00:00:00+00:00",
+          "2026-10-25T01:00:00+00:00",
+          "2026-10-25T02:00:00+00:00"
+        ]
+      }
+    },
+    "grid_actual_non_null_hours": {
+      "load_actual_mw": 33598,
+      "solar_actual_mw": 33579,
+      "wind_actual_mw": 33580
+    },
+    "grid_late_hours_excluded": {
+      "load_actual_mw": 378,
+      "solar_actual_mw": 25408,
+      "wind_actual_mw": 26312
+    },
+    "grid_non_null_hours": {
+      "load_actual_mw": 33220,
+      "solar_actual_mw": 8171,
+      "wind_actual_mw": 7268
+    }
+  }
+}
