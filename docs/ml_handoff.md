@@ -1,11 +1,12 @@
 # ML handoff (price forecasting, ML-P)
 
-Latest published integration on **2026-11-07**: local weather/chronological work committed as `c955b60`,
-nested-chain integration as `b3fc575`, and upstream data-quality work through `99ae96d`
-merged as `e105713`. **203 tests and lint pass; all 28 tracked Parquets are readable.**
-The default 235,704-row/50-feature table is unchanged. Refreshed comparisons and the
-chronological smoke test have zero probability-order violations. The complete overnight
-queue is prepared and smoke-tested; **the full queue has not started**. Local `main`
+Latest published integration on **2026-11-07**: archived feature engineering committed as
+`44bfa50`, explicit chain recency/nested weather calibration as `ea47db5`, and concurrent
+upstream `d1f1865` merged as `3e2d370`; the audited integration was published as `0757c7a`.
+**246 tests and lint pass; all 29 tracked Parquets are readable.** The default
+235,704-row/50-feature table is unchanged. A fresh **28-job / 112-fold** queue is prepared
+against that published code. The 730/90 engineered and 365/365 control smokes have zero
+probability-order violations; **the full queue has not started**. Local `main`
 is still `63bada2`, while `origin/main` has advanced to `2da47ad`; those services have not
 been merged into ML. Earlier sections below are historical run records with their original
 inputs and model versions. Read the current checklist first, then [price_plan.md](price_plan.md),
@@ -16,7 +17,7 @@ inputs and model versions. Read the current checklist first, then [price_plan.md
 The incoming work through `9839df0`, including `a7c9ada`, is now merged as `46f2924`.
 The forecast-engineering adaptation was committed as `44bfa50` before that merge.
 Observed augmentation remains analysis-only and is not a forecast input. Both review points
-are addressed in local code; historical results below retain their original model settings.
+are addressed and published; historical results below retain their original model settings.
 
 ### Explicit chronological profiles
 
@@ -55,7 +56,8 @@ The nesting and classification-evaluator integration tasks are **done**. Histori
 notes and Next steps item 4 below are marked accordingly. The normal evaluator already
 registers `make evaluate TASK=classify`; this review did not score the final test split.
 Both earlier prepared queues are now obsolete because of the merged/new Python checksums;
-their snapshots and reports remain untouched. A fresh post-integration queue is required.
+their snapshots and reports remain untouched. The fresh post-integration queue is
+verified in [Prepared run: ready to launch](#prepared-run-ready-to-launch).
 
 **Post-merge validation:** `make test` passed **246 tests**, `make lint` and
 `git diff --check` passed. Pylance reports no diagnostics in the two changed runners;
@@ -85,7 +87,8 @@ the archived-only `forecast_engineered` candidate remains the safe adaptation of
 
 The [new module](../src/gridsense/features/forecast_engineering.py) reuses the incoming
 augmentation's **ideas**, not its observed data, delivery-relative price features or
-permutation ranking. No remote changes were merged and no shared Parquet schema changed.
+permutation ranking. At the initial adaptation stage no remote changes were merged;
+subsequent merges are recorded above. The adaptation itself changed no shared Parquet schema.
 
 - Weather input is the existing `weather_fc` Previous Runs selection for București,
 	Constanța, Craiova and Timișoara. Source/horizon/physical/cutoff validation runs before
@@ -136,7 +139,7 @@ Its eight-round June smoke passed with **zero nesting violations**; snapshot/rep
 runtime/source checksums and production-model inventory all verify. The
 [completion marker](../reports/real/overnight/20261107-forecast-engineering/smoke/forecast_engineered__default/completed.json)
 is explicitly smoke-only, not quality evidence. **The full queue has not started** and no
-test-evaluation marker exists. Run/resume the new plan with
+test-evaluation marker exists. The command
 `make overnight RUN_DIR=reports/real/overnight/20261107-forecast-engineering` was the launch
 command for that earlier code revision; **do not run this obsolete plan under the newer
 profile integration**. Large queue artifacts remain ignored.
@@ -401,12 +404,15 @@ forecast-score ranking is retrospective and not a causal online budget planner. 
 [overnight.py](../src/gridsense/models/overnight.py) prepares read-only train/validation
 snapshots and a checksummed sequential queue. Default candidates: current, extras, RO grid,
 RO/HU/BG grid, regional prices/spreads only and regional load only. Default profile uses
-365-day recency; optional `recent` uses 180 days and `regularized` uses 15 leaves / 100
-minimum child samples. All jobs use four LightGBM threads, recorded seeds/parameters, and
+365-day recency for price and both classifier steps; optional `recent` uses 180 days for all
+three and `regularized` uses 365 days with 15 leaves / 100 minimum child samples.
+`chain_730_90` uses price 365 / near-zero 730 / conditional-cheap 90 days. All classifier
+step half-lives are explicit, not inherited from normal defaults. All jobs use four
+LightGBM threads, recorded seeds/parameters, and
 normal model artifacts remain unchanged. No final-test targets enter the snapshots.
 
 Use `make overnight-prepare RUN_DIR=...` for a new directory, optionally
-`PROFILES="default recent regularized"`; `make overnight-smoke RUN_DIR=...` runs only the first
+`PROFILES="chain_730_90 default recent regularized"`; `make overnight-smoke RUN_DIR=...` runs only the first
 candidate/first fold with eight boosting rounds. It is marked **smoke-only**, not a model
 quality result. `make overnight RUN_DIR=...` runs the full queue under macOS `caffeinate`.
 Completed jobs resume only when all snapshot/report checksums match. Code or source/model
@@ -423,17 +429,24 @@ introduced to hide the difficult fold.
 
 ### Prepared run: ready to launch
 
-- Directory: `reports/real/overnight/20261107-validation/` (local, ignored).
-- **18 sequential jobs**: six feature candidates × `default`, `recent`, `regularized`.
-	Each job scores June, July, August and September: **72 full fold runs** in total.
-- The plan records implementation commit `e105713`, code/source/snapshot hashes, Python
-	and package versions, fold boundaries and production-artifact inventory. All six snapshots
-	contain labelled train/validation rows only and are read-only.
-- The actual nested-chain first-candidate/first-month smoke **passed**, with zero nesting
-	violations. Its reports are marked smoke-only. The executor refuses full execution until
-	that completion marker and all input/report hashes are verified.
+- Directory: `reports/real/overnight/20261107-forecast-recency/` (local, ignored).
+- **28 sequential jobs**: `forecast_engineered`, current, extras, RO grid, RO/HU/BG grid,
+	regional prices and regional load × `chain_730_90`, `default`, `recent`, `regularized`.
+	Each job scores June, July, August and September: **112 full fold runs** in total.
+- [The plan](../reports/real/overnight/20261107-forecast-recency/plan.json) records published
+	commit `0757c7a`, code/source/snapshot hashes, Python/package versions, fold boundaries and
+	production-artifact inventory. Each of the seven read-only snapshots contains the same
+	**167,993 labelled development rows** and preserves every original control column.
+	Feature counts in that order are **101 / 50 / 80 / 55 / 63 / 58 / 53**.
+- The [first-job engineered 730/90 June smoke](../reports/real/overnight/20261107-forecast-recency/smoke/forecast_engineered__chain_730_90/completed.json)
+	**passed** and records price 365 / classifier 730/90, 101 features and zero nesting
+	violations. An [additional control June smoke](../reports/real/overnight/20261107-forecast-recency/smoke/current__default/completed.json)
+	also passed, recording price 365 / classifier 365/365 and 50 features. Both use eight
+	boosting rounds and are **smoke-only**, not quality comparisons. All code/runtime/source/
+	model/snapshot/report checks verify. The executor requires the first-job smoke marker
+	before full execution.
 - Full execution was deliberately **not launched**. Start it with
-	`make overnight RUN_DIR=reports/real/overnight/20261107-validation`; macOS `caffeinate`
+	`make overnight RUN_DIR=reports/real/overnight/20261107-forecast-recency`; macOS `caffeinate`
 	keeps the machine awake for the queue's lifetime. Keep it on power with the lid open.
 - Resume with the same command. Do not pull new Python code, rebuild features or replace
 	production models after preparation: checksums/inventory will reject a changed environment.
@@ -442,6 +455,9 @@ introduced to hide the difficult fold.
 - No production artifacts were replaced, no features were promoted, and the test set was
 	not evaluated. The normal saved classifier predates the chain and needs default retraining
 	before normal prediction/export; the prepared queue fits isolated new models itself.
+- Earlier `20261107-validation` and `20261107-forecast-engineering` plans are obsolete under
+	the current Python fingerprint. Preserve their snapshots/reports; do not launch them or
+	edit checksums to bypass the code guard.
 
 ## Roles
 
