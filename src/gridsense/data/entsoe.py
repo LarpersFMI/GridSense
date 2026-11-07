@@ -182,9 +182,11 @@ def fetch_day_ahead_prices(start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFra
     return normalize_native(pd.concat(frames, ignore_index=True), "entsoe_api")
 
 
-def normalize_native(df: pd.DataFrame, source: str) -> pd.DataFrame:
+def normalize_native(
+    df: pd.DataFrame, source: str, *, bidding_zone: str = config.BIDDING_ZONE
+) -> pd.DataFrame:
     if df.empty:
-        raise ValueError("No Romanian price observations in the requested range")
+        raise ValueError(f"No price observations for {bidding_zone} in the requested range")
     df = df.copy()
     if not isinstance(df["ts_utc"].dtype, pd.DatetimeTZDtype):
         raise TypeError("Native timestamps must be timezone-aware")
@@ -193,7 +195,7 @@ def normalize_native(df: pd.DataFrame, source: str) -> pd.DataFrame:
     df["interval_end_utc"] = df["ts_utc"] + df["resolution"].map(RESOLUTIONS)
     df["source"] = source
     df["market"] = "day_ahead"
-    df["bidding_zone"] = config.BIDDING_ZONE
+    df["bidding_zone"] = bidding_zone
     df["document_created_at_utc"] = pd.to_datetime(df["document_created_at_utc"], utc=True).astype(
         "datetime64[ns, UTC]"
     )

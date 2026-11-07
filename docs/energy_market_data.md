@@ -159,6 +159,53 @@ label for each of the 23 UTC delivery hours on March 30 in Bucharest. The second
 command checks the same issue and delivery day in a supplied file. The synthetic
 outputs are integration fixtures.
 
+## Regional market inputs for ML
+
+Run the regional build from the repository root. The command uses pinned public
+sources and works on a fresh checkout without an ENTSO-E token.
+
+```bash
+uv sync --locked
+uv run python -m gridsense.data.build_regional
+```
+
+| File in `data/processed/` | Contract |
+| --- | --- |
+| `regional_prices_hourly.parquet` | One row per `bidding_zone` and `ts_utc`. RO, HU and BG, with `country_code` and the existing `price_mean`, `price_min`, `price_max` fields in EUR/MWh. |
+| `regional_load_hourly.parquet` | One row per `country_code` and `ts_utc`. RO, HU and BG actual hourly system load (`load_actual_mw`, MW), with zone and source identifiers. |
+| `regional_market_features.parquet` | One row per `issue_ts`, `target_ts_utc`, `horizon_days`, with 11 regional `f_*` columns. Left join on those keys with one-to-one validation. |
+| `regional_market_manifest.json` | Input release pins, coverage and output SHA-256 checksums. |
+
+RO is included in the regional prices for the spread calculation and as a reference
+for labels. The existing `prices_hourly.parquet` remains the Romanian target contract.
+The regional feature table has no labels. Use the normal chronological splits and
+compare model variants on the same validation hours.
+
+- **Prices.** The same pinned ENTSO-E snapshot used for RO supplies HU
+  (`10YHU-MAVIR----U`) and BG (`10YCA-BULGARIA-R`). This build covers Romanian
+  delivery dates 2023-01-01 through 2026-07-31. Keep complete hours only, using the
+  native hourly observation or all four 15-minute prices. Negative prices are valid.
+- **Load.** [ENTSO-E Power Statistics, Monthly Hourly Load Values](https://www.entsoe.eu/data/power-stats/)
+  supplies national UTC observations from 2023-01-01 through 2026-06-30. Retain only
+  `Cov_ratio = 100` and use `Value`. ENTSO-E's public files can be revised in place.
+  The build checks each file against its release pin. If the publisher updates a
+  file, use the original cached release or review the new release before updating
+  its checksum.
+- **Availability.** The issue clock is 10:00 in Bucharest. Use the target's
+  Romanian clock hour to look up HU/BG prices and RO-minus-neighbor spreads on
+  issue day D and D−6, from auctions already cleared under the project's timing
+  policy. Use actual load from D−1 for each of RO/HU/BG, allowing for reporting
+  delay. All legs of a spread use the same UTC hour. A missing or ambiguous
+  interval stays null. Load lags beyond the pinned consumption coverage also stay
+  null. Historical exports do not establish which revisions were visible at issue time.
+
+**Team handoff.** Version the build code, release pins and this contract. Raw
+inputs, Parquet outputs and their generated manifest stay in Git-ignored directories.
+ML can rebuild from the same commit. For offline handoff, share the three outputs
+with their manifest through an agreed team storage location after checking source
+redistribution terms. Public download availability alone does not establish
+redistribution rights.
+
 ## Optional grid signals
 
 ENTSO-E documents the following sources in its
