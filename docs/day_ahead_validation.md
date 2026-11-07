@@ -136,3 +136,19 @@ a date succeed), and must not be presented as a certified slot-cancellation boun
 This supports prioritizing D+1 and conservative selection, but does not approve
 deployment or justify tuning on the final test. Future model/policy freeze and
 independent final evaluation remain required.
+
+## Later 365-day reference and dev integration
+
+The Mac48 `weather_extra__default` comparison is now complete. Its conservative
+joint policy produced 36 slots / one failure (2.78%), while the fixed-hourly,
+two-hour risk-first policy-only comparison produced **37 / one (2.70%)**, averaging
+**18.5 hours/month**. These are later development results, not a redefinition of
+the original 730-day result above. June abstained; July offered only 12 hours.
+No policy/model is promoted or guaranteed safe on future data.
+
+The 365-day candidate is the current reference in the
+[updated two-Mac plan](overnight_training_two_macs.md). D+1 code is integrated into
+`dev`; prior plans remain pinned to their original code and must not be resumed
+or have source hashes edited to bypass integration changes. New experiments use
+fresh local contexts and matching 365-day controls. Production refitting and the
+single authorized final-test evaluation are still separate future work.

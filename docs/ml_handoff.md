@@ -1,5 +1,37 @@
 # ML handoff (price forecasting, ML-P)
 
+## Current D+1 integration status (2026-11-07)
+
+The original queue has now **completed all 28 jobs / 112 folds**. Both Mac48 D+1
+follow-ups and their policy-only comparisons are also complete. D+1 implementation
+`fee98fa` has been merged with current `dev` as `b8c31e0`, including teammate
+drift/export and server/charting integration. Integrated **320 tests and lint pass**.
+The minimal incoming pipeline lint fixes are recorded as `a1b8393`.
+Historical data/runtime/production/report hashes
+remain unchanged, but the source fingerprint changes: **do not resume old prepared
+plans or rewrite their checksums under this integrated code**.
+
+The current development reference is **`weather_extra__default`**, a dedicated D+1
+hourly model with 365-day recency and conservative policy selection. Its two-hour
+policy has 37 scored slots / one failure (**2.70% cancellation**) and mean
+**18.5 hours/month**. June abstains; July offers 12 hours, August 36, September 26
+(7.69% cancellation). This is not useful volume every month or certified future
+safety; no production model is promoted and no final-test evaluation was performed.
+
+Use the [updated two-Mac plan](overnight_training_two_macs.md) on published `dev`.
+The remaining teammate comparisons are `current__default` and
+`regional_prices__default`, matched to the 365-day reference. Prepare fresh local
+reference contexts; preserve completed scores as source-pinned historical evidence.
+The earlier dated sections below retain their original implementation/run states.
+
+The new `reference-context-dev365` locally records integrated code/runtime/source
+checks for `current__default`, `weather_extra__default` and
+`regional_prices__default`. Imported completion markers are unchanged historical
+reports; no new fitting/scoring occurred. The **14 MB dev365 handoff archive** in
+the two-Mac plan contains their explicit provenance and completed D+1 evidence.
+The 32 tracked Parquets have readable metadata. Original data/model/report hashes
+verify, no final-test marker exists, and no model was promoted.
+
 Latest published integration on **2026-11-07**: archived feature engineering committed as
 `44bfa50`, explicit chain recency/nested weather calibration as `ea47db5`, and concurrent
 upstream `d1f1865` merged as `3e2d370`; the audited integration was published as `0757c7a`.

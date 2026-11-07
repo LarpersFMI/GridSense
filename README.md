@@ -160,6 +160,17 @@ covers spring and summer on purpose, because winter has almost no negative-price
 
 ## Status
 
+The original 28-job validation queue and both Mac48 D+1 follow-ups are complete.
+The current **development reference** is a dedicated D+1 hourly model with extra
+archived weather and 365-day recency. Its two-hour conservative policy achieved
+2.70% aggregate development cancellation, but June abstention, limited samples
+and incomplete monthly offer volume mean it is not a deployment guarantee.
+Use the [updated two-Mac training plan](docs/overnight_training_two_macs.md) on `dev`
+for matched remaining comparisons. The D+1 implementation is integrated with
+teammate infrastructure/drift/export work; **320 tests and lint pass**. Prepare new
+reference contexts after integration rather than resuming old source fingerprints.
+No production model was promoted and the final test remains untouched.
+
 The ML implementation has tested training and validation paths, including an isolated,
 smoke-tested overnight queue. This is not a deployed end-to-end agent:
 [slot planning and auction reconciliation](src/gridsense/agent/planner.py),

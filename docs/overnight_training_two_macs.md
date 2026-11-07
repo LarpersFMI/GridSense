@@ -15,34 +15,62 @@ Progress snapshot checked **2026-11-07, during final verification of this plan**
 
 - Original queue: **28 / 28 jobs complete**, or **112 / 112 full folds**.
 - Completion state is `completed`; every job's report hashes verify.
-- Code/runtime/source/snapshot/production checks and completed-report hashes verify.
+- Historical report/data/runtime/production hashes verify. Integration changes the
+  source fingerprint, so old prepared plans are historical and must not be resumed.
 - The 48 GB Mac was on battery at the latest check. Reconnect power before leaving
   new training unattended; `caffeinate` does not prevent battery exhaustion.
-- D+1, slot-level and policy-stability follow-ups are already complete; do not
-  rerun them unchanged just to fill the night.
-- Recent repository verification: **297 tests and lint pass**. The D+1 code/tests,
-  documentation and VS Code tasks are being published on `ml/d1-training`; both operators
-  must check out the same agreed commit before preparing new runs. Ignored input
-  tables and reference reports still require the data handoff below.
+- Both assigned Mac48 D+1 runs and their policy-only comparisons are **complete**.
+  Do not rerun them unchanged just to fill the night.
+- The D+1 work is now integrated into **`dev`**, including incoming server/charting,
+  drift and prediction-export work. Use the same published `dev` commit on both Macs.
+  Integrated verification: **320 tests and lint pass**.
+  Ignored input tables and reference reports still require the handoff below.
 
 This is a timestamped status, **not a live progress counter**. Read the
 [queue status](../reports/real/overnight/20261107-forecast-recency/status.json)
 and corresponding job log for the latest state.
 
-The D+1 training branch preserves the original verified implementation. Remote
-`dev` advanced with concurrent server/ML changes before publishing; those are
-deliberately not merged into prepared runs. Checkout `ml/d1-training` for this
-handoff, rather than assuming latest `dev` reproduces the frozen experiments.
+The original D+1 implementation/results remain pinned to `ml/d1-training` commit
+`fee98fa`. That branch is historical provenance, not the recommended training branch.
+The new `dev` integration does not rewrite any old plan or completion marker. New
+experiments need fresh local reference contexts with the integrated fingerprint.
 
 Relevant results/protocols:
 [D+1 training](day_ahead_validation.md), [slot comparison](slot_validation.md),
 [policy stability](day_ahead_policy.md), and [ML handoff](ml_handoff.md).
 
+### Current reference: extra weather + 365-day D+1 hourly model
+
+Use **`weather_extra__default`** as the development reference. Its fixed dedicated
+hourly model with two-hour, risk-first policy selection produced **37 slots, one
+failure (2.70% cancellation)** and **18.5 hours/month** across June–September.
+Monthly hours: June 0 (abstention), July 12, August 36, September 26. Cancellation
+in active months: July 0%, August 0%, September 7.69%.
+
+Results: [training summary](../reports/real/overnight/night-mac48-weather_extra__default/full/summary.csv),
+[two-hour policy](../reports/real/overnight/night-mac48-weather_extra__default-policy/summary.csv)
+and [monthly decisions](../reports/real/overnight/night-mac48-weather_extra__default-policy/policy_score.csv).
+
+This is **not production promotion**: June abstains, July is below the provisional
+20-hour volume benchmark, and 37 slots on 23 dates are insufficient to promise
+future safety. The aggregate development target is met, not useful volume in every
+month. No final test has been scored. The engineered/730-day conservative candidate
+performed worse (18 slots / 5 failures, 27.78% cancellation); do not adopt it.
+
+The reference has already been trained. Compare other feature sets with matching
+365-day recency before final refitting; do not blindly repeat the reference run.
+
+These experiment runners currently write prediction/evaluation evidence, not
+deployable final model weights. Final D+1 refitting/export is separate work after
+feature, model and policy selection is frozen. Ordinary `make train` still uses all
+horizons and the normal classifier defaults; it is not the dedicated 365-day D+1
+recipe. Do not use it as a shortcut to promote this research candidate.
+
 ## 2. Rules before starting
 
-1. **Do not interrupt or mutate the existing queue.** No pulls, source changes,
-   feature rebuilds, dependency updates or production-model replacement in that
-    checkout while it executes. Let all remaining jobs finish.
+1. **Do not mutate any running experiment.** No pulls, source changes, feature
+  rebuilds, dependency updates or production-model replacement in its checkout.
+  The original queue and both Mac48 runs are complete; preserve their evidence.
 2. Use a **separate clone on each Mac**. Separate experiments use separate new run
    directories. Do not use an iCloud/Dropbox-synchronized directory for live Parquets,
    caches, reports or weights; merge/copy completed artifacts afterward.
@@ -66,7 +94,7 @@ explicit LightGBM `n_jobs` values. Do not edit threads in a prepared run.
 
 | Machine | Initial allocation | Memory practice |
 |---|---|---|
-| Your M5 / 48 GB | Larger engineered-feature candidate and a bounded weather-extra recency probe | Keep at least 12 GB free for macOS/editor; investigate sustained worker usage above roughly 30 GB |
+| Your M5 / 48 GB | Completed runs: review failure dates, calibration and prepare verified handoff; avoid duplicate training | Keep at least 12 GB free for macOS/editor; investigate sustained worker usage above roughly 30 GB |
 | Teammate M5 / 24 GB | Current-feature D+1 control and regional-price D+1 candidate | Keep roughly 8 GB for macOS/editor; investigate sustained worker usage above roughly 14–16 GB |
 
 These are **operating guidelines, not measured peaks or enforced memory limits**.
@@ -82,23 +110,21 @@ while training, but avoid separate heavyweight training processes in the same cl
 
 ## 4. Tonight's bounded experiment board
 
-Continue using the existing verified feature snapshots. Do not schedule another
-28-job sweep. The existing `weather_extra__chain_730_90` D+1 run is the completed
-reference, not a new training job.
+Do not schedule another 28-job sweep. The completed `weather_extra__default`
+D+1 run is now the reference. Prepare fresh integrated-code contexts for new runs.
 
-| Owner | New reference candidate | Question |
+| Owner | Candidate / state | Question |
 |---|---|---|
-| 48 GB, job A1 | `forecast_engineered__chain_730_90` | Do archived engineered inputs improve tomorrow-only ranking/safety versus the completed extras reference? |
-| 48 GB, job A2 | `weather_extra__default` | Does equal 365-day classifier recency improve D+1 stability relative to the completed 730-day near-zero reference? |
-| 24 GB, job B1 | `current__chain_730_90` | Does the simpler default feature set retain most of the D+1 benefit? |
-| 24 GB, job B2 | `regional_prices__chain_730_90` | Do issue-known neighbouring prices improve the difficult D+1 months? |
+| 48 GB, A1 complete | `forecast_engineered__chain_730_90`: not preferred | Conservative cancellation 27.78%; no repeat or promotion |
+| 48 GB, A2 complete | `weather_extra__default`: current reference | Fixed D+1 hourly two-hour policy cancellation 2.70%; useful volume still incomplete |
+| 24 GB, next B1 | `current__default` | Does the simpler feature set retain the D+1 benefit at the same 365-day recency? |
+| 24 GB, next B2 | `regional_prices__default` | Do neighbouring prices improve D+1 safety/volume with the same recency? |
 
-Each dedicated run trains pooled-hourly, D+1-hourly and D+1-slot predictors and
-generates seven forward prediction months, followed by four scoring months.
-That is **four independent candidate runs / 84 predictor fits**, excluding smokes.
-The pooled predictor is a reference; policy scoring remains **D+1 only**.
-The `default` versus `chain_730_90` near-zero contrast is 365 versus 730 days;
-the secondary conditional-cheap model is not fitted in this focused runner.
+Each new dedicated run trains pooled-hourly, D+1-hourly and D+1-slot predictors and
+generates seven forward months, followed by four scoring months: **two remaining
+candidate runs / 42 predictor fits**, excluding smokes. Policy scoring remains
+**D+1 only**. Both new candidates use 365-day near-zero recency to isolate features,
+not features and recency simultaneously. The conditional-cheap step is not fitted.
 
 Do not add profiles/candidates during the night. If a candidate's exact full run
 already exists and verifies, reuse it instead of retraining. The two Macs cooperate
@@ -135,7 +161,7 @@ Transfer a public-data-only handoff containing:
   it with optional features into the shared path.
 - A **reference copy** of the original queue plan for its source/runtime/code hashes.
   It is provenance, **not a portable runnable plan**.
-- For B1/B2, completed reference-job folders containing the completion marker and
+- For B1/B2 and the completed default-profile reference, job folders containing the completion marker and
   **every CSV named in its report-hash map**. The classifier CSV alone is insufficient.
   Do not transfer incomplete jobs or the live queue lock/status as runnable state.
 
@@ -146,32 +172,42 @@ labels remain out of model development.
 
 ### Ready-to-transfer handoff
 
-The credential-free [data/report archive](../reports/real/overnight/teammate-d1-inputs.tar.gz)
-is approximately **9.9 MB** and remains Git-ignored. It contains the seven processed
-source files, the original reference plan and the two completed B1/B2 job folders;
-no environment files, passwords, API tokens, raw caches or weights are included.
+The earlier 9.9 MB archive was for the pinned `ml/d1-training` / 730-day handoff.
+Do not use its old runnable plan on integrated `dev`. The updated **dev365 handoff**
+contains seven processed sources, an integrated reference plan, completed historical
+`current__default`, `weather_extra__default`, `regional_prices__default` reports,
+and the completed D+1 reference/policy reports. No credentials, raw caches or weights
+are included. The verified [dev365 archive](../reports/real/overnight/teammate-d1-dev365-inputs.tar.gz)
+is approximately **14 MB** and remains Git-ignored.
 
-SHA256: `57d5174c87aa11915db2445f146a5c991f290cc9c82b9aa79792ce80b71d18c3`.
+SHA256: `58b06d5d57b948f81b93a61035d1acabc4f629ef64981e1c22f9a8c7ca6e32a3`.
+
+It includes [reference provenance](../reports/real/overnight/reference-context-dev365/provenance.json),
+which explicitly identifies copied reports as historical, not new integrated-code
+scores. All seven source hashes, three reference-report hash maps, completed D+1
+report hashes and **32 tracked Parquet metadata files** verify. Old plans and model
+inventories were not rewritten. The original source-machine absolute paths in
+historical plans are not suitable as the receiving machine's runnable context.
 
 Send it separately from the Git push. The teammate should check out the published
 commit, place the archive at the clone root, verify its SHA256, and extract **only
 in a fresh/non-running clone**:
 
 ```zsh
-shasum -a 256 teammate-d1-inputs.tar.gz
-tar -xzf teammate-d1-inputs.tar.gz
+shasum -a 256 teammate-d1-dev365-inputs.tar.gz
+tar -xzf teammate-d1-dev365-inputs.tar.gz
 ```
 
-The extracted original plan is still reference provenance, not runnable state.
+The extracted source-machine plan is still reference provenance, not runnable state.
 Prepare the local context below, compare its portable fingerprints, then copy the
 two extracted completed job folders into the local context:
 
 ```zsh
-mkdir -p reports/real/overnight/teammate-reference-context/jobs
-cp -R reports/real/overnight/20261107-forecast-recency/jobs/current__chain_730_90 \
-  reports/real/overnight/teammate-reference-context/jobs/
-cp -R reports/real/overnight/20261107-forecast-recency/jobs/regional_prices__chain_730_90 \
-  reports/real/overnight/teammate-reference-context/jobs/
+mkdir -p reports/real/overnight/teammate-reference-context-dev365/jobs
+for candidate in current__default weather_extra__default regional_prices__default; do
+  cp -R "reports/real/overnight/reference-context-dev365/jobs/${candidate}" \
+    reports/real/overnight/teammate-reference-context-dev365/jobs/
+done
 ```
 
 Do not run these copy commands before local preparation creates its plan/inputs.
@@ -187,14 +223,14 @@ reference context instead:
 
 ```zsh
 make overnight-prepare \
-  RUN_DIR=reports/real/overnight/teammate-reference-context \
-  VARIANTS="current regional_prices" \
-  PROFILES="chain_730_90"
+  RUN_DIR=reports/real/overnight/teammate-reference-context-dev365 \
+  VARIANTS="current weather_extra regional_prices" \
+  PROFILES="default"
 ```
 
 This prepares local development snapshots and records **that Mac's** normal-model
 inventory. It does not train or score anything. No grid cache is required for these
-two variants. Place the two transferred completed reference-job folders beneath
+three variants. Place the three transferred completed reference-job folders beneath
 the new context's `jobs` directory, preserving their original job IDs.
 
 Before consuming them, verify with the repository's existing functions:
@@ -205,7 +241,7 @@ import json
 from pathlib import Path
 from gridsense.models.overnight import verify_plan, valid_completion
 
-root = Path("reports/real/overnight/teammate-reference-context")
+root = Path("reports/real/overnight/teammate-reference-context-dev365")
 plan = json.loads((root / "plan.json").read_text())
 verify_plan(root, plan)
 for job in plan["jobs"]:
@@ -216,55 +252,40 @@ for job in plan["jobs"]:
     )
 ```
 
-Also compare the new context's `code_sha256`, `runtime_versions`, `source_sha256`
-and snapshot hashes against the transferred source-plan fields **before copying
-completion reports**. Compare the full experiment-source commit/hashes separately:
-the original code fingerprint does not include the standalone experiments folder.
-The local production inventory is expected to differ and is deliberately not copied.
+Compare the local context's `code_sha256`, `runtime_versions`, `source_sha256` and
+snapshot hashes to the transferred **integrated** `reference-context-dev365` plan
+before copying reports. Match the published `dev` commit and standalone experiment
+hashes separately. The local production inventory is expected to differ; do not copy
+or rewrite it. Historical reports were generated under the original implementation;
+retain their original completion markers and provenance, never relabel them as new
+integrated-code scoring. They identify candidates, not a fresh validation result.
 
-The `current` and `regional_prices` snapshot writes were reproduced **byte-for-byte
-in memory on the 48 GB Mac** when writing this plan; this is a verified recipe,
-not proof the teammate's environment/data already match. If a receiving snapshot
-or report hash differs, stop and reconcile inputs/versions. Do not mark it complete
-or rewrite the original completion marker. Once reference validation passes,
-the dedicated D+1 runner can use this local context without executing its queue.
+The default control must rebuild exactly, and fresh snapshot hashes must match the
+reference context. If receiving data/runtime/code/snapshot/report hashes differ,
+stop and reconcile them. Do not edit checksums to force acceptance. Once the local
+reference checks pass, the dedicated D+1 runner can consume this context without
+executing the original multi-horizon queue again.
+
+The integrated source-machine context is already prepared and verified for all
+three default-profile candidates. It performed **no new fitting or scoring**.
+The historical report hashes and original data snapshots match exactly; the new
+context records the integrated implementation fingerprint independently.
 
 ## 7. Launch commands
 
-These are instructions for the two operators. No new overnight runs were launched
-by writing this plan. Run each pair **sequentially**. For each candidate: prepare,
-smoke, inspect success, then execute; stop immediately on any failure.
+These are instructions for remaining work; this update launches **no new training**.
+For each new candidate: prepare, smoke, inspect success, then execute; stop on failure.
 
-### Your 48 GB Mac — after the original queue finishes
+### Your 48 GB Mac — completed training, no automatic rerun
 
-The committed [Mac48 runner](../experiments/train_mac48.zsh) verifies every original
-completion before starting, runs both assigned candidates and their policy-only
-comparisons sequentially, measures full-run time/memory, and refuses existing outputs.
-Run the VS Code task **ML: assigned Mac48 overnight D+1 experiments**, or:
+Both assigned runs are complete. Reuse their checksummed results as historical
+development evidence. The old [Mac48 runner](../experiments/train_mac48.zsh) is
+specific to the original source/queue fingerprint and will correctly refuse it
+after integration. Do not run it or rewrite its old plan on current `dev`.
 
-```zsh
-caffeinate -i zsh experiments/train_mac48.zsh
-```
-
-The equivalent manual training steps are:
-
-```zsh
-export GRIDSENSE_DATA=real
-export OPENBLAS_NUM_THREADS=1
-export VECLIB_MAXIMUM_THREADS=1
-export OMP_NUM_THREADS=1
-
-queue=reports/real/overnight/20261107-forecast-recency
-for candidate in forecast_engineered__chain_730_90 weather_extra__default; do
-  run_dir="reports/real/overnight/night-mac48-${candidate}"
-  uv run python -m experiments.day_ahead_validation --prepare \
-    --queue-dir "$queue" --candidate "$candidate" --run-dir "$run_dir" || break
-  caffeinate -i uv run python -m experiments.day_ahead_validation \
-    --smoke --run-dir "$run_dir" || break
-  caffeinate -i uv run python -m experiments.day_ahead_validation \
-    --execute --run-dir "$run_dir" || break
-done
-```
+Use the time to examine failed September dates, calibrated probability bins,
+missed opportunities and why June/July have low volume. New feature/model changes
+require a separately declared bounded experiment, not repeating completed jobs.
 
 ### Teammate's 24 GB Mac — after local reference checks pass
 
@@ -274,9 +295,9 @@ export OPENBLAS_NUM_THREADS=1
 export VECLIB_MAXIMUM_THREADS=1
 export OMP_NUM_THREADS=1
 
-queue=reports/real/overnight/teammate-reference-context
-for candidate in current__chain_730_90 regional_prices__chain_730_90; do
-  run_dir="reports/real/overnight/night-mac24-${candidate}"
+queue=reports/real/overnight/teammate-reference-context-dev365
+for candidate in current__default regional_prices__default; do
+  run_dir="reports/real/overnight/night-mac24-dev365-${candidate}"
   uv run python -m experiments.day_ahead_validation --prepare \
     --queue-dir "$queue" --candidate "$candidate" --run-dir "$run_dir" || break
   caffeinate -i uv run python -m experiments.day_ahead_validation \
@@ -307,15 +328,17 @@ Run this separately for each completed source. It does not authorize changing th
 
 | Stage | Work |
 |---|---|
-| Before bed | Finish original queue; freeze/transfer sources; validate both environments and data; run each first smoke |
+| Before bed | Original queue/Mac48 jobs already done; freeze integrated dev; transfer handoff; validate teammate environment; smoke B1 |
 | First full job | Measure wall time and peak memory (`/usr/bin/time -l` or Activity Monitor); inspect logs for errors, swap and missing coverage |
-| Overnight | One sequential two-job workload per Mac; no downloads/pulls/edits to prepared inputs; keep power/lid/ventilation stable |
+| Overnight | Teammate trains B1/B2 sequentially; 48 GB Mac analyzes existing results; no downloads/pulls/edits under active plans |
 | Morning | Verify completion/report hashes, exchange reports, compare matched folds and document keep/drop decisions |
 
 **Do not assume training must take all night.** A focused D+1 candidate may finish
 much sooner; the earlier dedicated comparison already completed successfully.
-Estimate from one measured full run: roughly twice that training time per Mac,
-plus preparation/smokes/verification. Stop when the bounded board finishes instead
+The engineered full D+1 run took about **114 seconds**, with approximately **2.5 GB
+maximum resident memory** on the 48 GB Mac. That is measured for that run, not a
+guarantee for every candidate/Mac. Allow setup/smoke/verification time and stop
+when the bounded board finishes instead
 of launching an unconstrained search to occupy available hardware.
 
 Stop on failed checksum, traceback, unexpected test/refit rows, probability
