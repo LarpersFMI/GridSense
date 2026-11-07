@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 
 from gridsense import config
-from gridsense.data.week_ahead_asof import build_asof
+from gridsense.data.week_ahead_asof import build_asof, main
 
 
 def keys():
@@ -50,3 +50,25 @@ def test_duplicate_keys_and_conflicting_vintages_rejected():
     bad.iloc[1, bad.columns.get_loc("min_load_mw")] = 101.
     with pytest.raises(ValueError, match="Conflicting"):
         build_asof(keys(), bad)
+
+
+def test_refresh_requires_review_and_preserves_both_existing_outputs(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "PROCESSED_DIR", tmp_path)
+    monkeypatch.setattr(config, "DATA_MODE", "real")
+    inputs = tmp_path / "entsoe_file_library"
+    inputs.mkdir()
+    training_path = tmp_path / "training_table.parquet"
+    keys().to_parquet(training_path, index=False)
+    source().to_parquet(inputs / "week_ahead_load.parquet", index=False)
+    main([])
+    output = tmp_path / "load_fc_week_ahead_asof.parquet"
+    manifest = tmp_path / "load_fc_week_ahead_asof_manifest.json"
+    before = (output.read_bytes(), manifest.read_bytes())
+
+    keys().assign(unrelated=[1, 2]).to_parquet(training_path, index=False)
+    with pytest.raises(ValueError, match="No outputs written"):
+        main([])
+    assert (output.read_bytes(), manifest.read_bytes()) == before
+    main(["--replace-existing"])
+    assert output.read_bytes() == before[0]
+    assert manifest.read_bytes() != before[1]

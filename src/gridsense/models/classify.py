@@ -59,7 +59,14 @@ def _rows(table: pd.DataFrame | None, condition: str | None) -> pd.DataFrame | N
 class LowPriceClassifier:
     name: ClassVar[str] = "lgbm_classifier"
     params: dict = field(default_factory=lambda: dict(DEFAULT_PARAMS))
-    half_life_days: float | None = 365.0
+    # Recency half-lives chosen with models.tune_classify on validation (2026-11-07): "<= 20" is
+    # a stable multi-year pattern (long memory helps), "<= 0" only became common with the
+    # 2024-25 solar build-out (older years mostly teach "never negative", so short memory helps).
+    half_life_days: float | None = 730.0
+    # Per chain step override of half_life_days.
+    step_half_lives: dict[str, float | None] = field(
+        default_factory=lambda: {CHEAP_GIVEN_NEAR_ZERO: 90.0}
+    )
     early_stopping_rounds: int = 100
     # Calibrator fitted per chain step on val so probabilities match observed rates: "platt",
     # "isotonic" (see calibrate.py) or None for raw LightGBM probabilities.
@@ -86,7 +93,7 @@ class LowPriceClassifier:
                     "eval_y": (va[label].astype(int),),
                     "callbacks": [lgb.early_stopping(self.early_stopping_rounds, verbose=False)],
                 }
-            weights = recency_weights(tr, self.half_life_days)
+            weights = recency_weights(tr, self.half_life(step))
             model.fit(tr[self.features], y, sample_weight=weights, **fit_kwargs)
             self.models[step] = model
 
@@ -95,6 +102,10 @@ class LowPriceClassifier:
                 raw = model.predict_proba(va[self.features])[:, 1]
                 self.calibrators[step] = fit_calibrator(raw, y_val, self.calibration)
         return self
+
+    def half_life(self, step: str) -> float | None:
+        """Recency half-life (days) used for a chain step; None = no recency weighting."""
+        return getattr(self, "step_half_lives", {}).get(step, self.half_life_days)
 
     def _check_chain(self) -> None:
         if CHEAP_GIVEN_NEAR_ZERO not in self.models:
@@ -147,6 +158,7 @@ class LowPriceClassifier:
             "structure": "chain: p_cheap = p_near_zero * P(cheap | near_zero)",
             "calibration": self.calibration,
             "calibrated": sorted(self.calibrators),
+            "step_half_lives": {step: self.half_life(step) for step in STEPS},
         }
 
     def best_iterations(self) -> dict[str, int]:

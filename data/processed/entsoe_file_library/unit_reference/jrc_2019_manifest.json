@@ -1,0 +1,18 @@
+{
+  "source": "JRC-PPDB-OPEN v1.0; Romanian rows from the mirror's initial commit; official archive equivalence unverified",
+  "source_url": "https://github.com/enermaps/JRC-PPDB-OPEN/blob/c078cfaac011882a99f1606eb7deb0f72e614e93/JRC_OPEN_UNITS.csv",
+  "official_dataset": "https://data.jrc.ec.europa.eu/dataset/9810feeb-f062-49cd-8e76-8d8cfd488a05",
+  "official_dataset_version": "1.0, published 2019-12-13",
+  "mirror_commit": "c078cfaac011882a99f1606eb7deb0f72e614e93",
+  "mirror_commit_author_time_utc": "2021-03-16T15:37:37Z",
+  "mirror_full_file_git_blob_sha1": "0662c9fad5ee4a670e5027988d3c87d04b57faff",
+  "romanian_input_sha256": "cc0199377e4601fba1d623c3016ba639a689b293e3a14557f1e9cf544ea56a29",
+  "output_sha256": "1dc8f80a6e4227a79665f55213cb30d4529621ad2b642e5ff56b70fec0914813",
+  "rows": 73,
+  "key": [
+    "production_unit_code",
+    "generation_unit_code"
+  ],
+  "warning": "Retrospective reference only; publication timing and 2023-2026 validity require independent verification.",
+  "license": "CC BY 4.0; European Commission, Joint Research Centre, JRC-PPDB-OPEN v1.0"
+}

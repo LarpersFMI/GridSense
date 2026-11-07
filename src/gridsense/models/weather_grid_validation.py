@@ -20,11 +20,8 @@ from gridsense.features.weather_grid import (
     join_grid_features,
 )
 from gridsense.models.ablate_price import validation_tables
-from gridsense.models.base import feature_columns
 from gridsense.models.baselines import NAIVE_COLUMN, PERSISTENCE_COLUMN
-from gridsense.models.error_analysis import budget_metrics, decision_scores, fit_models
-from gridsense.models.regional_validation import price_scores
-from gridsense.models.weather_validation import classification_scores
+from gridsense.models.error_analysis import compare_variants, print_comparison
 
 VARIANTS = {"current": (), "ro_grid": ("ro",), "ro_hu_bg_grid": ("ro", "hu", "bg")}
 
@@ -32,16 +29,18 @@ VARIANTS = {"current": (), "ro_grid": ("ro",), "ro_hu_bg_grid": ("ro", "hu", "bg
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--pace-seconds", type=float, default=REQUEST_PACE_SECONDS)
+    parser.add_argument("--cache-only", action="store_true", help="Fail rather than download missing inputs")
     args = parser.parse_args(argv)
     if config.DATA_MODE != "real":
         raise SystemExit("Weather grid validation requires real archived forecasts")
+    table_bytes = (config.PROCESSED_DIR / "training_table.parquet").read_bytes()
     train, val = validation_tables(io.read("training_table"))
     start = pd.Timestamp(config.TRAIN_START.date(), tz=config.LOCAL_TZ).tz_convert("UTC")
     end = (pd.Timestamp(config.VAL_END.date()) + pd.Timedelta(days=1)).tz_localize(config.LOCAL_TZ).tz_convert("UTC")
-    grid = fetch_grid(start, end, io.read("weather_fc"), pace_seconds=args.pace_seconds)
+    grid = fetch_grid(start, end, io.read("weather_fc"), pace_seconds=args.pace_seconds,
+                      cache_only=args.cache_only)
     price_index = val.dropna(subset=[NAIVE_COLUMN, PERSISTENCE_COLUMN]).index
-    prices, classes, budgets, availability, runs = [], [], [], [], {}
-
+    variants, availability = {}, []
     for name, countries in VARIANTS.items():
         tr, va = train, val
         if countries:
@@ -50,17 +49,11 @@ def main(argv: list[str] | None = None) -> None:
             columns = [c for c in va if c.startswith(GRID_PREFIX)]
             counts = va.groupby("horizon_days")[columns].agg(lambda x: float(x.notna().mean()))
             availability.append(counts.reset_index().assign(variant=name))
-        print(f"[{config.DATA_MODE}] fitting {name}: {len(feature_columns(tr))} features", flush=True)
-        price_pred, class_pred, info = fit_models(tr, va, price_index)
-        rows = va.loc[price_index]
-        prices.append(price_scores(rows, price_pred).assign(variant=name))
-        classes.extend(classification_scores(va, pred).assign(model=model, variant=name)
-                       for model, pred in class_pred.items())
-        budgets.append(budget_metrics(rows, decision_scores(rows, price_pred, class_pred)).assign(variant=name))
-        runs[name] = {"features": feature_columns(tr), **info}
+        variants[name] = (tr, va)
+    prices, classes, budgets, runs = compare_variants(variants, price_index)
+    if (config.PROCESSED_DIR / "training_table.parquet").read_bytes() != table_bytes:
+        raise RuntimeError("Training table changed while the grid experiment was running")
 
-    prices, classes = pd.concat(prices, ignore_index=True), pd.concat(classes, ignore_index=True)
-    budgets = pd.concat(budgets, ignore_index=True)
     out = config.REPORTS_DIR / "eval"
     out.mkdir(parents=True, exist_ok=True)
     prices.to_csv(out / "price_weather_grid_val.csv", index=False)
@@ -76,8 +69,7 @@ def main(argv: list[str] | None = None) -> None:
         "weather_rows": len(grid), "raw_files": len(raw_files),
         "raw_files_sha256": hashlib.sha256(
             "".join(sorted(raw_files["raw_sha256"])).encode()).hexdigest(),
-        "training_table_sha256": hashlib.sha256(
-            (config.PROCESSED_DIR / "training_table.parquet").read_bytes()).hexdigest(),
+        "training_table_sha256": hashlib.sha256(table_bytes).hexdigest(),
         "runs": runs,
         "caveats": [
             "Same GFS Previous Runs offsets and assumed 12 h publication buffer as weather_fc; not verified.",
@@ -88,15 +80,7 @@ def main(argv: list[str] | None = None) -> None:
         ],
     }
     (out / "weather_grid_validation.json").write_text(json.dumps(metadata, indent=2, default=str) + "\n")
-
-    summary = prices[prices.horizon.eq("all")].pivot(index="model", columns="variant", values="mae")
-    print("MAE\n" + summary.round(3).to_string())
-    low = prices[prices.horizon.eq("all")].pivot(index="model", columns="variant", values="mae_low_price")
-    print("MAE <=20\n" + low.round(3).to_string())
-    near = classes[classes.horizon.eq("all") & classes.label.eq("y_near_zero")]
-    print("PR-AUC near zero\n" + near.pivot(index="model", columns="variant", values="pr_auc").round(4).to_string())
-    print(budgets[budgets.horizon.eq("all")].pivot(index="model", columns="variant", values=[
-        "precision_at_budget", "slot_hit_rate", "excess_eur_per_mwh"]).round(3).to_string())
+    print_comparison(prices, classes, budgets)
 
 
 if __name__ == "__main__":

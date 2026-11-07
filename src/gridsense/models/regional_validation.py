@@ -31,7 +31,7 @@ from gridsense.models.ensemble import PriceEnsemble
 from gridsense.models.lear import LEAR
 from gridsense.models.metrics import by_horizon, price_report
 from gridsense.models.price import PriceForecaster
-from gridsense.models.weather_validation import classification_scores, cross_calibrated_predictions
+from gridsense.models.weather_validation import classification_scores
 
 
 def variant_tables(train: pd.DataFrame, val: pd.DataFrame, regional: pd.DataFrame):
@@ -99,7 +99,8 @@ def main() -> None:
 
         classifier = LowPriceClassifier().fit(tr, va)
         raw = classifier.predict(va, apply_calibration=False)
-        cal = cross_calibrated_predictions(va, raw, classifier.calibration)
+        cal = classifier.predict_cross_fitted(
+            va, va.target_ts_utc.dt.tz_convert(config.LOCAL_TZ).dt.strftime("%Y-%m").to_numpy())
         class_predictions = {
             "climatology": Climatology().fit(tr).predict(va),
             "lgbm_raw": raw, "lgbm_platt_crossfit": cal,

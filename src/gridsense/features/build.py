@@ -18,6 +18,9 @@ EVENING_HOURS = range(18, 22)
 FOURIER_ORDER = 3
 # Archived forecast fields only. weather_hourly is observed weather and would leak target-hour truth.
 WEATHER_VARS = {"ghi_wm2": "ghi", "cloud_cover_pct": "cloud", "wind100_ms": "wind100", "temp_c": "temp"}
+# Optional archived forecast fields (make weather --extra); direction enters as a unit vector.
+EXTRA_WEATHER_VARS = {"humidity_pct": "humidity", "precip_mm": "precip", "pressure_hpa": "pressure",
+                      "wind10_ms": "wind10", "winddir_sin": "winddir_sin", "winddir_cos": "winddir_cos"}
 # Week-ahead load forecasts appear on Thursday around 10:00-12:00 for the week starting the
 # following Monday (measured on 2026 data). Saturday's issue is the first that safely has them.
 LOAD_FC_KNOWN_DAYS_BEFORE_MONDAY = 2
@@ -81,7 +84,7 @@ def _daily_grid_features(grid: pd.DataFrame) -> pd.DataFrame:
     ).asfreq("D").add_prefix(F)
 
 
-def _weather_features(weather_fc: pd.DataFrame) -> pd.DataFrame:
+def _weather_features(weather_fc: pd.DataFrame, extra: bool = False) -> pd.DataFrame:
     io.check_columns(weather_fc, "weather_fc")
     if not weather_fc["lead_days"].isin(config.HORIZONS_DAYS).all():
         raise ValueError("Weather must contain real D+1…D+7 forecast leads, not observed weather")
@@ -90,15 +93,22 @@ def _weather_features(weather_fc: pd.DataFrame) -> pd.DataFrame:
         from gridsense.data.weather import validate_forecasts
 
         validate_forecasts(weather_fc)
+    variables = dict(WEATHER_VARS)
+    if extra:
+        if "wind_dir_deg" not in weather_fc:
+            raise ValueError("weather_fc has no extra variables; run `make weather EXTRA=1` first")
+        radians = np.deg2rad(weather_fc["wind_dir_deg"])
+        weather_fc = weather_fc.assign(winddir_sin=np.sin(radians), winddir_cos=np.cos(radians))
+        variables |= EXTRA_WEATHER_VARS
     wide = weather_fc.pivot_table(
         index=["issue_date", "lead_days", "target_ts_utc"],
         columns="location",
-        values=list(WEATHER_VARS),
+        values=list(variables),
         aggfunc="mean",
     )
-    wide.columns = [f"{F}{WEATHER_VARS[var]}_{loc}" for var, loc in wide.columns]
-    for short in ("ghi", "cloud", "wind100", "temp"):
-        wide[f"{F}{short}_mean"] = wide.filter(regex=f"^{F}{short}_").mean(axis=1)
+    wide.columns = [f"{F}{variables[var]}_{loc}" for var, loc in wide.columns]
+    for short in variables.values():
+        wide[f"{F}{short}_mean"] = wide.filter(regex=f"^{F}{short}_(?!mean$)").mean(axis=1)
     return wide.reset_index().rename(columns={"lead_days": "horizon_days"})
 
 
@@ -142,6 +152,7 @@ def build_training_table(
     weather_fc: pd.DataFrame | None,
     calendar: pd.DataFrame,
     load_fc_week_ahead: pd.DataFrame | None = None,
+    weather_extra: bool = False,
 ) -> pd.DataFrame:
     """One row per (issue_date, target_ts, horizon); every feature must be known at issue time.
 
@@ -184,7 +195,7 @@ def build_training_table(
         )
     if weather_fc is not None:
         rows = rows.merge(
-            _weather_features(weather_fc),
+            _weather_features(weather_fc, extra=weather_extra),
             on=["issue_date", "horizon_days", "target_ts_utc"],
             how="left",
         )
@@ -228,12 +239,21 @@ def _read_optional(name: str) -> pd.DataFrame | None:
     return None
 
 
+def drop_untrainable(table: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
+    """A model can't learn a feature with no training values; it would only switch on at refit/test."""
+    train = assign_split(table["target_ts_utc"]).eq("train")
+    empty = [c for c in table if c.startswith(F) and table.loc[train, c].isna().all()]
+    return table.drop(columns=empty), empty
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--regional", action="store_true",
                         help="Opt in to verified HU/BG market features; keep missing inputs flagged")
     parser.add_argument("--week-ahead", action="store_true",
                         help="Opt in to week-ahead load min/max; historical publication vintages are unverified")
+    parser.add_argument("--weather-extra", action="store_true",
+                        help="Opt in to humidity, precipitation, pressure and 10 m wind forecast features")
     args = parser.parse_args(argv)
     if args.regional and config.DATA_MODE != "real":
         parser.error("Regional market inputs are real-only; do not mix them into fake mode")
@@ -243,12 +263,11 @@ def main(argv: list[str] | None = None) -> None:
         _read_optional("weather_fc"),
         io.read("calendar"),
         _read_optional("load_fc_week_ahead") if args.week_ahead else None,
+        weather_extra=args.weather_extra,
     )
     split = assign_split(table["target_ts_utc"]).fillna("unassigned")
-    # A model can't learn a feature with no training values; it would only switch on at refit/test.
-    empty = [c for c in table if c.startswith(F) and table.loc[split.eq("train"), c].isna().all()]
+    table, empty = drop_untrainable(table)
     if empty:
-        table = table.drop(columns=empty)
         print(f"[{config.DATA_MODE}] dropped features with no training values: {empty}")
     if args.regional:
         from gridsense.features.regional import join_regional_features, read_regional_table

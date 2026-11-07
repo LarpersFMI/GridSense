@@ -1,0 +1,26 @@
+{
+  "warning": "Retrospective data-quality investigation only; not an as-of feature dataset.",
+  "inputs_sha256": {
+    "outages": "abd640c2705014f66fcc80c2e805c94d73b6c9878534d23dcf03a16df2ab2c66",
+    "production_units": "45d3e3db27816e40c5483ba6ce199ec0041e2c674ec70798dceeaf5c0768dba1",
+    "generation_units": "cc62366a030a48cae3dbc45acbc90baf0e010788369acdb57f08e714d33664d2"
+  },
+  "output_sha256": "1ecf08485614c98e8f62e52c3fb4430c6bbf92de0bf78685a3f2dfd0077de602",
+  "rows": 257,
+  "key": [
+    "area_code",
+    "instance_code",
+    "version",
+    "asset_code",
+    "segment_start_utc",
+    "segment_end_utc"
+  ],
+  "flag_counts": {
+    "missing_available_capacity": 5,
+    "missing_reference": 0,
+    "ambiguous_reference": 0,
+    "available_exceeds_installed": 4,
+    "segment_crosses_validity_end": 25,
+    "multiple_publication_times": 227
+  }
+}
