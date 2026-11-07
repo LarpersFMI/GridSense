@@ -100,7 +100,7 @@ Observed results for Romanian calendar dates 2023-01-01 through 2026-07-31:
 
 Use `gridsense.config.WEATHER_POINTS` for the first model (Bucharest, Constanța, Craiova
 and Timișoara). For the expanded experiment, use
-`gridsense.locations.TOP_20_WEATHER_POINTS`. Both mappings use the `weather_fc.location`
+`gridsense.config.TOP_20_WEATHER_POINTS`. Both mappings use the `weather_fc.location`
 ID as the key and a WGS84 `(latitude, longitude)` pair as the value. Use those same IDs
 when selecting or pivoting weather features. The price target is one value per hour for
 the Romanian bidding zone.
