@@ -10,6 +10,7 @@ not independently verified operational-vintage availability.
 import argparse
 import hashlib
 import json
+import time
 from datetime import date
 from pathlib import Path
 
@@ -33,8 +34,23 @@ VARIABLES = {
     "wind_speed_100m": ("wind100_ms", "m/s"),
     "temperature_2m": ("temp_c", "°C"),
 }
+# Optional extra weather_fc columns (no contract change). GFS archives no rain/snowfall split.
+EXTRA_VARIABLES = {
+    "relative_humidity_2m": ("humidity_pct", "%"),
+    "precipitation": ("precip_mm", "mm"),
+    "surface_pressure": ("pressure_hpa", "hPa"),
+    "wind_speed_10m": ("wind10_ms", "m/s"),
+    "wind_direction_10m": ("wind_dir_deg", "°"),
+}
+# No archived values for the extras before late Feb 2024 (checked 2026-11-07); skip older requests.
+EXTRA_ARCHIVE_START = date(2024, 1, 1)
+# Hourly sums/means at API time t describe the preceding hour.
+PRECEDING_HOUR = {"shortwave_radiation", "precipitation"}
 PHYSICAL_BOUNDS = {"ghi_wm2": (0, 2000), "cloud_cover_pct": (0, 100),
-                   "wind100_ms": (0, 150), "temp_c": (-100, 70)}
+                   "wind100_ms": (0, 150), "temp_c": (-100, 70),
+                   "humidity_pct": (0, 100), "precip_mm": (0, 500), "pressure_hpa": (300, 1100),
+                   "wind10_ms": (0, 150), "wind_dir_deg": (0, 360)}
+VALUE_COLUMNS = [column for column, _ in (VARIABLES | EXTRA_VARIABLES).values()]
 SOURCE_KEYS = ["issue_date", "target_ts_utc", "lead_days", "location"]
 
 
@@ -44,7 +60,8 @@ def select_offsets(target: pd.Series, issue: pd.Series) -> pd.Series:
     return np.ceil(age / pd.Timedelta(days=1)).clip(lower=1).astype("int64")
 
 
-def parse_forecasts(payload: dict, location: str, retrieved_at: pd.Timestamp) -> pd.DataFrame:
+def parse_forecasts(payload: dict, location: str, retrieved_at: pd.Timestamp,
+                    variables: dict = VARIABLES) -> pd.DataFrame:
     """Normalize one location's response without filling unsupported dates/offsets."""
     if payload.get("utc_offset_seconds") != 0:
         raise ValueError("Weather responses must use UTC")
@@ -56,7 +73,7 @@ def parse_forecasts(payload: dict, location: str, retrieved_at: pd.Timestamp) ->
         raise ValueError("Weather target timestamps must be unique UTC hours")
     local_day = target.dt.tz_convert(config.LOCAL_TZ).dt.tz_localize(None).dt.normalize()
     values = {}
-    for variable, (_, unit) in VARIABLES.items():
+    for variable, (_, unit) in variables.items():
         columns = []
         for offset in range(1, MAX_OFFSET + 1):
             name = f"{variable}_previous_day{offset}"
@@ -65,9 +82,8 @@ def parse_forecasts(payload: dict, location: str, retrieved_at: pd.Timestamp) ->
             data = np.asarray(hourly[name], dtype=float)
             if len(data) != len(target) or np.isinf(data).any():
                 raise ValueError(f"Invalid forecast array for {name}")
-            if variable == "shortwave_radiation":
-                # API radiation at t is the preceding-hour mean. Our delivery hour starts at t,
-                # so take radiation at t+1, never shifting between forecast offsets.
+            if variable in PRECEDING_HOUR:
+                # Our delivery hour starts at t, so take the value at t+1, never shifting between offsets.
                 data = pd.Series(data, index=pd.DatetimeIndex(target)).reindex(
                     pd.DatetimeIndex(target + pd.Timedelta(hours=1))
                 ).to_numpy()
@@ -95,7 +111,7 @@ def parse_forecasts(payload: dict, location: str, retrieved_at: pd.Timestamp) ->
             "retrieved_at_utc": retrieved_at,
             "source_invalid_values": 0,
         })
-        for variable, (column, _) in VARIABLES.items():
+        for variable, (column, _) in variables.items():
             chosen = np.full(len(target), np.nan)
             idx = np.flatnonzero(supported.to_numpy())
             chosen[idx] = values[variable][idx, offsets.iloc[idx].to_numpy() - 1]
@@ -107,7 +123,8 @@ def parse_forecasts(payload: dict, location: str, retrieved_at: pd.Timestamp) ->
             chosen[invalid] = np.nan
             out[column] = chosen
         frames.append(out)
-    table = pd.concat(frames, ignore_index=True).astype(WEATHER_FC)
+    table = pd.concat(frames, ignore_index=True)
+    table = table.astype({c: t for c, t in WEATHER_FC.items() if c in table})
     validate_forecasts(table)
     return table
 
@@ -125,7 +142,7 @@ def validate_forecasts(table: pd.DataFrame) -> None:
     issue = (table["issue_date"] + pd.Timedelta(hours=config.ISSUE_HOUR)).dt.tz_localize(
         config.LOCAL_TZ
     ).dt.tz_convert("UTC")
-    non_null = table[list(WEATHER_FC)[4:]].notna().any(axis=1)
+    non_null = table[[c for c in VALUE_COLUMNS if c in table]].notna().any(axis=1)
     if "assumed_available_by_utc" in table:
         available = table["assumed_available_by_utc"]
         if (non_null & (available.isna() | available.gt(issue))).any():
@@ -144,6 +161,8 @@ def validate_forecasts(table: pd.DataFrame) -> None:
         if (non_null & ~supported).any():
             raise ValueError("Unsupported forecast offsets must remain missing")
     for column, (low, high) in PHYSICAL_BOUNDS.items():
+        if column not in table:
+            continue
         values = table[column].dropna()
         if not values.between(low, high).all():
             raise ValueError(f"Weather values outside plausible range for {column}")
@@ -160,7 +179,8 @@ def _month_ranges(start: pd.Timestamp, end: pd.Timestamp):
 
 def fetch_weather_forecasts(
     start: pd.Timestamp, end: pd.Timestamp, *, locations: tuple[str, ...] = DEFAULT_LOCATIONS,
-    cache_dir: Path | None = None,
+    cache_dir: Path | None = None, variables: dict = VARIABLES, pace_seconds: float = 0.0,
+    cache_only: bool = False,
 ) -> pd.DataFrame:
     """Forecast target hours in [start,end), UTC; monthly multi-location cached requests.
 
@@ -186,7 +206,7 @@ def fetch_weather_forecasts(
                 "latitude": ",".join(str(config.WEATHER_POINTS[p][0]) for p in locations),
                 "longitude": ",".join(str(config.WEATHER_POINTS[p][1]) for p in locations),
                 "start_date": str(first), "end_date": str(last + pd.Timedelta(days=1)),
-                "hourly": ",".join(f"{v}_previous_day{n}" for v in VARIABLES
+                "hourly": ",".join(f"{v}_previous_day{n}" for v in variables
                                    for n in range(1, MAX_OFFSET + 1)),
                 "models": MODEL, "timezone": "UTC", "wind_speed_unit": "ms",
                 "timeformat": "unixtime",
@@ -198,6 +218,8 @@ def fetch_weather_forecasts(
                 if envelope["params"] != params:
                     raise ValueError(f"Weather cache request mismatch: {path.name}")
             else:
+                if cache_only:
+                    raise FileNotFoundError(f"Missing cached weather request: {path.name}")
                 print(f"Fetching archived {MODEL}: {first}..{last}, {len(locations)} points", flush=True)
                 response = session.get(API_URL, params=params, timeout=(15, 180))
                 response.raise_for_status()
@@ -205,6 +227,7 @@ def fetch_weather_forecasts(
                             "payload": response.json()}
                 # Cache only successful responses; no observed-weather fallback on errors.
                 path.write_text(json.dumps(envelope, allow_nan=False))
+                time.sleep(pace_seconds)
             payloads = envelope["payload"]
             if isinstance(payloads, dict):
                 payloads = [payloads]
@@ -215,7 +238,8 @@ def fetch_weather_forecasts(
                 lat, lon, _ = config.WEATHER_POINTS[location]
                 if abs(payload["latitude"] - lat) > 1 or abs(payload["longitude"] - lon) > 1:
                     raise ValueError("Weather API location order/coordinates mismatch")
-                frame = parse_forecasts(payload, location, pd.Timestamp(envelope["retrieved_at_utc"]))
+                frame = parse_forecasts(payload, location, pd.Timestamp(envelope["retrieved_at_utc"]),
+                                        variables)
                 # The extra response day is only for end-of-month radiation alignment.
                 first_ts = pd.Timestamp(first, tz="UTC")
                 last_ts = (pd.Timestamp(last) + pd.Timedelta(days=1)).tz_localize("UTC")
@@ -228,20 +252,48 @@ def fetch_weather_forecasts(
     return table
 
 
+def merge_extra(core: pd.DataFrame, extra: pd.DataFrame) -> pd.DataFrame:
+    """Add extra variables to the core forecast rows one-to-one; absent dates stay NaN."""
+    columns = [column for column, _ in EXTRA_VARIABLES.values()]
+    right = extra[SOURCE_KEYS + ["source_offset_days", *columns, "source_invalid_values",
+                                 "request_sha256", "raw_sha256"]].rename(columns={
+        "source_offset_days": "extra_offset_days", "source_invalid_values": "extra_invalid_values",
+        "request_sha256": "extra_request_sha256", "raw_sha256": "extra_raw_sha256",
+    })
+    merged = core.drop(columns=[c for c in right if c not in SOURCE_KEYS and c in core]).merge(
+        right, on=SOURCE_KEYS, how="left", validate="one_to_one")
+    matched = merged["extra_offset_days"].notna()
+    if not merged.loc[matched, "extra_offset_days"].eq(merged.loc[matched, "source_offset_days"]).all():
+        raise ValueError("Extra variables must use the same archived offsets as the core forecasts")
+    merged = merged.drop(columns="extra_offset_days")
+    validate_forecasts(merged)
+    return merged
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--start", type=date.fromisoformat, default=config.TRAIN_START.date())
     parser.add_argument("--end", type=date.fromisoformat, default=config.VAL_END.date())
     parser.add_argument("--locations", nargs="+", choices=list(config.WEATHER_POINTS),
                         default=list(DEFAULT_LOCATIONS))
+    parser.add_argument("--extra", action="store_true",
+                        help="Also fetch humidity, precipitation, pressure and 10 m wind forecasts")
+    parser.add_argument("--pace-seconds", type=float, default=0.0,
+                        help="Pause after each uncached request (free-tier hourly call limit)")
     args = parser.parse_args(argv)
     if config.DATA_MODE != "real":
         parser.error("Use real mode for archived weather forecasts")
     start = pd.Timestamp(args.start, tz=config.LOCAL_TZ).tz_convert("UTC")
     end = (pd.Timestamp(args.end) + pd.Timedelta(days=1)).tz_localize(config.LOCAL_TZ).tz_convert("UTC")
-    table = fetch_weather_forecasts(start, end, locations=tuple(args.locations))
+    table = fetch_weather_forecasts(start, end, locations=tuple(args.locations),
+                                    pace_seconds=args.pace_seconds)
     if not table[[column for column, _ in VARIABLES.values()]].notna().any().any():
         raise SystemExit("No archived forecast values in this range; no output written")
+    if args.extra:
+        extra_start = max(start, pd.Timestamp(EXTRA_ARCHIVE_START, tz=config.LOCAL_TZ).tz_convert("UTC"))
+        extra = fetch_weather_forecasts(extra_start, end, locations=tuple(args.locations),
+                                        variables=EXTRA_VARIABLES, pace_seconds=args.pace_seconds)
+        table = merge_extra(table, extra)
     destination = config.PROCESSED_DIR / "weather_fc.parquet"
     if destination.exists():
         current = io.read("weather_fc")
@@ -252,21 +304,29 @@ def main(argv: list[str] | None = None) -> None:
         if table["target_ts_utc"].min() > current["target_ts_utc"].min() or table["target_ts_utc"].max() < current["target_ts_utc"].max():
             raise SystemExit("Refusing to replace existing weather_fc with a shorter date range")
     io.write(table, "weather_fc")
-    availability = table.groupby("lead_days")[list(WEATHER_FC)[4:]].agg(lambda x: float(x.notna().mean()))
+    availability = table.groupby("lead_days")[[c for c in VALUE_COLUMNS if c in table]].agg(
+        lambda x: float(x.notna().mean()))
+    raw = [table[["request_sha256", "raw_sha256"]]]
+    if args.extra:
+        raw.append(table[["extra_request_sha256", "extra_raw_sha256"]].dropna().set_axis(
+            ["request_sha256", "raw_sha256"], axis=1))
     manifest = {
         "source_url": API_URL, "model": MODEL, "locations": args.locations,
         "target_start_utc": start.isoformat(), "target_end_exclusive_utc": end.isoformat(),
+        "extra_variables": sorted(EXTRA_VARIABLES) if args.extra else [],
         "rows": len(table), "publication_buffer_hours": PUBLICATION_BUFFER_HOURS,
-        "invalid_physical_values_masked": int(table["source_invalid_values"].sum()),
+        "invalid_physical_values_masked": int(table["source_invalid_values"].sum()
+                                              + table.get("extra_invalid_values", pd.Series(0)).sum()),
         "historical_publication_verified": False, "observed_weather_used": False,
         "offset_rule": "ceil((delivery_hour_end - issue_time + publication_buffer) / 24h); offsets >7 are missing",
         "availability_by_horizon": availability.to_dict(orient="index"),
-        "raw_files": table[["request_sha256", "raw_sha256"]].drop_duplicates().to_dict("records"),
+        "raw_files": pd.concat(raw).drop_duplicates().to_dict("records"),
         "notes": ["Older runs are selected; these are not exact 10:00 issue snapshots.",
                   "12 hours is an assumed buffer, not verified historical publication latency.",
                   "2023 may only contain temperature; unsupported variables remain missing.",
                   "Previous Runs only offers offsets 1..7; late long-horizon hours are unavailable.",
-                  "Radiation at t+1 is aligned to delivery hour [t,t+1); other fields are at t.",
+                  "Radiation and precipitation at t+1 are aligned to delivery hour [t,t+1); other fields are at t.",
+                  "Extra variables are only archived from late Feb 2024; rain/snowfall splits are not archived.",
                   "Impossible physical values are masked to NaN; unmodified responses remain cached."],
     }
     (config.PROCESSED_DIR / "weather_forecasts_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")

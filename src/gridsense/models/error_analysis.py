@@ -14,6 +14,7 @@ import pandas as pd
 from gridsense import config, io
 from gridsense.agent.decision_rule import DecisionParams
 from gridsense.models.ablate_price import validation_tables
+from gridsense.models.base import feature_columns
 from gridsense.models.baselines import (
     NAIVE_COLUMN,
     PERSISTENCE_COLUMN,
@@ -26,6 +27,7 @@ from gridsense.models.ensemble import PriceEnsemble
 from gridsense.models.lear import LEAR
 from gridsense.models.metrics import price_report
 from gridsense.models.price import PriceForecaster
+from gridsense.models.regional_validation import price_scores
 from gridsense.models.weather_validation import classification_scores, cross_calibrated_predictions
 
 PRICE_BANDS = (-np.inf, 0.0, 20.0, 60.0, 120.0, 200.0, np.inf)
@@ -97,6 +99,35 @@ def price_breakdown(rows: pd.DataFrame, predictions: dict[str, pd.DataFrame]) ->
                     "width": report["width"],
                 })
     return pd.DataFrame(out)
+
+
+def compare_variants(variants: dict[str, tuple[pd.DataFrame, pd.DataFrame]], price_index: pd.Index):
+    """Fit every (train, val) variant from scratch and score all of them on the same rows."""
+    prices, classes, budgets, runs = [], [], [], {}
+    for name, (train, val) in variants.items():
+        print(f"[{config.DATA_MODE}] fitting {name}: {len(feature_columns(train))} features", flush=True)
+        price_pred, class_pred, info = fit_models(train, val, price_index)
+        rows = val.loc[price_index]
+        prices.append(price_scores(rows, price_pred).assign(variant=name))
+        classes.extend(classification_scores(val, pred).assign(model=model, variant=name)
+                       for model, pred in class_pred.items())
+        budgets.append(budget_metrics(rows, decision_scores(rows, price_pred, class_pred)).assign(variant=name))
+        runs[name] = {"features": feature_columns(train), **info}
+    return (pd.concat(prices, ignore_index=True), pd.concat(classes, ignore_index=True),
+            pd.concat(budgets, ignore_index=True), runs)
+
+
+def print_comparison(prices: pd.DataFrame, classes: pd.DataFrame, budgets: pd.DataFrame) -> None:
+    for metric in ("mae", "mae_low_price", "mean_pinball"):
+        table = prices[prices.horizon.eq("all")].pivot(index="model", columns="variant", values=metric)
+        print(f"{metric}\n{table.round(3).to_string()}")
+    by_h = prices[prices.model.eq(PriceEnsemble.name)].pivot(index="horizon", columns="variant", values="mae")
+    print(f"ensemble MAE by horizon\n{by_h.round(3).to_string()}")
+    near = classes[classes.horizon.eq("all")].pivot_table(index=["model", "label"], columns="variant",
+                                                          values=["pr_auc", "brier"])
+    print(near.round(4).to_string())
+    print(budgets[budgets.horizon.eq("all")].pivot(index="model", columns="variant", values=[
+        "precision_at_budget", "slot_hit_rate", "excess_eur_per_mwh"]).round(3).to_string())
 
 
 def plan_month(frame: pd.DataFrame) -> list[tuple]:

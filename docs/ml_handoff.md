@@ -1,6 +1,164 @@
 # ML handoff (price forecasting, ML-P)
 
-State checked on 2026-11-07, based on latest upstream `dev` at `2d63586` (validated File Library market datasets included); local ML/weather changes preserved and prepared for commit. Local `main` matches `origin/main` at `63bada2`; its services were inspected separately, not merged into ML. Both ML/weather backup stashes are retained. Earlier validation results below record their original inputs and model versions. Read this first, then [price_plan.md](price_plan.md), [ml_plan.md](ml_plan.md) and the README rules.
+Latest execution check on **2026-11-07 at 19:28 Europe/Bucharest**: local `dev` and freshly
+fetched `origin/dev` both at `695789d`; weather comparisons completed and chronological
+runner/queue implemented, with final full tests, smoke test and commits in progress. Local `main`
+is still `63bada2`, while `origin/main` has advanced to `2da47ad`; those services have not
+been merged into ML. Earlier sections below are historical run records with their original
+inputs and model versions. Read the current checklist first, then [price_plan.md](price_plan.md),
+[ml_plan.md](ml_plan.md) and the README rules.
+
+## Resume checklist: commit and overnight experiments
+
+**Verified before runner implementation:** 139 tests passed, `make lint` and `git diff --check` passed, and all 25
+tracked Parquet files have readable metadata. The default training table has **235,704 rows
+and 50 features**; an in-memory rebuild matches it exactly, including the detached chain's
+pre-download backup. Equality and report input hashes were reasserted after both comparisons.
+The test-evaluation marker is absent; normal price/classifier artifact versions are unchanged.
+
+### Extra archived weather (implemented and compared)
+
+- `make weather EXTRA=1` fetches humidity, total precipitation, surface pressure, 10 m wind
+  speed and direction for the existing four RO points. GFS rain/snowfall splits are empty.
+  Additional values and raw-response hashes are optional columns of the existing forecast
+  table, not a shared-schema replacement. Precipitation uses the same preceding-hour
+  alignment and conservative 10:00 cutoff selection as radiation. Early history remains NaN.
+- `make features WEATHER_EXTRA=1` opts in; wind direction enters as sine/cosine components
+  before location averaging. Default features stay unchanged. Features without any training
+  values are dropped. Tests cover alignment, merging, angle encoding and empty features.
+- [weather_extra_validation.py](../src/gridsense/models/weather_extra_validation.py) fits
+  current versus extras on identical rows, reporting price/low-price MAE, PR-AUC/Brier and
+  the 70 h/month slot-budget proxy. It does not save production models or the training table.
+- Both downloads and comparisons finished. The old detached chain's equality print was
+	not fail-fast; the extras runner now asserts the full control table and verifies its
+	file hash is unchanged during fitting. Its verified rerun finished at **19:28**.
+- The original grid process loaded a **54-feature** control before the cleanup. Those
+	reports are preserved under `reports/real/eval/weather_grid_54_feature_legacy/`, explicitly
+	marked historical. A strictly cache-only rerun completed at **19:26**, using the current
+	**50-feature** control and 55/63-feature grid variants. No API requests were made.
+
+### Same-row weather comparison results (50-feature control)
+
+All variants use 132,048 labelled train rows / 35,945 validation rows; price and budget
+reports use the same 35,932 complete-baseline rows. Values below are rounded development
+scores, not chronological confirmation. Only the optional source weather table changed;
+the default training table and normal model artifacts did not.
+
+| Variant | Ensemble MAE | Ensemble MAE ≤20 | LightGBM MAE ≤20 | Raw near-zero PR-AUC | Month cross-fit Brier¹ | Classifier slot hit |
+|---|---:|---:|---:|---:|---:|---:|
+| Current 50 | 20.810 | 32.869 | 35.577 | 0.7639 | 0.0688 | 0.659 |
+| +Extras (80) | 20.875 | 33.114 | 34.819 | 0.7725 | 0.0664 | 0.663 |
+| +RO grid (55) | 20.850 | 33.177 | 35.620 | 0.7674 | 0.0674 | 0.659 |
+| +RO/HU/BG grid (63) | 20.780 | 33.077 | 34.807 | 0.7679 | 0.0683 | 0.654 |
+
+¹These are the existing **leave-one-target-month-out** calibration scores, which use other,
+including later, months; they are **not forward-only** scores. Early stopping/CQR/ensemble
+weight also reuse validation. The new chronological runner below avoids that reuse.
+
+**Decision: keep every candidate opt-in.** Extras improve classifier ranking and Brier,
+but slot hit gains are only 0.4 percentage points and the price ensemble worsens. RO grid
+does not improve low-price errors; RO/HU/BG gives a tiny overall ensemble gain while
+worsening low-price ensemble MAE and classifier slot hit. This is not a justified default
+promotion. Extras are present in ~43% of train / ~84.5% of validation rows averaged across
+all seven horizons; D+7 is still missing. Probability nesting remains unresolved: 5,558
+current versus 5,564 extras cross-fit rows violate `p_cheap <= p_near_zero`.
+
+Saved current reports: [extras metadata](../reports/real/eval/weather_extra_validation.json),
+[extras prices](../reports/real/eval/price_weather_extra_val.csv),
+[extras decisions](../reports/real/eval/decision_weather_extra_val.csv),
+[grid metadata](../reports/real/eval/weather_grid_validation.json),
+[grid prices](../reports/real/eval/price_weather_grid_val.csv) and
+[grid decisions](../reports/real/eval/decision_weather_grid_val.csv).
+
+### Before commit/push
+
+1. **Done:** both downloads/comparisons finished; coverage and matching current input hashes
+	inspected; default training table equality reasserted. Future downloads share the API
+	allowance; do not start concurrent uncached grid jobs.
+2. Keep extras/grid **opt-in** pending chronological confirmation. A small gain on the
+	repeatedly reused development validation set alone is not sufficient for promotion.
+3. Record the actual results and keep/drop rationale here. Commit code, tests, documentation,
+	selected processed forecast/manifest changes and completed evaluation reports; exclude
+	raw caches, temporary logs and trained weights. A code-only opt-in commit can precede a
+	separate results commit; there is no need to finish final model selection before pushing.
+4. Recheck tests/lint and tracked Parquet readability after any edits or integration, fetch
+	`origin/dev`, inspect the exact staged diff, then commit/push `dev`. Preserve data backups
+	before any merge. No commit/push was performed by this preflight.
+
+### Overnight run preparation (separate from final evaluation)
+
+1. **Chronological runner implemented:** separate fitting, early stopping,
+	calibration/CQR/ensemble-weight selection and later scoring. For rolling folds, group all
+	horizons of a target together and ensure fitting labels were known by the scored issue
+	times. Do not use final-test labels. Existing comparisons are development ablations, not
+	this forward-only protocol. Bounded predefined parameter/recency profiles are available;
+	no Optuna dependency or unconstrained search was added.
+2. On that protocol compare the 50-feature control, +extras, +RO grid, +RO/HU/BG grid, and
+	regional price-only versus load-only variants. Start with defaults before tuning; only
+	shortlist combinations with stable low-price and slot gains by horizon/month. Separately
+	assess a no-weather D+7 model. Keep week-ahead excluded without as-issued vintages.
+3. Then run a bounded parameter/recency search for shortlisted candidates. Tune a combined
+	classifier/P50 slot ranker and announcement thresholds on earlier blocks, and score on
+	later blocks. Treat 70 hours as a cap, not a quota: the existing full-budget proxy has
+	roughly 34% cancellations. Threshold-only classification slot reports do not enforce the
+	same monthly budget; evaluate both constraints together before deployment.
+4. Use one sequential, fail-fast, restartable queue with immutable input hashes, explicit
+	real mode, run-specific outputs, recorded parameters/seed/code revision and completion
+	status. Smoke-test one small job before detaching; keep the Mac powered and awake. Do not
+	run `make features` or production `make train` midway through isolated comparisons.
+	The older price-ablation entry point requires week-ahead columns and saves a normal price
+	artifact, so it is not an isolated overnight task on the current default table.
+5. Coordinate the classifier's `p_cheap <= p_near_zero` issue with ML-C (latest default
+	cross-fit run: **5,558 violations**, not the historical 9.1% figure). Classification
+	evaluation and a threshold slot sweep are now registered in
+	[evaluate.py](../src/gridsense/models/evaluate.py); older "unregistered" notes below are
+	superseded. Do not fix nesting by clipping and retain previous calibration claims.
+
+**Not required for this commit or validation-only overnight runs:** integrating `main`,
+new outage/capacity/hydro features, operational exports, final refit, or test evaluation.
+Weather extension through the refit/inference period and an explicit refit path are still
+needed before final evaluation; normal `make train` only fits the configured training split.
+Freeze features/settings/calibration/thresholds and obtain explicit authorization before
+the single test evaluation. No test evaluation or real-agent notification was performed.
+
+### Chronological validation and overnight queue
+
+[chronological.py](../src/gridsense/models/chronological.py) scores **June–September 2025**
+in four expanding folds. For score month M: fit targets before M−3, early-stop on M−3,
+calibrate on M−2, select ensemble/ranker/thresholds on M−1, then score M. Each prior block
+is purged at the local start of the next block's earliest issue day, so every label is
+known before the next stage's issue time. Day-ahead prices are published before delivery,
+not seven days after it. All horizons of a target remain together. Features missing from
+fitting history are dropped using that history alone.
+
+The base LightGBMs fit with automatic calibration/CQR disabled. Platt mappings, per-horizon
+CQR widening and LEAR residual quantiles fit only the calibration block; ensemble weight
+and classifier/price/combined ranker thresholds are selected only on the following selection
+block. The price-derived probability uses the fixed LightGBM P50 rather than the later-tuned
+ensemble. Score labels never select these settings. The slot proxy combines thresholds with
+the **70 h/month cap**, 2–6 h blocks, 09:00–18:00 and at most two per day. It can leave budget
+unused or abstain when no selection candidate meets the 10% cancellation target.
+
+This is better-separated **development validation**, not a fresh untouched holdout: these
+months have been explored before. Source-vintage assumptions remain unresolved. Monthly
+forecast-score ranking is retrospective and not a causal online budget planner. The selected
+10% cancellation target is not a guarantee of the later scored cancellation rate.
+
+[overnight.py](../src/gridsense/models/overnight.py) prepares read-only train/validation
+snapshots and a checksummed sequential queue. Default candidates: current, extras, RO grid,
+RO/HU/BG grid, regional prices/spreads only and regional load only. Default profile uses
+365-day recency; optional `recent` uses 180 days and `regularized` uses 15 leaves / 100
+minimum child samples. All jobs use four LightGBM threads, recorded seeds/parameters, and
+normal model artifacts remain unchanged. No final-test targets enter the snapshots.
+
+Use `make overnight-prepare RUN_DIR=...` for a new directory, optionally
+`PROFILES="default recent regularized"`; `make overnight-smoke RUN_DIR=...` runs only the first
+candidate/first fold with eight boosting rounds. It is marked **smoke-only**, not a model
+quality result. `make overnight RUN_DIR=...` runs the full queue under macOS `caffeinate`.
+Completed jobs resume only when all snapshot/report checksums match. Code or source/model
+changes fail fast; prepare a new run rather than changing inputs under a queued experiment.
+Large snapshots and per-job outputs under `reports/real/overnight/` are ignored, while code,
+tests, documentation and selected completed weather reports are committed.
 
 ## Roles
 
@@ -544,10 +702,8 @@ incl. humidity, precipitation, pressure, 10 m wind) is Open-Meteo *observed* arc
 At 10:00 on D nobody knows D+1…D+7's actual weather, so joining it to target hours would
 leak the outcome; the extra variables do not change that. Valid uses are issue-relative lags
 (e.g. trailing precipitation as a hydro proxy, after D−1 publication) and forecast-error
-analysis. If an extra variable is wanted as a target-hour feature, fetch it as a *forecast*
-through the same Previous Runs pipeline (GFS offers humidity, precipitation, pressure, wind
-direction). Price relevance of these is low compared with radiation, cloud, 100 m wind and
-temperature; hydro storage (`entsoe_file_library/hydro_storage.parquet`) is a more direct
+analysis. Extra variables as forecasts are now available through the same pipeline (next
+section). Hydro storage (`entsoe_file_library/hydro_storage.parquet`) remains a more direct
 hydro signal. `weather_hourly.parquet` stays in the repo for those lag/analysis uses.
 
 **Calendar: `calendar.parquet` for Romania, HU/BG exports for neighbour features.**

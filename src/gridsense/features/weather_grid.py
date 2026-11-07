@@ -29,13 +29,13 @@ def grid_locations() -> dict[str, tuple[str, ...]]:
 
 
 def fetch_grid(start: pd.Timestamp, end: pd.Timestamp, existing: pd.DataFrame | None = None,
-               pace_seconds: float = REQUEST_PACE_SECONDS) -> pd.DataFrame:
+               pace_seconds: float = REQUEST_PACE_SECONDS, *, cache_only: bool = False) -> pd.DataFrame:
     """Archived forecasts for every grid point; reuses `existing` rows for points it has."""
     have = set() if existing is None else set(existing["location"])
     needed = tuple(p for points in grid_locations().values() for p in points if p not in have)
     frames = [] if existing is None else [existing[existing["location"].isin(
         [p for points in grid_locations().values() for p in points])]]
-    if needed:
+    if needed and not cache_only:
         # Same month windows as one full call, so the cache keys match and later runs are offline.
         for first, last in weather._month_ranges(start.tz_convert("UTC"), end.tz_convert("UTC")):
             began = time.monotonic()
@@ -43,7 +43,8 @@ def fetch_grid(start: pd.Timestamp, end: pd.Timestamp, existing: pd.DataFrame | 
                                     pd.Timestamp(last, tz="UTC") + pd.Timedelta(days=1), locations=needed)
             if time.monotonic() - began > 5:
                 time.sleep(pace_seconds)
-        frames.append(fetch_weather_forecasts(start, end, locations=needed))
+    if needed:
+        frames.append(fetch_weather_forecasts(start, end, locations=needed, cache_only=cache_only))
     table = pd.concat(frames, ignore_index=True)
     table = table[table["target_ts_utc"].ge(start) & table["target_ts_utc"].lt(end)]
     validate_forecasts(table.reset_index(drop=True))
