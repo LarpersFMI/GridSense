@@ -6,6 +6,7 @@ import { DatasetModule } from './services/Dataset/dataset.module';
 import { ForecasterModule } from './services/Forecaster/forecaster.module';
 import { HitModule } from './services/Hit/hit.module';
 import { PipelineModule } from './services/Pipeline/pipeline.module';
+import { ReplayModule } from './services/Replay/replay.module';
 import { RealtimeGatewayModule } from './services/Realtime/realtime-gateway.module';
 import { TriggerModule } from './services/Trigger/trigger.module';
 
@@ -19,6 +20,7 @@ import { TriggerModule } from './services/Trigger/trigger.module';
         TriggerModule,
         HitModule,
         PipelineModule,
+        ReplayModule,
         DatasetModule,
     ],
     controllers: [HealthController],

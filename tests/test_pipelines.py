@@ -45,6 +45,11 @@ def forecast_run(issue: str) -> pd.DataFrame:
     })
 
 
+def issued_rows(issue: str) -> pd.DataFrame:
+    """A training table's rows for one issue: the key, two features, the labels."""
+    return forecast_run(issue).drop(columns="p_near_zero").assign(f_ghi_mean=500.0, f_is_holiday=0, f_horizon_days=1, y_price=12.0, y_near_zero=True, y_cheap=False)
+
+
 # --- The registry, as the PipelineRunner lists it -------------------------------------------------------------------
 
 def test_every_pipeline_fits_the_server_schema():
@@ -211,3 +216,98 @@ def test_forecast_rolled_across_the_dst_change_keeps_10_local(reported, dummy):
 
     assert issued == pd.Timestamp("2026-10-25T08:00Z")                          # 10:00 winter time
     assert issued.tz_convert("Europe/Bucharest").hour == 10
+
+
+# --- The replay: real tables, trained models, a past clock --------------------------------------------------------
+
+
+@pytest.fixture
+def replayed(reported, monkeypatch):
+    """The team's tables as small stand-ins (prices 10 Apr – 5 May 2025, issues 24 – 30 Apr), models replaced by a
+    function of the rows: no training, no parquet in data/processed."""
+    from gridsense.pipelines import replay
+
+    history = hours("2025-04-09T21:00Z", 24 * 26)
+    issues = pd.concat([issued_rows(f"2025-04-{day}T07:00Z") for day in range(24, 31)], ignore_index=True)
+    tables = {"prices_hourly": history, "training_table": issues}
+
+    monkeypatch.setattr(replay.io, "read", lambda name: tables[name])
+    monkeypatch.setattr(replay.artifacts, "load_latest", lambda name: (None, f"{name}-v1"))
+    monkeypatch.setattr(replay, "build_predictions", lambda rows, classifier, price, version: rows.assign(model_version=version))
+    monkeypatch.delenv("REPLAY_START", raising=False)
+
+    return replay
+
+
+def test_replay_prices_starts_with_two_weeks_of_history(replayed):
+    replayed.prices(Run())
+
+    added = store.read("prices")["ts_utc"]
+
+    # 10 – 24 Apr, local: 15 days.
+    assert added.min() == pd.Timestamp("2025-04-09T21:00Z")
+    assert added.max() == pd.Timestamp("2025-04-24T20:00Z")
+
+
+def test_replay_prices_never_runs_ahead_of_the_forecast(replayed, capsys):
+    replayed.prices(Run())
+    replayed.prices(Run())                                 # 25 Apr clears on the 24th: no forecast issued yet
+
+    assert len(store.read("prices")) == 15 * 24
+    assert "run forecast first" in capsys.readouterr().out
+
+    replayed.forecast(Run())                               # issued 24 Apr: that afternoon, the 25th clears
+    replayed.prices(Run())
+
+    assert store.read("prices")["ts_utc"].max() == pd.Timestamp("2025-04-25T20:00Z")
+
+
+def test_replay_prices_catches_up_to_the_day_after_the_last_forecast(replayed):
+    replayed.forecast(Run())                               # issued 24 Apr, before any prices
+    replayed.prices(Run())                                 # history, then the 25th
+
+    added = store.read("prices")["ts_utc"]
+
+    assert added.min() == pd.Timestamp("2025-04-09T21:00Z")
+    assert added.max() == pd.Timestamp("2025-04-25T20:00Z")
+
+
+def test_replay_forecast_scores_one_issue_a_run(replayed, reported):
+    replayed.forecast(Run())
+    replayed.forecast(Run())
+
+    issued = store.read("predictions")["issue_ts"].unique()
+
+    assert list(issued) == [pd.Timestamp("2025-04-24T07:00Z"), pd.Timestamp("2025-04-25T07:00Z")]
+    assert reported[0][1] == "lgbm_classifier-v1+lgbm_quantile-v1"
+
+
+def test_replay_refuses_the_test_split(replayed, monkeypatch):
+    monkeypatch.setenv("REPLAY_START", "2026-03-01")
+
+    with pytest.raises(RuntimeError, match="test split"):
+        replayed.forecast(Run())
+
+
+def test_replay_refuses_to_write_into_the_teams_data_folder(replayed, monkeypatch):
+    monkeypatch.setattr(store, "DATASET_DIR", replayed.config.PROCESSED_DIR.resolve())
+
+    with pytest.raises(RuntimeError, match="team's own data folder"):
+        replayed.prices(Run())
+
+
+def test_replay_refuses_a_folder_holding_another_clocks_files(replayed):
+    Run().append("prices", hours("2026-05-01T21:00Z", 24), key=["ts_utc"])     # the synthetic demo's
+
+    with pytest.raises(RuntimeError, match="isn't this replay's"):
+        replayed.prices(Run())
+
+
+def test_replay_forecast_writes_what_the_models_read_without_the_labels(replayed, reported):
+    replayed.forecast(Run())
+
+    features = store.read("features")
+
+    assert len(features) == 168
+    assert list(features.columns) == ["issue_ts", "target_ts_utc", "horizon_days", "ghi_mean", "is_holiday", "data_quality"]
+    assert [call[0] for call in reported] == ["run"]                 # features are written, never reported

@@ -25,7 +25,7 @@ export namespace Condition {
     export type  Match = z.infer<typeof Match>
 
     export const Schema = z.object({
-        dataset:  Dataset.Name,
+        dataset:  Dataset.Triggerable,
         column:   z.string().min(1),
         operator: Operator,
         value:    Value,

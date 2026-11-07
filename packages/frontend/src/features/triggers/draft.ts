@@ -1,7 +1,7 @@
 import { Trigger, type Dataset } from '@gridsense/shared/domain'
 
 /** The column that grows as rows are appended to each dataset: a new trigger's default incremental column. */
-export const INCREMENTAL_COLUMNS: Record<Dataset.Name, string> = {
+export const INCREMENTAL_COLUMNS: Record<Dataset.Triggerable, string> = {
     predictions: 'issue_ts',
     prices:      'ts_utc',
 }
@@ -9,7 +9,7 @@ export const INCREMENTAL_COLUMNS: Record<Dataset.Name, string> = {
 export const DEFAULT_CRON = '0 8 * * MON'
 
 /** A new trigger as the editor starts it: on this dataset, no conditions yet. Its id is made here. */
-export function createDraft(dataset: Dataset.Name): Trigger {
+export function createDraft(dataset: Dataset.Triggerable): Trigger {
     return {
         id:          Trigger.createId(),
         name:        '',

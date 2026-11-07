@@ -49,11 +49,17 @@ export class PythonService {
         return Pipeline.Schema.array().parse(JSON.parse(stdout));
     }
 
-    /** Runs one pipeline to its end, handing each line it writes (stdout and stderr, markers left out) to `onLines`. */
-    public async run(name: Pipeline.Name, onLines: (lines: string[]) => void): Promise<PythonRun> {
+    /**
+     * Runs one pipeline to its end, handing each line it writes (stdout and stderr, markers left out) to `onLines`.
+     * `env` is added to this process's environment (the replay's start: REPLAY_START).
+     */
+    public async run(name: Pipeline.Name, onLines: (lines: string[]) => void, env: Record<string, string> = {}): Promise<PythonRun> {
         const output = new PythonOutput();
 
-        const child = spawn(this.command[0], [...this.command.slice(1), '-u', '-m', 'gridsense.pipelines', 'run', name], { cwd: REPOSITORY_ROOT });
+        const child = spawn(this.command[0], [...this.command.slice(1), '-u', '-m', 'gridsense.pipelines', 'run', name], {
+            cwd: REPOSITORY_ROOT,
+            env: { ...process.env, ...env },
+        });
 
         const show = (lines: string[]) => {
             if (lines.length > 0)

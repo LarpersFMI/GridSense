@@ -57,6 +57,7 @@ export function saveCharts(dataset: Dataset.Name, charts: ChartSpec[]): void {
 const DEFAULT_LINES: Record<Dataset.Name, string[]> = {
     predictions: ['price_p10', 'price_p50', 'price_p90'],
     prices:      ['price_mean'],
+    features:    ['ghi_mean'],
 }
 
 /**

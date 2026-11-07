@@ -12,6 +12,7 @@ const TIMESTAMP_TYPES = /^(TIMESTAMP|DATE|TIME)/;
 const COMPUTED: Record<Dataset.Name, readonly string[]> = {
     predictions: Dataset.Predictions.COMPUTED_COLUMNS,
     prices:      Dataset.PricesHourly.COMPUTED_COLUMNS,
+    features:    [],
 };
 
 /** Describes a dataset from its file as it is now, plus the columns the Watchdog computes on it; reports its updates. */

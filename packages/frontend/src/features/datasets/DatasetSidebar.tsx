@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Tab, Tabs } from '@blueprintjs/core'
-import type { Dataset } from '@gridsense/shared/domain'
+import { Dataset } from '@gridsense/shared/domain'
 import { PipelineSDK } from '@/SDKs/PipelineSDK/sdk'
 import { TriggerSDK } from '@/SDKs/TriggerSDK/sdk'
 import { DatasetPipelines } from './DatasetPipelines'
@@ -12,9 +12,13 @@ interface DatasetSidebarProps {
     dataset: Dataset.Name
 }
 
-/** Everything around a dataset, beside its rows: the triggers that read it, and the pipelines that write it. */
+/**
+ * Everything around a dataset, beside its rows: the triggers that read it, and the pipelines that write it. A dataset
+ * triggers aren't checked on (features: what the model read) has its pipelines only.
+ */
 export function DatasetSidebar({ dataset }: DatasetSidebarProps) {
-    const [panel, setPanel] = useState<Panel>('triggers')
+    const triggerable = Dataset.Triggerable.safeParse(dataset).data ?? null
+    const [panel, setPanel] = useState<Panel>(triggerable === null ? 'pipelines' : 'triggers')
 
     const triggers = TriggerSDK.useStore(TriggerSDK.selectors.list)
 
@@ -31,7 +35,14 @@ export function DatasetSidebar({ dataset }: DatasetSidebarProps) {
         <div className='flex flex-col'>
             <div className='dataset-sidebar-tabs border-b border-gray-200 px-4'>
                 <Tabs id='dataset-sidebar' selectedTabId={panel} onChange={next => setPanel(next as Panel)}>
-                    <Tab id='triggers' icon='antenna' title='Triggers' tagContent={triggerCount} tagProps={{ round: true }} />
+                    <Tab
+                        id='triggers'
+                        icon='antenna'
+                        title='Triggers'
+                        tagContent={triggerCount}
+                        tagProps={{ round: true }}
+                        disabled={triggerable === null}
+                    />
                     <Tab
                         id='pipelines'
                         icon='data-lineage'
@@ -43,7 +54,7 @@ export function DatasetSidebar({ dataset }: DatasetSidebarProps) {
             </div>
 
             <div className='p-4'>
-                {panel === 'triggers' && <DatasetTriggers dataset={dataset} />}
+                {panel === 'triggers' && triggerable !== null && <DatasetTriggers dataset={triggerable} />}
                 {panel === 'pipelines' && <DatasetPipelines dataset={dataset} />}
             </div>
         </div>

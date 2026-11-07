@@ -73,7 +73,7 @@ export function DatasetPage({ name }: DatasetPageProps) {
             </section>
 
             <aside className='w-[600px] shrink-0 overflow-auto border-l border-gray-200 bg-white'>
-                <DatasetSidebar dataset={name} />
+                <DatasetSidebar key={name} dataset={name} />
             </aside>
         </div>
     )

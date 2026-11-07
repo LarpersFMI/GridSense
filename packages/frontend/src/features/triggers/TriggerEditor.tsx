@@ -21,7 +21,7 @@ const ON_OPTIONS: ChoiceOption<Trigger.On['type']>[] = [
 ]
 
 // Datasets will be added: a dropdown, not tabs.
-const DATASET_OPTIONS: DropdownOption<Dataset.Name>[] = Dataset.Name.options.map(name => ({ value: name, label: name }))
+const DATASET_OPTIONS: DropdownOption<Dataset.Triggerable>[] = Dataset.Triggerable.options.map(name => ({ value: name, label: name }))
 
 const MATCH_OPTIONS: ChoiceOption<Trigger.Condition.Match>[] = [
     { value: 'all', label: 'All hold' },
@@ -166,7 +166,7 @@ export function TriggerEditor({ trigger, isNew, onDone }: TriggerEditorProps) {
         }
     }
 
-    function handleDatasetChange(dataset: Dataset.Name) {
+    function handleDatasetChange(dataset: Dataset.Triggerable) {
         form.setValue('on', {
             type:              'dataset',
             dataset,

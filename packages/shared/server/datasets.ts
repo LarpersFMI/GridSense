@@ -8,6 +8,7 @@ const REPOSITORY_ROOT = resolve(__dirname, "../../..")
 const FILES: Record<Dataset.Name, string> = {
     predictions: Dataset.Predictions.FILE,
     prices:      Dataset.PricesHourly.FILE,
+    features:    Dataset.Features.FILE,
 }
 
 /** Where a dataset's file is: DATASET_DIR and its FILE. Every run appends its predictions to the same file. */

@@ -2,6 +2,7 @@ import * as NameMod         from "./Name"
 import * as DescriptionMod  from "./Description"
 import * as PredictionsMod  from "./Predictions"
 import * as PricesHourlyMod from "./PricesHourly"
+import * as FeaturesMod     from "./Features"
 import * as UpdateMod       from "./Update"
 import * as PreviewMod      from "./Preview"
 import * as ApiMod          from "./api"
@@ -13,9 +14,11 @@ import * as ApiMod          from "./api"
 export namespace Dataset {
 
     export import Name         = NameMod.Name
+    export import Triggerable  = NameMod.Triggerable
     export import Description  = DescriptionMod.Description
     export import Predictions  = PredictionsMod.Predictions
     export import PricesHourly = PricesHourlyMod.PricesHourly
+    export import Features     = FeaturesMod.Features
 
     /** Some hours of a dataset changed: what the Watchdog checks triggers on. */
     export import Update       = UpdateMod.Update

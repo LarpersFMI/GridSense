@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { Injectable, type OnModuleDestroy } from '@nestjs/common';
 import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
 import { Dataset } from '@gridsense/shared/domain';
@@ -63,8 +64,11 @@ export class DatasetService implements OnModuleDestroy {
         return rows;
     }
 
-    /** The issue_ts of the latest run issued before this instant, or null. */
+    /** The issue_ts of the latest run issued before this instant, or null — also while there's no predictions file yet. */
     public async getLatestIssueTs(before: Date): Promise<Date | null> {
+        if (!existsSync(getDatasetPath('predictions')))
+            return null;
+
         const connection = await this.connect();
 
         const reader = await connection.runAndReadAll(`
@@ -80,8 +84,11 @@ export class DatasetService implements OnModuleDestroy {
         return null;
     }
 
-    /** Cleared prices for delivery hours in [from, to). */
+    /** Cleared prices for delivery hours in [from, to): none while there's no prices file yet (a forecast before any auction). */
     public async readPrices(from: Date, to: Date): Promise<Dataset.PricesHourly.Row[]> {
+        if (!existsSync(getDatasetPath('prices')))
+            return [];
+
         const connection = await this.connect();
 
         const reader = await connection.runAndReadAll(`

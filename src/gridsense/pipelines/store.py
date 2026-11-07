@@ -15,11 +15,16 @@ load_dotenv(ROOT / ".env")
 
 DATASET_DIR = (ROOT / os.environ.get("DATASET_DIR", "data/processed")).resolve()
 
-# As Dataset.Predictions.FILE and Dataset.PricesHourly.FILE on the TypeScript side.
+# As Dataset.Predictions.FILE, Dataset.PricesHourly.FILE and Dataset.Features.FILE on the TypeScript side.
 FILES = {
     "predictions": "predictions.parquet",
     "prices":      "prices_hourly.parquet",
+    "features":    "features.parquet",
 }
+
+# The datasets triggers are checked on (Dataset.Triggerable): an append to these is reported, so the Watchdog checks
+# them. `features` is for looking at: written, never reported.
+REPORTED = ("predictions", "prices")
 
 # The line that tells the PipelineRunner what a run appended (PythonService.MARKER); left out of the log.
 MARKER = "@@gridsense "
@@ -68,10 +73,10 @@ class Run:
 
         if dataset == "predictions":
             report_run(target, model_version or "unknown", rows["issue_ts"].max())
-        else:
+        elif dataset in REPORTED:
             report_dataset_updated(dataset)
 
-        print(f"{dataset}: {len(rows)} rows appended and reported")
+        print(f"{dataset}: {len(rows)} rows appended" + (" and reported" if dataset in REPORTED else ""))
         print(MARKER + json.dumps({"rowsAppended": {dataset: len(rows)}}), flush=True)
 
         return len(rows)

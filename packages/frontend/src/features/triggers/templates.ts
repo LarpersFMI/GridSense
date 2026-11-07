@@ -6,7 +6,7 @@ import { createDraft } from './draft'
 export interface TriggerTemplate {
     key:         string
     icon:        IconName
-    dataset:     Dataset.Name             // the dataset it watches: the sidebar offers the templates on its own
+    dataset:     Dataset.Triggerable      // the dataset it watches: the sidebar offers the templates on its own
     trigger:     Pick<Trigger, 'name' | 'description' | 'match' | 'conditions' | 'grouping' | 'cooldownMinutes'>
 }
 
@@ -20,7 +20,7 @@ export const TRIGGER_TEMPLATES: TriggerTemplate[] = [
             description: 'Daytime hours likely to clear near zero: candidate free hours to announce.',
             match:       'all',
             conditions: [
-                { dataset: 'predictions', column: 'p_near_zero', operator: '>=', value: 0.75 },
+                { dataset: 'predictions', column: 'p_near_zero', operator: '>=', value: 0.7 },
                 { dataset: 'predictions', column: 'local_hour', operator: 'between', value: [9, 17] },
                 { dataset: 'predictions', column: 'data_quality', operator: '==', value: 'ok' },
             ],
@@ -110,7 +110,7 @@ export const TRIGGER_TEMPLATES: TriggerTemplate[] = [
 ]
 
 /** A new trigger from a template — or blank, without one — on this dataset; its id is made here. */
-export function createFromTemplate(dataset: Dataset.Name, template: TriggerTemplate | null): Trigger {
+export function createFromTemplate(dataset: Dataset.Triggerable, template: TriggerTemplate | null): Trigger {
     const draft = createDraft(dataset)
 
     if (template === null)

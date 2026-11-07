@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { Name } from "../Dataset/Name"
+import { Triggerable } from "../Dataset/Name"
 
 /**
  * When the Watchdog checks a trigger: when its dataset updates, or on a five-field cron (Romanian time). On a dataset,
@@ -9,7 +9,7 @@ import { Name } from "../Dataset/Name"
 export namespace On {
 
     export const Schema = z.discriminatedUnion("type", [
-        z.object({ type: z.literal("dataset"),  dataset: Name, incrementalColumn: z.string().min(1) }),
+        z.object({ type: z.literal("dataset"),  dataset: Triggerable, incrementalColumn: z.string().min(1) }),
         z.object({ type: z.literal("schedule"), cron:    z.string().regex(/^\S+(\s+\S+){4}$/, "A cron pattern has five fields") }),
     ])
 }

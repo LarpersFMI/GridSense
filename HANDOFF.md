@@ -146,3 +146,14 @@ The user already ran `npm install` on the Mac, so `@langchain/langgraph` 1.7.2, 
 | 3:45–4:30 | Robustness: turn off a pipeline, degraded data, the agent becomes conservative |
 | 4:30–5:00 | Impact and EU AI Act (human in the loop, decision log) |
   §
+## Decided 8 Nov, ~00:45: the agent's thresholds (τ)
+From the ML team's validation slot curve (`reports/real/eval/classify_slots_val.csv`, calibrated `lgbm_classifier`,
+2–6 h blocks 09–18 where every hour has p ≥ τ): τ 0.7 → 71 % of slots hit, τ 0.8 → 80 %.
+- Likely (announced automatically): **every hour p_near_zero ≥ 0.8** (min over the window).
+- Possible (human review): **every hour 0.7 ≤ p < 0.8**.
+- Zero-cost window trigger: p_near_zero ≥ 0.7 (done in the DB and in `templates.ts`).
+- When the agent comes back from the stash: `config.ts` likelyMinP 0.85 → 0.8; `decide.ts` Possible from
+  `meanP >= possibleMeanP (0.7)` to `minP >= 0.7`. Sent to Andrei for the final config.
+- Demo plan: the validation replay (24 Apr – 5 May 2025) is the main one; a 2026 test week only if the single test
+  evaluation and the refit are done before 12:00 (then ALLOW_TEST_REPLAY=1, and drop `data_quality = ok` from the
+  trigger: test rows have no weather, all degraded).

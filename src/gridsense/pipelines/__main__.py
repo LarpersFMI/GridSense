@@ -11,7 +11,8 @@ import sys
 import traceback
 
 # Each module registers its pipelines on import.
-import gridsense.pipelines.demo  # noqa: F401
+import gridsense.pipelines.demo
+import gridsense.pipelines.replay  # noqa: F401
 from gridsense.pipelines import REGISTRY, Run
 
 

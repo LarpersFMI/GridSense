@@ -4,7 +4,7 @@ import { formatCondition, formatGrouping } from './format'
 import { TRIGGER_TEMPLATES, createFromTemplate } from './templates'
 
 interface TemplatePickerProps {
-    dataset:  Dataset.Name
+    dataset:  Dataset.Triggerable
     onPick:   (draft: Trigger) => void
     onCancel: () => void
 }

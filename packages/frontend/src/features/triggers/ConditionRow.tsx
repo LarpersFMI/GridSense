@@ -34,7 +34,7 @@ export function ConditionRow({ index, control, setValue, descriptions, error, on
     if (column?.type === 'text')
         operators = OPERATORS.text
 
-    function handleDatasetChange(dataset: Dataset.Name) {
+    function handleDatasetChange(dataset: Dataset.Triggerable) {
         setValue(`conditions.${index}`, {
             dataset,
             column:   '',
@@ -69,7 +69,7 @@ export function ConditionRow({ index, control, setValue, descriptions, error, on
                 <div className='w-32 shrink-0'>
                     <Dropdown
                         value={condition.dataset}
-                        options={Dataset.Name.options.map(name => ({ value: name, label: name }))}
+                        options={Dataset.Triggerable.options.map(name => ({ value: name, label: name }))}
                         onChange={handleDatasetChange}
                         fill
                     />

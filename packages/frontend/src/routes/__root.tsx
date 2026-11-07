@@ -5,6 +5,8 @@ import { Logo } from '@/components/Logo'
 import { DatasetSDK } from '@/SDKs/DatasetSDK/sdk'
 import { ForecasterSDK } from '@/SDKs/ForecasterSDK/sdk'
 import { PipelineSDK } from '@/SDKs/PipelineSDK/sdk'
+import { ReplaySDK } from '@/SDKs/ReplaySDK/sdk'
+import { ReplayCard } from '@/features/replay/ReplayCard'
 import { RealtimeSDK } from '@/SDKs/RealtimeSDK/sdk'
 import { TriggerSDK } from '@/SDKs/TriggerSDK/sdk'
 import { WatchdogSDK } from '@/SDKs/WatchdogSDK/sdk'
@@ -45,6 +47,10 @@ function Shell() {
     }, [])
 
     useEffect(() => {
+        return ReplaySDK.actions.replay.watch()
+    }, [])
+
+    useEffect(() => {
         return WatchdogSDK.actions.live.watch(TriggerSDK.selectors.list(TriggerSDK.state).map(trigger => trigger.id))
     }, [triggerIds])
 
@@ -67,6 +73,7 @@ function Shell() {
             <main className='min-h-0 flex-1 overflow-auto'>
                 <Outlet />
             </main>
+            <ReplayCard />
         </div>
     )
 }

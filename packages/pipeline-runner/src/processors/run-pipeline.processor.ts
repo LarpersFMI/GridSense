@@ -1,5 +1,5 @@
 import { Processor } from '@nestjs/bullmq';
-import { Pipeline, PipelineRunner } from '@gridsense/shared/domain';
+import { Pipeline, PipelineRunner, Replay } from '@gridsense/shared/domain';
 import { getServerApi } from '@gridsense/shared/server/internal-api';
 import { JobProcessor } from '@gridsense/shared/server/queue';
 import { RealtimeService } from '@gridsense/shared/server/realtime';
@@ -38,12 +38,15 @@ export class RunPipelineProcessor extends JobProcessor<typeof PipelineRunner.Que
         let finish: Pipeline.API.Internal.FinishRun.Request;
 
         try {
+            // The replay's start is set from the UI: the replay pipelines read it as REPLAY_START.
+            const { replay } = await Replay.API.Internal.get(api);
+
             const ended = await this.python.run(run.pipeline, (lines) => {
                 this.realtime.emitEvent({
                     ...Pipeline.Event.create('pipeline:run:logged', { runId: run.id, lines }),
                     channel: Pipeline.Event.getRunChannel(run.id),
                 });
-            });
+            }, { REPLAY_START: replay.start });
 
             let error: string | null = null;
 

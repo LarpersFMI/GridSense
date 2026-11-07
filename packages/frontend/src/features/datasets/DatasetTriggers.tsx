@@ -16,7 +16,7 @@ type Editing =
     | null
 
 interface DatasetTriggersProps {
-    dataset: Dataset.Name
+    dataset: Dataset.Triggerable
 }
 
 /** The triggers that watch this dataset, with their hits; write a new one here, next to the rows it'll read. */

@@ -1,6 +1,6 @@
 """Stand-ins until the real ones arrive (ENTSO-E prices, the model's daily run): they append the next day of the
 SYNTHETIC dummy (gridsense.synthetic), and past its end the last day again, a day later. Everything they write is
-FAKE; switch them off once the real pipelines exist.
+FAKE. The real ones, replaying past days through the trained models, are in replay.py.
 """
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ def a_local_day_later(instants: pd.Series) -> pd.Series:
     return (instants.dt.tz_convert(LOCAL_TZ) + DAY).dt.tz_convert("UTC")
 
 
-@pipeline("prices", "Appends the next day's cleared prices (demo: from the synthetic dummy).",
+@pipeline("prices-dummy", "Appends the next day's cleared prices from the synthetic dummy (FAKE).",
           outputs=["prices"], default_cron="15 14 * * *")
 def prices(run: Run) -> None:
     current = read("prices")
@@ -51,7 +51,7 @@ def prices(run: Run) -> None:
     run.append("prices", rows, key=["ts_utc"])
 
 
-@pipeline("forecast", "Appends the day's model run: 7 days ahead, hourly (demo: from the synthetic dummy).",
+@pipeline("forecast-dummy", "Appends the day's model run from the synthetic dummy: 7 days ahead, hourly (FAKE).",
           outputs=["predictions"], default_cron="0 10 * * *")
 def forecast(run: Run) -> None:
     current = read("predictions")

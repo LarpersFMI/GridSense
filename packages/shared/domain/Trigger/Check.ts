@@ -1,6 +1,6 @@
 import { z } from "zod"
 import type { Dataset } from "../Dataset"
-import { Name } from "../Dataset/Name"
+import { Triggerable } from "../Dataset/Name"
 import type { RunId } from "../ids"
 
 /** One check of the triggers: why the Watchdog checked, on which run, and the hours it read. */
@@ -13,7 +13,7 @@ export namespace Check {
     export const Cause = z.discriminatedUnion("type", [
         z.object({
             type:              z.literal("dataset"),
-            dataset:           Name,
+            dataset:           Triggerable,
             incrementalColumn: z.string(),
             after:             z.coerce.date().nullable(),
             upTo:              z.coerce.date(),
@@ -25,7 +25,7 @@ export namespace Check {
     /** One hour, with each dataset's values for it — its file's columns and the computed ones. A dataset without a row for it is absent. */
     export interface Hour {
         at:     Date
-        values: Partial<Record<Dataset.Name, Record<string, number | string>>>
+        values: Partial<Record<Dataset.Triggerable, Record<string, number | string>>>
     }
 
     /** A dataset row's values as an hour holds them: its number and text columns, then the computed ones. Timestamps stay out. */
