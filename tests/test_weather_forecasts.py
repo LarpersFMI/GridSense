@@ -4,23 +4,25 @@ import pytest
 
 from gridsense import config
 from gridsense.data.weather import (
+    EXTRA_VARIABLES,
     MAX_OFFSET,
     PUBLICATION_BUFFER_HOURS,
     VARIABLES,
     _month_ranges,
+    merge_extra,
     parse_forecasts,
     select_offsets,
     validate_forecasts,
 )
-from gridsense.features.build import _weather_features
+from gridsense.features.build import _weather_features, drop_untrainable
 from gridsense.schemas import WEATHER_FC
 
 
-def payload(day="2025-07-01", periods=24):
+def payload(day="2025-07-01", periods=24, variables=VARIABLES):
     times = pd.date_range(day, periods=periods, freq="h", tz="UTC")
     hourly = {"time": (times.as_unit("s").asi8).tolist()}
     units = {"time": "unixtime"}
-    for variable, (_, unit) in VARIABLES.items():
+    for variable, (_, unit) in variables.items():
         for offset in range(1, MAX_OFFSET + 1):
             key = f"{variable}_previous_day{offset}"
             hourly[key] = [float(offset)] * len(times)
@@ -28,8 +30,8 @@ def payload(day="2025-07-01", periods=24):
     return {"utc_offset_seconds": 0, "hourly": hourly, "hourly_units": units}
 
 
-def parse(p):
-    return parse_forecasts(p, "bucuresti", pd.Timestamp("2026-11-07", tz="UTC"))
+def parse(p, variables=VARIABLES):
+    return parse_forecasts(p, "bucuresti", pd.Timestamp("2026-11-07", tz="UTC"), variables)
 
 
 def test_uses_older_offsets_not_the_target_horizon_naively():
@@ -129,3 +131,61 @@ def test_offset_boundary_and_month_ranges():
     assert [(str(a), str(b)) for a, b in ranges] == [
         ("2025-01-31", "2025-01-31"), ("2025-02-01", "2025-02-28")
     ]
+
+
+def extra_payload(day="2025-07-01"):
+    p = payload(day, variables=EXTRA_VARIABLES)
+    for offset in range(1, MAX_OFFSET + 1):
+        p["hourly"][f"surface_pressure_previous_day{offset}"] = [1000.0 + offset] * 24
+        p["hourly"][f"precipitation_previous_day{offset}"] = list(map(float, range(24)))
+        p["hourly"][f"wind_direction_10m_previous_day{offset}"] = [350.0 if offset % 2 else 10.0] * 24
+    return p
+
+
+def test_extra_variables_use_the_same_offsets_and_preceding_hour_alignment():
+    core, extra = parse(payload()), parse(extra_payload(), EXTRA_VARIABLES)
+    validate_forecasts(extra)
+    pd.testing.assert_series_equal(core.source_offset_days, extra.source_offset_days)
+    supported = extra.source_offset_days.le(MAX_OFFSET)
+    assert extra.loc[supported, "pressure_hpa"].sub(1000).eq(extra.loc[supported, "source_offset_days"]).all()
+    h1 = extra[extra.lead_days.eq(1)]
+    assert h1.precip_mm.iloc[0] == 1.0  # API precipitation at t+1 is the delivery hour [t, t+1)
+    assert extra.loc[~supported, ["humidity_pct", "precip_mm"]].isna().all().all()
+
+
+def test_merge_extra_keeps_core_rows_and_leaves_unarchived_dates_missing():
+    core = pd.concat([parse(payload("2025-07-01")), parse(payload("2025-07-02"))], ignore_index=True)
+    extra = parse(extra_payload("2025-07-02"), EXTRA_VARIABLES)
+    merged = merge_extra(core, extra.assign(request_sha256="r", raw_sha256="h"))
+    assert len(merged) == len(core)
+    pd.testing.assert_frame_equal(merged[core.columns], core)
+    day = merged.target_ts_utc.dt.strftime("%Y-%m-%d")
+    assert merged.loc[day.eq("2025-07-01"), "humidity_pct"].isna().all()
+    assert merged.loc[day.eq("2025-07-02"), "humidity_pct"].notna().any()
+    bad = extra.assign(request_sha256="r", raw_sha256="h", source_offset_days=extra.source_offset_days + 1)
+    with pytest.raises(ValueError, match="same archived offsets"):
+        merge_extra(core, bad)
+
+
+def test_extra_weather_features_encode_direction_as_a_unit_vector():
+    merged = merge_extra(parse(payload()), parse(extra_payload(), EXTRA_VARIABLES).assign(
+        request_sha256="r", raw_sha256="h"))
+    plain = _weather_features(merged)
+    assert not plain.filter(regex="humidity|winddir").columns.any()
+    features = _weather_features(merged, extra=True)
+    row = features.dropna(subset=["f_winddir_cos_bucuresti"]).iloc[0]
+    assert row.f_winddir_cos_bucuresti == pytest.approx(np.cos(np.deg2rad(10)))
+    assert abs(row.f_winddir_sin_bucuresti) == pytest.approx(np.sin(np.deg2rad(10)))
+    assert {"f_humidity_mean", "f_precip_mean", "f_pressure_mean", "f_wind10_mean"} <= set(features)
+    pd.testing.assert_frame_equal(features[plain.columns], plain)
+    with pytest.raises(ValueError, match="extra variables"):
+        _weather_features(parse(payload()), extra=True)
+
+
+def test_drop_untrainable_removes_features_without_training_values():
+    ts = pd.Series([config.TRAIN_START + pd.Timedelta(days=1), config.VAL_START + pd.Timedelta(days=1)])
+    table = pd.DataFrame({"target_ts_utc": ts.dt.tz_convert("UTC"), "f_ok": [1.0, 2.0],
+                          "f_test_only": [np.nan, 5.0], "y_price": [1.0, 2.0]})
+    out, empty = drop_untrainable(table)
+    assert empty == ["f_test_only"]
+    assert list(out.columns) == ["target_ts_utc", "f_ok", "y_price"]

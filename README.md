@@ -162,6 +162,23 @@ Country calendars supplement rather than replace the continuous Romanian ML targ
 The latest classifier calibration and the separate `main` watchdog integration requirements
 are recorded in the [ML handoff](docs/ml_handoff.md).
 
+Extra archived weather is also opt-in: `make weather EXTRA=1`, then
+`make features WEATHER_EXTRA=1`. Humidity, total precipitation, surface pressure and 10 m
+wind forecasts use the existing cutoff policy; direction is encoded as sine/cosine.
+The matched-row extras/grid comparisons do not justify changing the 50-feature default.
+`weather_grid_validation --cache-only` reuses the downloaded grid without network access.
+
+For isolated overnight development experiments, use `make overnight-prepare RUN_DIR=...`,
+then `make overnight-smoke RUN_DIR=...`, then `make overnight RUN_DIR=...` (macOS).
+Preparation fails if a grid request is absent from the local cache. The queue snapshots only
+labelled train/validation rows, verifies code/data checksums, keeps production artifacts
+unchanged, and resumes verified completed jobs. Default candidates are current, weather
+extras, RO grid, RO/HU/BG grid, regional prices and regional load. `PROFILES="default recent
+regularized"` adds a bounded recency/regularization comparison when preparing a new queue.
+See [the chronological protocol and limitations](docs/ml_handoff.md#chronological-validation-and-overnight-queue)
+before interpreting the June–September scoring blocks. No command in this queue evaluates
+test or promotes a feature/model automatically.
+
 ## Data sources
 
 | Data | Source |
