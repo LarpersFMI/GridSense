@@ -1,0 +1,15 @@
+{
+  "inputs_sha256": {
+    "entsoe_file_library/week_ahead_load.parquet": "f18cd67e006b9a9f49a588a6c743031bc26afcfcea0d8433615f30f688199965",
+    "training_table.parquet": "8329e42ac60f7b12f1fda8ce47511d4ed92dd679076ffa23a16c8dc04b34a05e"
+  },
+  "join_keys": [
+    "issue_ts",
+    "target_ts_utc",
+    "horizon_days"
+  ],
+  "output_sha256": "22f91d6e81fdb74a01e908cae7c185dd5f21f408f5f8d8a69a292d77945b5517",
+  "rows": 235704,
+  "rows_with_forecast": 44184,
+  "selection": "latest recorded update at or before issue for local target date"
+}
