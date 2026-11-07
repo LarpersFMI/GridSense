@@ -1,10 +1,11 @@
 # ML handoff (price forecasting, ML-P)
 
 Latest integration on **2026-11-07**: local weather/chronological work committed as `c955b60`,
-then upstream `dev` at `4231d14` merged as `b2fa841`. Incoming `083c9d0` adds the nested
-classifier; validation runners are being checked against that structure before push.
-Weather comparisons, a 184-test pre-merge suite and the pre-merge real-data smoke passed.
-Final integration checks and the complete overnight queue preparation are in progress. Local `main`
+nested-chain integration as `b3fc575`, and upstream data-quality work through `99ae96d`
+merged as `e105713`. **203 tests and lint pass; all 28 tracked Parquets are readable.**
+The default 235,704-row/50-feature table is unchanged. Refreshed comparisons and the
+chronological smoke test have zero probability-order violations. The complete overnight
+queue is prepared and smoke-tested; **the full queue has not started**. Local `main`
 is still `63bada2`, while `origin/main` has advanced to `2da47ad`; those services have not
 been merged into ML. Earlier sections below are historical run records with their original
 inputs and model versions. Read the current checklist first, then [price_plan.md](price_plan.md),
@@ -107,9 +108,9 @@ Saved current reports: [extras metadata](../reports/real/eval/weather_extra_vali
 	selected processed forecast/manifest changes and completed evaluation reports; exclude
 	raw caches, temporary logs and trained weights. A code-only opt-in commit can precede a
 	separate results commit; there is no need to finish final model selection before pushing.
-4. Recheck tests/lint and tracked Parquet readability after any edits or integration, fetch
-	`origin/dev`, inspect the exact staged diff, then commit/push `dev`. Preserve data backups
-	before any merge. No commit/push was performed by this preflight.
+4. **Verified:** full tests/lint, default-table equality and tracked Parquet readability
+	passed after integrating upstream work. Code/results are committed; push follows the
+	readiness documentation update. Processed-data/report backups were preserved before merges.
 
 ### Overnight run preparation (separate from final evaluation)
 
@@ -192,6 +193,28 @@ metrics as secondary and check stability across all four later score months. The
 calibration block has 45 cheap / 83 near-zero hours and both conditional classes, so the
 chain's forward calibration is fit-able. No arbitrary minimum-positive threshold was
 introduced to hide the difficult fold.
+
+### Prepared run: ready to launch
+
+- Directory: `reports/real/overnight/20261107-validation/` (local, ignored).
+- **18 sequential jobs**: six feature candidates × `default`, `recent`, `regularized`.
+	Each job scores June, July, August and September: **72 full fold runs** in total.
+- The plan records implementation commit `e105713`, code/source/snapshot hashes, Python
+	and package versions, fold boundaries and production-artifact inventory. All six snapshots
+	contain labelled train/validation rows only and are read-only.
+- The actual nested-chain first-candidate/first-month smoke **passed**, with zero nesting
+	violations. Its reports are marked smoke-only. The executor refuses full execution until
+	that completion marker and all input/report hashes are verified.
+- Full execution was deliberately **not launched**. Start it with
+	`make overnight RUN_DIR=reports/real/overnight/20261107-validation`; macOS `caffeinate`
+	keeps the machine awake for the queue's lifetime. Keep it on power with the lid open.
+- Resume with the same command. Do not pull new Python code, rebuild features or replace
+	production models after preparation: checksums/inventory will reject a changed environment.
+	Prepare a new run directory if those inputs change. Documentation-only commits do not
+	change the recorded implementation fingerprint.
+- No production artifacts were replaced, no features were promoted, and the test set was
+	not evaluated. The normal saved classifier predates the chain and needs default retraining
+	before normal prediction/export; the prepared queue fits isolated new models itself.
 
 ## Roles
 
