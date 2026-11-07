@@ -22,6 +22,7 @@ export class PipelineSDKImpl extends BaseSDK<PipelineSDK.State> {
             schedules: {},
             runs:      {},
             logs:      {},
+            nextRuns:  {},
         })),
         shallow,
     )
@@ -54,6 +55,7 @@ export class PipelineSDKImpl extends BaseSDK<PipelineSDK.State> {
             schedules: {},
             runs:      {},
             logs:      {},
+            nextRuns:  {},
         })
     }
 }
@@ -69,6 +71,7 @@ export namespace PipelineSDK {
         schedules: Record<Pipeline.Name, Pipeline.Schedule>
         runs:      Record<Pipeline.Run.Id, Pipeline.Run>
         logs:      Record<Pipeline.Run.Id, string[]>
+        nextRuns:  Record<Pipeline.Name, Date>             // enabled schedules only
     }
 
     export type Actions = PipelineActions

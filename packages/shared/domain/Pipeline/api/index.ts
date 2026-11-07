@@ -12,13 +12,14 @@ export namespace API {
 
     export import Internal = InternalMod.Internal
 
-    /** Every pipeline Python defines (and ones it no longer does, `available: false`), its schedule and its last run. */
+    /** Every pipeline Python defines (and ones it no longer does, `available: false`), its schedule, its last run and its next. */
     export namespace List {
 
         export const Response = z.object({
             pipelines: z.record(Name, Schema.extend({ available: z.boolean() })),
             schedules: z.record(Name, Schedule.Schema),
             lastRuns:  z.record(Name, Run.Schema),
+            nextRuns:  z.record(Name, z.coerce.date()),       // when each enabled schedule fires next, as BullMQ has it
         })
         export type Response = z.infer<typeof Response>
     }

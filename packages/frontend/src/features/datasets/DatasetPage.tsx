@@ -6,13 +6,14 @@ import { Dropdown } from '@/components/Dropdown'
 import { DatasetSDK } from '@/SDKs/DatasetSDK/sdk'
 import { DatasetPreview } from '@/SDKs/DatasetSDK/ui/DatasetPreview'
 import { formatCount } from '@/utils/format'
-import { DatasetTriggers } from './DatasetTriggers'
+import { ChartsPanel } from './charts/ChartsPanel'
+import { DatasetSidebar } from './DatasetSidebar'
 
 interface DatasetPageProps {
     name: Dataset.Name
 }
 
-/** The dataset viewer: its latest rows on the left, the triggers that watch it — and their editor — on the right. */
+/** The dataset viewer: its latest rows on the left, the triggers that read it and the pipelines that write it on the right. */
 export function DatasetPage({ name }: DatasetPageProps) {
     const navigate = useNavigate()
     const [orderBy, setOrderBy] = useState<string | null>(null)
@@ -67,10 +68,12 @@ export function DatasetPage({ name }: DatasetPageProps) {
                 <div className='min-h-0 flex-1'>
                     <DatasetPreview name={name} orderBy={orderBy} onOrderBy={setOrderBy} />
                 </div>
+
+                {preview && <ChartsPanel key={name} dataset={name} columns={preview.columns} />}
             </section>
 
             <aside className='w-[600px] shrink-0 overflow-auto border-l border-gray-200 bg-white'>
-                <DatasetTriggers dataset={name} />
+                <DatasetSidebar dataset={name} />
             </aside>
         </div>
     )

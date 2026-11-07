@@ -4,6 +4,8 @@ import { ActionGroup, log } from '../../core'
 import { NotificationSDK } from '../../NotificationSDK/sdk'
 import type { PipelineSDKImpl } from '../sdk'
 
+const RESCHEDULED_AFTER_MS = 1_500
+
 /** `PipelineSDK.actions.pipeline`: the pipelines, their schedules, and running one now. */
 export class PipelineScheduleActions extends ActionGroup<PipelineSDKImpl> {
 
@@ -15,6 +17,7 @@ export class PipelineScheduleActions extends ActionGroup<PipelineSDKImpl> {
         this.sdk.setState(state => {
             state.pipelines = data.pipelines
             state.schedules = data.schedules
+            state.nextRuns = data.nextRuns
 
             for (const run of Object.values(data.lastRuns))
                 state.runs[run.id] = run
@@ -31,6 +34,9 @@ export class PipelineScheduleActions extends ActionGroup<PipelineSDKImpl> {
             this.sdk.setState(state => {
                 state.schedules[name] = data.schedule
             })
+
+            // The PipelineRunner moves its scheduler a moment later: the next run is read again then.
+            setTimeout(() => void this.sdk.invalidate(this.sdk.query.pipelines), RESCHEDULED_AFTER_MS)
 
             return data.schedule
         }

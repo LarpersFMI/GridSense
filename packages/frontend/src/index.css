@@ -82,3 +82,13 @@ table.bp6-html-table.pipelines-table tbody tr:first-child td {
 .pipelines-table .bp6-control.bp6-switch {
     margin-bottom: 0;
 }
+
+/* Without Tailwind's preflight a textarea keeps the browser's monospace font: the app's, like the inputs. */
+textarea.bp6-input {
+    font-family: inherit;
+}
+
+/* The dataset sidebar's tabs: as tall as the toolbar over the rows beside them, the underline on the border. */
+.dataset-sidebar-tabs .bp6-tab-list > .bp6-tab {
+    line-height: 48px;
+}

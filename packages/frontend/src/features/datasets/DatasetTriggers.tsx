@@ -5,11 +5,12 @@ import { ErrorNotice } from '@/components/ErrorNotice'
 import { TriggerSDK } from '@/SDKs/TriggerSDK/sdk'
 import { WatchdogSDK } from '@/SDKs/WatchdogSDK/sdk'
 import { TriggerEditor } from '../triggers/TriggerEditor'
-import { createDraft } from '../triggers/draft'
+import { TemplatePicker } from '../triggers/TemplatePicker'
 import { formatCondition, formatCooldown, formatGrouping } from '../triggers/format'
 
 /** What the panel shows: the dataset's triggers, or the editor on a new or a saved one. */
 type Editing =
+    | { kind: 'pick' }
     | { kind: 'new'; draft: Trigger }
     | { kind: 'saved'; id: Trigger.Id }
     | null
@@ -34,35 +35,36 @@ export function DatasetTriggers({ dataset }: DatasetTriggersProps) {
 
     const watching = triggers.filter(trigger => trigger.on.type === 'dataset' && trigger.on.dataset === dataset)
 
-    if (editing?.kind === 'new') {
+    if (editing?.kind === 'pick') {
         return (
-            <div className='p-4'>
-                <TriggerEditor trigger={editing.draft} isNew onDone={() => setEditing(null)} />
-            </div>
+            <TemplatePicker
+                dataset={dataset}
+                onPick={draft => setEditing({ kind: 'new', draft })}
+                onCancel={() => setEditing(null)}
+            />
         )
     }
+
+    if (editing?.kind === 'new')
+        return <TriggerEditor trigger={editing.draft} isNew onDone={() => setEditing(null)} />
 
     if (editing?.kind === 'saved') {
         const trigger = triggers.find(candidate => candidate.id === editing.id)
 
         if (trigger) {
-            return (
-                <div className='p-4'>
-                    <TriggerEditor key={trigger.id} trigger={trigger} isNew={false} onDone={() => setEditing(null)} />
-                </div>
-            )
+            return <TriggerEditor key={trigger.id} trigger={trigger} isNew={false} onDone={() => setEditing(null)} />
         }
     }
 
     return (
-        <div className='flex flex-col gap-3 p-4'>
+        <div className='flex flex-col gap-3'>
             <div className='flex items-center justify-between'>
-                <h3 className='bp6-heading m-0'>Triggers on {dataset}</h3>
+                <h4 className='bp6-heading m-0'>Triggers on {dataset}</h4>
                 <Button
                     intent='primary'
                     icon='plus'
                     text='New trigger'
-                    onClick={() => setEditing({ kind: 'new', draft: createDraft(dataset) })}
+                    onClick={() => setEditing({ kind: 'pick' })}
                 />
             </div>
 

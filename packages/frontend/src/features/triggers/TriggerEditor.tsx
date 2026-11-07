@@ -1,4 +1,5 @@
-import { Button, FormGroup, InputGroup, NumericInput, Section, SectionCard, Switch, TextArea } from '@blueprintjs/core'
+import { useState } from 'react'
+import { Button, FormGroup, InputGroup, NumericInput, TextArea } from '@blueprintjs/core'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from '@tanstack/react-router'
 import { Controller, useFieldArray, useForm, type FieldErrors } from 'react-hook-form'
@@ -6,6 +7,7 @@ import type { z } from 'zod'
 import { Dataset, Trigger } from '@gridsense/shared/domain'
 import { Choice, type ChoiceOption } from '@/components/Choice'
 import { Dropdown, type DropdownOption } from '@/components/Dropdown'
+import { Steps, type Step } from '@/components/Steps'
 import { DatasetSDK } from '@/SDKs/DatasetSDK/sdk'
 import { TriggerSDK } from '@/SDKs/TriggerSDK/sdk'
 import { ConditionRow } from './ConditionRow'
@@ -14,8 +16,8 @@ import { DEFAULT_CRON, INCREMENTAL_COLUMNS } from './draft'
 type TriggerInput = z.input<typeof Trigger.Schema>
 
 const ON_OPTIONS: ChoiceOption<Trigger.On['type']>[] = [
-    { value: 'dataset', label: 'When a dataset updates', icon: 'database' },
-    { value: 'schedule', label: 'On a schedule', icon: 'time' },
+    { value: 'dataset', label: 'When a dataset updates' },
+    { value: 'schedule', label: 'On a schedule' },
 ]
 
 // Datasets will be added: a dropdown, not tabs.
@@ -33,6 +35,23 @@ const GROUPING_OPTIONS: DropdownOption<Trigger.Grouping['type']>[] = [
     { value: 'run', label: 'one hit per check' },
 ]
 
+type StepKey = 'details' | 'when' | 'conditions' | 'hits'
+
+const STEPS: Step<StepKey>[] = [
+    { key: 'details', title: 'Name & description' },
+    { key: 'when', title: 'When it runs' },
+    { key: 'conditions', title: 'Conditions' },
+    { key: 'hits', title: 'Hits' },
+]
+
+// What each step writes: checked before moving on, and where a failed save sends you back to.
+const STEP_FIELDS: Record<StepKey, (keyof TriggerInput)[]> = {
+    details:    ['name', 'description'],
+    when:       ['on'],
+    conditions: ['match', 'conditions'],
+    hits:       ['grouping', 'cooldownMinutes'],
+}
+
 interface TriggerEditorProps {
     trigger: Trigger
     isNew:   boolean
@@ -40,11 +59,20 @@ interface TriggerEditorProps {
 }
 
 /**
- * A trigger, whole: what it watches, its conditions on the datasets' columns (read from the files), how matching
+ * A trigger, as a wizard — name, when it runs, conditions, hits. A new one goes step by step, each checked before the
+ * next; a saved one can jump to any step and be saved from any of them. A trigger is saved enabled; it's switched
+ * off from its card. What it watches, its conditions on the datasets' columns (read from the files), how matching
  * hours become hits. Validated with `Trigger.Schema`, the server's own.
  */
 export function TriggerEditor({ trigger, isNew, onDone }: TriggerEditorProps) {
     const navigate = useNavigate()
+    const [step, setStep] = useState<StepKey>('details')
+
+    // A new trigger reaches the steps it went through; a saved one, all of them.
+    const [reached, setReached] = useState(isNew ? 0 : STEPS.length - 1)
+
+    const stepIndex = STEPS.findIndex(candidate => candidate.key === step)
+    const isLast = stepIndex === STEPS.length - 1
 
     const form = useForm<TriggerInput, unknown, Trigger>({
         resolver:      zodResolver(Trigger.Schema),
@@ -103,6 +131,30 @@ export function TriggerEditor({ trigger, isNew, onDone }: TriggerEditorProps) {
         await finish()
     }
 
+    async function handleNext() {
+        if (!await form.trigger(STEP_FIELDS[step]))
+            return
+
+        const next = stepIndex + 1
+
+        setStep(STEPS[next].key)
+        setReached(Math.max(reached, next))
+    }
+
+    function handleBack() {
+        setStep(STEPS[stepIndex - 1].key)
+    }
+
+    /** A save the schema refused: back to the first step with an error. */
+    function handleInvalid(invalid: FieldErrors<TriggerInput>) {
+        const first = STEPS.find(candidate => STEP_FIELDS[candidate.key].some(field => field in invalid))
+
+        if (first)
+            setStep(first.key)
+    }
+
+    const save = form.handleSubmit(handleSave, handleInvalid)
+
     function handleOnTypeChange(type: Trigger.On['type']) {
         if (type === 'schedule') {
             form.setValue('on', { type: 'schedule', cron: DEFAULT_CRON })
@@ -140,7 +192,16 @@ export function TriggerEditor({ trigger, isNew, onDone }: TriggerEditorProps) {
 
     return (
         // Blueprint's `form { display: block }` beats Tailwind's `flex` on the form itself: the layout is the div's.
-        <form onSubmit={form.handleSubmit(handleSave)}>
+        <form
+            onSubmit={event => {
+                event.preventDefault()
+
+                if (isLast)
+                    void save()
+                else
+                    void handleNext()
+            }}
+        >
             <div className='flex flex-col gap-4'>
                 <div className='flex items-center justify-between'>
                     <h2 className='bp6-heading m-0'>{isNew ? 'New trigger' : trigger.name}</h2>
@@ -148,113 +209,115 @@ export function TriggerEditor({ trigger, isNew, onDone }: TriggerEditorProps) {
                         {!isNew && (
                             <Button intent='danger' variant='minimal' icon='trash' text='Delete' onClick={handleDelete} />
                         )}
-                        <Button text='Cancel' onClick={() => void finish()} />
-                        <Button
-                            type='submit'
-                            intent='primary'
-                            icon='floppy-disk'
-                            text='Save'
-                            loading={form.formState.isSubmitting}
-                        />
+                        <Button text='Cancel' variant='minimal' onClick={() => void finish()} />
                     </div>
                 </div>
 
-                <Section title='Trigger' icon='antenna' compact>
-                    <SectionCard>
-                        <FormGroup label='Name' intent={errors.name ? 'danger' : 'none'} helperText={errors.name?.message}>
-                            <Controller
-                                control={form.control}
-                                name='name'
-                                render={({ field }) => (
-                                    <InputGroup
-                                        value={field.value}
-                                        onValueChange={field.onChange}
-                                        onBlur={field.onBlur}
-                                        placeholder='Zero-cost window'
-                                    />
-                                )}
-                            />
-                        </FormGroup>
-                        <FormGroup label='Description' helperText='Tells the agent what you meant.'>
-                            <Controller
-                                control={form.control}
-                                name='description'
-                                render={({ field }) => (
-                                    <TextArea
-                                        value={field.value}
-                                        onChange={event => field.onChange(event.currentTarget.value)}
-                                        onBlur={field.onBlur}
-                                        fill
-                                        rows={2}
-                                    />
-                                )}
-                            />
-                        </FormGroup>
-                        <Controller
-                            control={form.control}
-                            name='enabled'
-                            render={({ field }) => (
-                                <Switch
-                                    label='Enabled'
-                                    checked={field.value}
-                                    onChange={event => field.onChange(event.currentTarget.checked)}
+                <Steps
+                    steps={STEPS}
+                    current={step}
+                    canReach={key => STEPS.findIndex(candidate => candidate.key === key) <= reached}
+                    onSelect={setStep}
+                />
+
+                {step === 'details' && (
+                    <div>
+                        <div>
+                            <FormGroup label='Name' intent={errors.name ? 'danger' : 'none'} helperText={errors.name?.message}>
+                                <Controller
+                                    control={form.control}
+                                    name='name'
+                                    render={({ field }) => (
+                                        <InputGroup
+                                            value={field.value}
+                                            onValueChange={field.onChange}
+                                            onBlur={field.onBlur}
+                                            placeholder='Zero-cost window'
+                                        />
+                                    )}
                                 />
-                            )}
-                        />
-                    </SectionCard>
-                </Section>
-
-                <Section title="When it's checked" icon='automatic-updates' compact>
-                    <SectionCard>
-                        <div className='mb-4'>
-                            <Choice id='trigger-on' value={on.type} options={ON_OPTIONS} onChange={handleOnTypeChange} />
+                            </FormGroup>
+                            <FormGroup label='Description' helperText='Tells the agent what you meant.'>
+                                <Controller
+                                    control={form.control}
+                                    name='description'
+                                    render={({ field }) => (
+                                        <TextArea
+                                            value={field.value}
+                                            onChange={event => field.onChange(event.currentTarget.value)}
+                                            onBlur={field.onBlur}
+                                            fill
+                                            rows={3}
+                                        />
+                                    )}
+                                />
+                            </FormGroup>
                         </div>
+                    </div>
+                )}
 
-                        {on.type === 'dataset' && (
-                            <div className='field-rows'>
-                                <FormGroup label='Dataset' inline>
-                                    <Dropdown value={on.dataset} options={DATASET_OPTIONS} onChange={handleDatasetChange} />
-                                </FormGroup>
-                                <FormGroup
-                                    label='New rows by'
-                                    helperText='A timestamp column that grows as rows are appended: the trigger reads the rows past what it read last.'
-                                    intent={errorOf(errors, 'on') ? 'danger' : 'none'}
-                                    inline
-                                >
-                                    <IncrementalColumnSelect
-                                        value={on.incrementalColumn}
-                                        description={descriptions[on.dataset]}
-                                        onChange={column => form.setValue('on', { ...on, incrementalColumn: column })}
-                                    />
-                                </FormGroup>
+                {step === 'when' && (
+                    <div>
+                        <div>
+                            <div className='mb-4'>
+                                <Choice id='trigger-on' value={on.type} options={ON_OPTIONS} onChange={handleOnTypeChange} />
                             </div>
-                        )}
 
-                        {on.type === 'schedule' && (
-                            <div className='field-rows'>
-                                <FormGroup
-                                    label='Cron'
-                                    helperText={errorOf(errors, 'on') ?? 'Five fields, Romanian time: 0 8 * * MON is Mondays at 08:00.'}
-                                    intent={errorOf(errors, 'on') ? 'danger' : 'none'}
-                                    inline
-                                >
-                                    <InputGroup
-                                        value={on.cron}
-                                        onValueChange={cron => form.setValue('on', { type: 'schedule', cron })}
-                                        className='font-mono'
-                                    />
-                                </FormGroup>
-                            </div>
-                        )}
-                    </SectionCard>
-                </Section>
+                            {on.type === 'dataset' && (
+                                <div className='field-rows'>
+                                    <FormGroup label='Dataset' inline>
+                                        <Dropdown value={on.dataset} options={DATASET_OPTIONS} onChange={handleDatasetChange} />
+                                    </FormGroup>
+                                    <FormGroup
+                                        label='New rows by'
+                                        helperText='A timestamp column that grows as rows are appended: the trigger reads the rows past what it read last.'
+                                        intent={errorOf(errors, 'on') ? 'danger' : 'none'}
+                                        inline
+                                    >
+                                        <IncrementalColumnSelect
+                                            value={on.incrementalColumn}
+                                            description={descriptions[on.dataset]}
+                                            onChange={column => form.setValue('on', { ...on, incrementalColumn: column })}
+                                        />
+                                    </FormGroup>
+                                </div>
+                            )}
 
-                {on.type === 'dataset' && (
-                    <Section
-                        title='Conditions'
-                        icon='filter-list'
-                        compact
-                        rightElement={(
+                            {on.type === 'schedule' && (
+                                <div className='field-rows'>
+                                    <FormGroup
+                                        label='Cron'
+                                        helperText={errorOf(errors, 'on') ?? 'Five fields, Romanian time: 0 8 * * MON is Mondays at 08:00.'}
+                                        intent={errorOf(errors, 'on') ? 'danger' : 'none'}
+                                        inline
+                                    >
+                                        <InputGroup
+                                            value={on.cron}
+                                            onValueChange={cron => form.setValue('on', { type: 'schedule', cron })}
+                                            className='font-mono'
+                                        />
+                                    </FormGroup>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {step === 'conditions' && on.type === 'schedule' && (
+                    <div>
+                        <div>
+                            <p className='m-0 text-gray-500'>
+                                A trigger on a schedule has no conditions: each time it fires, the agent gets a run to act on
+                                (a report, a review). Go on to the hits.
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                {step === 'conditions' && on.type === 'dataset' && (
+                    <div className='flex flex-col gap-2'>
+                        <div className='flex items-center justify-between'>
+                            <span className='text-gray-500'>Matches when</span>
                             <Controller
                                 control={form.control}
                                 name='match'
@@ -262,9 +325,8 @@ export function TriggerEditor({ trigger, isNew, onDone }: TriggerEditorProps) {
                                     <Choice id='trigger-match' value={field.value} options={MATCH_OPTIONS} onChange={field.onChange} />
                                 )}
                             />
-                        )}
-                    >
-                        <SectionCard>
+                        </div>
+                        <div>
                             {conditions.fields.map((field, index) => (
                                 <ConditionRow
                                     key={field.id}
@@ -282,64 +344,86 @@ export function TriggerEditor({ trigger, isNew, onDone }: TriggerEditorProps) {
                             )}
 
                             <Button icon='add' text='Add condition' variant='minimal' onClick={handleAddCondition} />
-                        </SectionCard>
-                    </Section>
+                        </div>
+                    </div>
                 )}
 
-                <Section title='Hits' icon='send-to' compact>
-                    <SectionCard className='flex flex-wrap gap-4'>
-                        <FormGroup label='Matching hours become'>
-                            <Dropdown
-                                value={grouping.type}
-                                options={GROUPING_OPTIONS}
-                                onChange={handleGroupingChange}
-                            />
-                        </FormGroup>
+                {step === 'hits' && (
+                    <div>
+                        <div className='flex flex-wrap gap-4'>
+                            <FormGroup label='Matching hours become'>
+                                <Dropdown
+                                    value={grouping.type}
+                                    options={GROUPING_OPTIONS}
+                                    onChange={handleGroupingChange}
+                                />
+                            </FormGroup>
 
-                        {grouping.type === 'window' && (
-                            <>
-                                <FormGroup label='Min hours'>
-                                    <Controller
-                                        control={form.control}
-                                        name='grouping.minHours'
-                                        render={({ field }) => (
-                                            <div className='w-28'>
-                                                <NumericInput value={field.value} onValueChange={field.onChange} min={1} fill />
-                                            </div>
-                                        )}
-                                    />
-                                </FormGroup>
-                                <FormGroup
-                                    label='Max hours'
-                                    intent={errorOf(errors, 'grouping') ? 'danger' : 'none'}
-                                    helperText={errorOf(errors, 'grouping')}
-                                >
-                                    <Controller
-                                        control={form.control}
-                                        name='grouping.maxHours'
-                                        render={({ field }) => (
-                                            <div className='w-28'>
-                                                <NumericInput value={field.value} onValueChange={field.onChange} min={1} fill />
-                                            </div>
-                                        )}
-                                    />
-                                </FormGroup>
-                            </>
+                            {grouping.type === 'window' && (
+                                <>
+                                    <FormGroup label='Min hours'>
+                                        <Controller
+                                            control={form.control}
+                                            name='grouping.minHours'
+                                            render={({ field }) => (
+                                                <div className='w-28'>
+                                                    <NumericInput value={field.value} onValueChange={field.onChange} min={1} fill />
+                                                </div>
+                                            )}
+                                        />
+                                    </FormGroup>
+                                    <FormGroup
+                                        label='Max hours'
+                                        intent={errorOf(errors, 'grouping') ? 'danger' : 'none'}
+                                        helperText={errorOf(errors, 'grouping')}
+                                    >
+                                        <Controller
+                                            control={form.control}
+                                            name='grouping.maxHours'
+                                            render={({ field }) => (
+                                                <div className='w-28'>
+                                                    <NumericInput value={field.value} onValueChange={field.onChange} min={1} fill />
+                                                </div>
+                                            )}
+                                        />
+                                    </FormGroup>
+                                </>
+                            )}
+
+                            <FormGroup label='Cooldown (minutes)' helperText='The same window hits at most once per cooldown.'>
+                                <Controller
+                                    control={form.control}
+                                    name='cooldownMinutes'
+                                    render={({ field }) => (
+                                        <div className='w-36'>
+                                            <NumericInput value={field.value} onValueChange={field.onChange} min={0} stepSize={60} majorStepSize={600} fill />
+                                        </div>
+                                    )}
+                                />
+                            </FormGroup>
+                        </div>
+                    </div>
+                )}
+
+                <div className='flex items-center justify-between'>
+                    <Button icon='arrow-left' text='Back' variant='minimal' disabled={stepIndex === 0} onClick={handleBack} />
+
+                    <div className='flex gap-2'>
+                        {!isNew && !isLast && (
+                            <Button icon='floppy-disk' text='Save' loading={form.formState.isSubmitting} onClick={() => void save()} />
                         )}
-
-                        <FormGroup label='Cooldown (minutes)' helperText='The same window hits at most once per cooldown.'>
-                            <Controller
-                                control={form.control}
-                                name='cooldownMinutes'
-                                render={({ field }) => (
-                                    <div className='w-36'>
-                                        <NumericInput value={field.value} onValueChange={field.onChange} min={0} stepSize={60} majorStepSize={600} fill />
-                                    </div>
-                                )}
+                        {!isLast && <Button intent='primary' endIcon='arrow-right' text='Next' type='submit' />}
+                        {isLast && (
+                            <Button
+                                type='submit'
+                                intent='primary'
+                                icon={isNew ? 'tick' : 'floppy-disk'}
+                                text={isNew ? 'Create trigger' : 'Save'}
+                                loading={form.formState.isSubmitting}
                             />
-                        </FormGroup>
-                    </SectionCard>
-                </Section>
+                        )}
+                    </div>
+                </div>
             </div>
         </form>
     )

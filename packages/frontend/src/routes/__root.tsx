@@ -4,6 +4,7 @@ import { createRootRoute, Outlet, useLocation, useNavigate } from '@tanstack/rea
 import { Logo } from '@/components/Logo'
 import { DatasetSDK } from '@/SDKs/DatasetSDK/sdk'
 import { ForecasterSDK } from '@/SDKs/ForecasterSDK/sdk'
+import { PipelineSDK } from '@/SDKs/PipelineSDK/sdk'
 import { RealtimeSDK } from '@/SDKs/RealtimeSDK/sdk'
 import { TriggerSDK } from '@/SDKs/TriggerSDK/sdk'
 import { WatchdogSDK } from '@/SDKs/WatchdogSDK/sdk'
@@ -22,7 +23,7 @@ export const Route = createRootRoute({
     component: Shell,
 })
 
-/** The navbar around every page, and the live feeds every page reads: runs, checks, every trigger's hits, previews. */
+/** The navbar around every page, and the live feeds every page reads: runs, pipeline runs, checks, every trigger's hits, previews. */
 function Shell() {
     const [triggers] = TriggerSDK.useWith(
         TriggerSDK.selectors.list,
@@ -37,6 +38,10 @@ function Shell() {
 
     useEffect(() => {
         return DatasetSDK.actions.dataset.watch()
+    }, [])
+
+    useEffect(() => {
+        return PipelineSDK.actions.run.watch()
     }, [])
 
     useEffect(() => {

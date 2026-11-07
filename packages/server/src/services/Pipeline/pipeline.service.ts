@@ -1,7 +1,9 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, type OnModuleDestroy } from '@nestjs/common';
+import { Queue } from 'bullmq';
 import { Pipeline, PipelineRunner } from '@gridsense/shared/domain';
 import { QueueProducer } from '@gridsense/shared/server/queue';
 import { RealtimeService } from '@gridsense/shared/server/realtime';
+import { QUEUE_PREFIX, redisConnection } from '@gridsense/shared/server/redis';
 import { PipelineDB, PipelineRepository } from './pipeline.repository';
 
 /**
@@ -9,7 +11,13 @@ import { PipelineDB, PipelineRepository } from './pipeline.repository';
  * runs. A schedule change reconciles the PipelineRunner's job schedulers; a run's start and end go out live.
  */
 @Injectable()
-export class PipelineService {
+export class PipelineService implements OnModuleDestroy {
+
+    // Read only: the PipelineRunner's job schedulers, for when each schedule fires next.
+    private readonly runQueue = new Queue(PipelineRunner.Queue.RunPipeline.Definition.name, {
+        connection: redisConnection(),
+        prefix:     QUEUE_PREFIX,
+    });
 
     constructor(
         private readonly pipelines: PipelineRepository,
@@ -34,7 +42,13 @@ export class PipelineService {
             pipelines: {},
             schedules: {},
             lastRuns:  await this.pipelines.listLastRuns(),
+            nextRuns:  {},
         };
+
+        // A scheduler's key is its pipeline's name (the PipelineRunner's ReconcileProcessor).
+        for (const scheduler of await this.runQueue.getJobSchedulers())
+            if (scheduler.next !== undefined)
+                response.nextRuns[scheduler.key] = new Date(scheduler.next);
 
         for (const row of await this.pipelines.list()) {
             response.pipelines[row.name] = PipelineDB.toPipeline(row);
@@ -104,5 +118,9 @@ export class PipelineService {
 
     public getRun(id: Pipeline.Run.Id): Promise<{ run: Pipeline.Run; log: string }> {
         return this.pipelines.getRun(id);
+    }
+
+    public async onModuleDestroy(): Promise<void> {
+        await this.runQueue.close();
     }
 }

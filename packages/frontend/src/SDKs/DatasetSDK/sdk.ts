@@ -1,4 +1,5 @@
 import type { Dataset } from '@gridsense/shared/domain'
+import { keepPreviousData } from '@tanstack/react-query'
 import { createWithEqualityFn } from 'zustand/traditional'
 import { immer } from 'zustand/middleware/immer'
 import { shallow } from 'zustand/shallow'
@@ -13,6 +14,9 @@ const DESCRIBE_STALE_TIME = 60_000
 const PREVIEW_STALE_TIME = 10_000
 
 const PREVIEW_ROWS = 200
+
+// The preview's limit (Dataset.API.GetPreview): about six weeks of hourly prices, or a run's 168 hours several times over.
+const CHART_ROWS = 1000
 
 /**
  * The datasets as the viewer and the condition editor read them: columns and latest rows. Read-only, each for one
@@ -44,6 +48,14 @@ export class DatasetSDKImpl extends BaseSDK<DatasetSDK.State> {
             queryKey:  ['datasets', name, 'preview', orderBy] as const,
             queryFn:   () => this.actions.dataset.getPreview(name, { limit: PREVIEW_ROWS, orderBy: orderBy ?? undefined }),
             staleTime: PREVIEW_STALE_TIME,
+        }),
+
+        /** The most rows the preview gives, newest first by `orderBy`: what a chart plots. Under `previews`, so a check refreshes it. */
+        chartRows: (name: Dataset.Name, orderBy: string) => ({
+            queryKey:        ['datasets', name, 'preview', 'chart', orderBy] as const,
+            queryFn:         () => this.actions.dataset.getPreview(name, { limit: CHART_ROWS, orderBy }),
+            staleTime:       PREVIEW_STALE_TIME,
+            placeholderData: keepPreviousData,
         }),
     }
 

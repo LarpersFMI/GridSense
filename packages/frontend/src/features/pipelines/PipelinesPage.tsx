@@ -5,6 +5,7 @@ import { ErrorNotice } from '@/components/ErrorNotice'
 import { PipelineSDK } from '@/SDKs/PipelineSDK/sdk'
 import { formatClock, formatLocal } from '@/utils/format'
 import { CronInput } from './CronInput'
+import { NextRun } from './NextRun'
 import { RunLog } from './RunLog'
 import { RunStatusTag } from './RunStatusTag'
 
@@ -30,10 +31,7 @@ export function PipelinesPage() {
 
     const schedules = PipelineSDK.useStore(state => state.schedules)
     const lastRuns = PipelineSDK.useStore(PipelineSDK.selectors.lastRuns)
-
-    useEffect(() => {
-        return PipelineSDK.actions.run.watch()
-    }, [])
+    const nextRuns = PipelineSDK.useStore(state => state.nextRuns)
 
     useEffect(() => {
         if (!following)
@@ -81,6 +79,7 @@ export function PipelinesPage() {
                                 <th>Schedule <span className='font-normal text-gray-500'>(Romanian time)</span></th>
                                 <th>On</th>
                                 <th>Last run</th>
+                                <th>Next run</th>
                                 <th />
                             </tr>
                         </thead>
@@ -91,6 +90,7 @@ export function PipelinesPage() {
                                     pipeline={pipeline}
                                     schedule={schedules[pipeline.name] ?? null}
                                     lastRun={lastRuns[pipeline.name] ?? null}
+                                    nextRun={nextRuns[pipeline.name] ?? null}
                                     onRunNow={() => void handleRunNow(pipeline.name)}
                                     onSelectRun={setSelected}
                                 />
@@ -158,11 +158,12 @@ interface PipelineRowProps {
     pipeline:    PipelineSDK.Listed
     schedule:    Pipeline.Schedule | null
     lastRun:     Pipeline.Run | null
+    nextRun:     Date | null
     onRunNow:    () => void
     onSelectRun: (id: Pipeline.Run.Id) => void
 }
 
-function PipelineRow({ pipeline, schedule, lastRun, onRunNow, onSelectRun }: PipelineRowProps) {
+function PipelineRow({ pipeline, schedule, lastRun, nextRun, onRunNow, onSelectRun }: PipelineRowProps) {
     const cron = schedule?.cron ?? pipeline.defaultCron
     const enabled = schedule?.enabled ?? false
 
@@ -207,6 +208,9 @@ function PipelineRow({ pipeline, schedule, lastRun, onRunNow, onSelectRun }: Pip
                         <span className='text-xs text-gray-500'>{formatLocal(lastRun.startedAt)}</span>
                     </div>
                 )}
+            </td>
+            <td>
+                {enabled && nextRun ? <NextRun at={nextRun} /> : <span className='text-xs text-gray-500'>off</span>}
             </td>
             <td>
                 <Button icon='play' text='Run now' variant='outlined' size='small' disabled={!pipeline.available} onClick={onRunNow} />
