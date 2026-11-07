@@ -20,3 +20,7 @@ export const createTriggerId = () => uuidv7() as TriggerId
  */
 export const ThreadId = z.string().min(1).brand("Foundations.Thread.Id")
 export type  ThreadId = z.infer<typeof ThreadId>
+
+export const PipelineRunId = Id.define("Pipeline.Run.Id")
+export type  PipelineRunId = z.infer<typeof PipelineRunId>
+export const createPipelineRunId = () => uuidv7() as PipelineRunId

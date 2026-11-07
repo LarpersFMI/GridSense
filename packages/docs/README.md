@@ -12,6 +12,7 @@ The Python pipeline forecasts; the **Watchdog** checks the admin's **triggers** 
 | [scheduled-triggers.md](scheduled-triggers.md) | Triggers on the clock: reconciling BullMQ job schedulers, a schedule firing |
 | [editing-triggers.md](editing-triggers.md) | The admin's editor: describing a dataset's columns, create / update / delete, what the Watchdog does after |
 | [handling-a-hit.md](handling-a-hit.md) | **Planned, not built**: the central agent's graph, review, resume |
+| [pipelines.md](pipelines.md) | Python pipelines that update the datasets: definitions synced on boot, schedules from the UI, runs as subprocesses with live logs |
 | [realtime.md](realtime.md) | Every channel, who publishes on it, and the `/socket` gateway |
 | [frontend.md](frontend.md) | The admin's UI: pages, SDKs (Quarry's pattern), hits from the agent's queue, trying it with the replay |
 

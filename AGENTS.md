@@ -23,7 +23,7 @@ contracts are zod schemas in `packages/shared/domain/`, one namespace per concep
 - Columns the Watchdog computes per hour (`local_hour`, `weekday`, …) are declared and computed next to their dataset:
   `Dataset.Predictions.COMPUTED_COLUMNS` and `compute`.
 - **Run it:** `npm run dev:all` — writes `.env` from `.env.example` if there's none, starts Postgres + Redis in Docker
-  and waits until they're healthy, then `npm run dev` (server on :4000, Watchdog on :4100, frontend on :5173). The server migrates on boot. Report a run like the Python pipeline will:
+  and waits until they're healthy, then `npm run dev` (server on :4000, Watchdog on :4100, PipelineRunner on :4200, frontend on :5173). The server migrates on boot. Report a run like the Python pipeline will:
   `curl -XPOST localhost:4000/internal/runs -H 'content-type: application/json' -d '{"issueTs":"2026-05-07T07:00:00Z","modelVersion":"dummy-0","rows":168,"predictionsPath":"<absolute path to predictions.parquet>","start":"2026-05-07T21:00:00Z","end":"2026-05-14T21:00:00Z"}'`
   (`start`/`end`: the forecast's hours). Report a day's cleared prices like the ingestion will:
   `curl -XPOST localhost:4000/internal/datasets/prices/updates -H 'content-type: application/json' -d '{"start":"2026-05-08T21:00:00Z","end":"2026-05-09T21:00:00Z"}'`.
@@ -32,7 +32,8 @@ contracts are zod schemas in `packages/shared/domain/`, one namespace per concep
 - **How it runs, flow by flow:** `packages/docs/` — a run reported, a dataset update checked, a hit raised, schedules,
   the trigger editor, the agent, realtime. Update the page when you change its flow.
 - Packages: `server` (owns Postgres, `/api` for the browser, `/internal` for workers and Python, `/socket` for live
-  events), `watchdog` (BullMQ worker, no database: checks triggers, hands hits to the agent), `central-agent`, `frontend` (React + Vite, Blueprint + Tailwind).
+  events), `watchdog` (BullMQ worker, no database: checks triggers, hands hits to the agent), `pipeline-runner` (BullMQ worker, no database: runs the Python pipelines in
+  `src/gridsense/pipelines` on the schedules set in the UI — `packages/docs/pipelines.md`), `central-agent`, `frontend` (React + Vite, Blueprint + Tailwind).
 - Common dependencies live in the root `package.json`; a package lists only what's its own. Compiler options come from
   `tsconfig.base.json`.
 - `npm install --legacy-peer-deps` once (some npm versions fail on vitest's peers without it), then `npm test` and

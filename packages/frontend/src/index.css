@@ -49,3 +49,36 @@ body {
     flex: 0 0 120px;
     line-height: 30px;
 }
+
+/*
+ * The pipelines table: every cell centred on the row (Blueprint aligns them to the top), and everything but the
+ * description on one line — the controls never wrap. The Switch loses its form margin here.
+ */
+/* As specific as Blueprint's own compact-table rules (table.bp6-html-table.bp6-compact td), and after them. */
+table.bp6-html-table.pipelines-table td {
+    vertical-align: middle;
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+/* Air between the header and its line, and between the line and the first row. */
+table.bp6-html-table.pipelines-table th {
+    padding-bottom: 10px;
+}
+
+table.bp6-html-table.pipelines-table tbody tr:first-child td {
+    padding-top: 14px;
+}
+
+.pipelines-table th,
+.pipelines-table td:not(:first-child) {
+    white-space: nowrap;
+}
+
+.pipelines-table td:last-child {
+    text-align: right;
+}
+
+.pipelines-table .bp6-control.bp6-switch {
+    margin-bottom: 0;
+}

@@ -5,6 +5,7 @@ import { HealthController } from './http/health.controller';
 import { DatasetModule } from './services/Dataset/dataset.module';
 import { ForecasterModule } from './services/Forecaster/forecaster.module';
 import { HitModule } from './services/Hit/hit.module';
+import { PipelineModule } from './services/Pipeline/pipeline.module';
 import { RealtimeGatewayModule } from './services/Realtime/realtime-gateway.module';
 import { TriggerModule } from './services/Trigger/trigger.module';
 
@@ -17,6 +18,7 @@ import { TriggerModule } from './services/Trigger/trigger.module';
         ForecasterModule,
         TriggerModule,
         HitModule,
+        PipelineModule,
         DatasetModule,
     ],
     controllers: [HealthController],

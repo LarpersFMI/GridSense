@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ActivityRouteImport } from './routes/activity'
+import { Route as PipelinesRouteImport } from './routes/pipelines'
 import { Route as DatasetsIndexRouteImport } from './routes/datasets/index'
 import { Route as DatasetsNameRouteImport } from './routes/datasets/$name'
 import { Route as TriggersIndexRouteImport } from './routes/triggers/index'
@@ -24,6 +25,11 @@ const IndexRoute = IndexRouteImport.update({
 const ActivityRoute = ActivityRouteImport.update({
   id: '/activity',
   path: '/activity',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PipelinesRoute = PipelinesRouteImport.update({
+  id: '/pipelines',
+  path: '/pipelines',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DatasetsIndexRoute = DatasetsIndexRouteImport.update({
@@ -50,6 +56,7 @@ const TriggersIdRoute = TriggersIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
+  '/pipelines': typeof PipelinesRoute
   '/datasets/$name': typeof DatasetsNameRoute
   '/triggers/$id': typeof TriggersIdRoute
   '/datasets/': typeof DatasetsIndexRoute
@@ -58,6 +65,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
+  '/pipelines': typeof PipelinesRoute
   '/datasets/$name': typeof DatasetsNameRoute
   '/triggers/$id': typeof TriggersIdRoute
   '/datasets': typeof DatasetsIndexRoute
@@ -67,6 +75,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
+  '/pipelines': typeof PipelinesRoute
   '/datasets/$name': typeof DatasetsNameRoute
   '/triggers/$id': typeof TriggersIdRoute
   '/datasets/': typeof DatasetsIndexRoute
@@ -77,6 +86,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/activity'
+    | '/pipelines'
     | '/datasets/$name'
     | '/triggers/$id'
     | '/datasets/'
@@ -85,6 +95,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/activity'
+    | '/pipelines'
     | '/datasets/$name'
     | '/triggers/$id'
     | '/datasets'
@@ -93,6 +104,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/activity'
+    | '/pipelines'
     | '/datasets/$name'
     | '/triggers/$id'
     | '/datasets/'
@@ -102,6 +114,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ActivityRoute: typeof ActivityRoute
+  PipelinesRoute: typeof PipelinesRoute
   DatasetsNameRoute: typeof DatasetsNameRoute
   TriggersIdRoute: typeof TriggersIdRoute
   DatasetsIndexRoute: typeof DatasetsIndexRoute
@@ -122,6 +135,13 @@ declare module '@tanstack/react-router' {
       path: '/activity'
       fullPath: '/activity'
       preLoaderRoute: typeof ActivityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pipelines': {
+      id: '/pipelines'
+      path: '/pipelines'
+      fullPath: '/pipelines'
+      preLoaderRoute: typeof PipelinesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/datasets/': {
@@ -158,6 +178,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ActivityRoute: ActivityRoute,
+  PipelinesRoute: PipelinesRoute,
   DatasetsNameRoute: DatasetsNameRoute,
   TriggersIdRoute: TriggersIdRoute,
   DatasetsIndexRoute: DatasetsIndexRoute,

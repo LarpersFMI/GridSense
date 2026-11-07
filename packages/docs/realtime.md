@@ -19,6 +19,8 @@ Each domain declares its own (`<Domain>/Event.ts`): a branded channel type, its 
 | Channel | Event | Published by | Who listens |
 |---|---|---|---|
 | `forecaster:runs` | `forecaster:run:reported { run }` | `ForecasterService.reportRun` | the runs list |
+| `pipeline:runs` | `pipeline:run:updated { run }` | `PipelineService.startRun` / `finishRun` | the Pipelines page: runs, last run |
+| `pipeline:run:<id>` | `pipeline:run:logged { runId, lines }` | the PipelineRunner, per chunk of output | the open run's log |
 | `watchdog:activity` | `watchdog:check:completed { cause, triggersChecked, hits, cooledDown, checkedAt }` | `DatasetUpdatedProcessor`, `ScheduleProcessor` | the activity feed |
 | `watchdog:trigger:<triggerId>` | `watchdog:hit:raised { hit, threadId }` | `HitService.raise` | a trigger's page |
 | `agent:thread:<threadId>` | `agent:thread:updated { threadId, triggerId, status, step, updatedAt }` | the agent (planned) | a thread's page |

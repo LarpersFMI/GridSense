@@ -1,0 +1,14 @@
+{
+    "name": "@gridsense/pipeline-runner",
+    "version": "0.0.1",
+    "private": true,
+    "description": "Runs the pipelines Python defines (gridsense.pipelines) on the schedules set in the UI, or now: each run a Python subprocess, its log live. NestJS + BullMQ, no database: schedules and runs go through the server's /internal API.",
+    "scripts": {
+        "test": "vitest run",
+        "dev": "nodemon -w src -w ../shared -e ts,json --exec ts-node src/main.ts",
+        "typecheck": "tsc --noEmit -p tsconfig.json"
+    },
+    "dependencies": {
+        "@gridsense/shared": "*"
+    }
+}

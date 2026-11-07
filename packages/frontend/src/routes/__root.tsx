@@ -10,6 +10,7 @@ import { WatchdogSDK } from '@/SDKs/WatchdogSDK/sdk'
 
 /** The app's sections: each a tab in the navbar, at its route. */
 const SECTIONS = [
+    { to: '/pipelines', icon: 'data-lineage', label: 'Pipelines' },
     { to: '/datasets', icon: 'database', label: 'Datasets' },
     { to: '/triggers', icon: 'antenna', label: 'Triggers' },
     { to: '/activity', icon: 'pulse', label: 'Activity' },
