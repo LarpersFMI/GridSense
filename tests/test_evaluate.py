@@ -28,7 +28,8 @@ def table_with_naive(tiny_training_table):
 
 @pytest.fixture(scope="module")
 def fake_market_table() -> pd.DataFrame:
-    t = market.generate("2024-11-01", "2025-04-30")
+    # Each hourly LEAR model needs more train days than the expanded weather feature count.
+    t = market.generate("2024-06-01", "2025-04-30")
     table = build_training_table(t["prices_hourly"], t["grid_hourly"], t["weather_fc"], t["calendar"])
     return table.dropna(subset=["y_price"])
 
@@ -52,7 +53,7 @@ def test_evaluate_price_compares_models_by_horizon(table_with_naive, tmp_dirs):
 
 
 def test_lear_runs_on_fake_market(fake_market_table):
-    """Only ~120 train days per model here, so just check it's sane; the real comparison needs years."""
+    """Check LEAR on limited fake history; the real comparison needs years."""
     split = assign_split(fake_market_table["target_ts_utc"])
     tr, val = fake_market_table[split == "train"], fake_market_table[split == "val"]
     val = val.dropna(subset=[NAIVE_COLUMN])

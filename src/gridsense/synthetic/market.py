@@ -62,7 +62,8 @@ def _weather_truth(ts: pd.DatetimeIndex, is_dst: np.ndarray, rng: np.random.Gene
     frames = []
     for loc in config.WEATHER_POINTS:
         cloud = _sigmoid(national_cloud + rng.normal(0, 0.5, len(days)))[day_idx]
-        wind = WIND_MEAN_MS[loc] - 1.0 * season + _ar1(len(ts), 0.97, 0.6, rng)
+        # Newly configured locations use an uncalibrated fake inland wind mean.
+        wind = WIND_MEAN_MS.get(loc, 4.5) - 1.0 * season + _ar1(len(ts), 0.97, 0.6, rng)
         temp = (
             11 + 12 * np.sin(2 * np.pi * (doy - 110) / 365)
             + 4 * np.sin(2 * np.pi * (hour - 9) / 24)

@@ -76,13 +76,8 @@ def _daily_stats(prices: pd.Series, issue_days: pd.Series) -> pd.DataFrame:
     )
 
 
-def add_price_features(rows: pd.DataFrame, prices: pd.DataFrame) -> pd.DataFrame:
-    """Add market features to rows keyed by issue_ts and target_ts_utc.
-
-    At 10:00 local, day D's day-ahead auction has already cleared under the repo's
-    availability policy. The historical price snapshot does not establish revision vintages.
-    """
-    price_index = hourly_price_index(prices)
+def forecast_clock(rows: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
+    """Return the Romanian issue day and target clock hour for each forecast row."""
     issue = utc_hours(rows["issue_ts"], "issue_ts").dt.tz_convert(config.LOCAL_TZ)
     target = utc_hours(rows["target_ts_utc"], "target_ts_utc").dt.tz_convert(config.LOCAL_TZ)
     issue_days = issue.dt.tz_localize(None).dt.normalize()
@@ -90,18 +85,35 @@ def add_price_features(rows: pd.DataFrame, prices: pd.DataFrame) -> pd.DataFrame
     lead = (target_days - issue_days).dt.days
     if issue.dt.hour.ne(config.ISSUE_HOUR).any() or not lead.isin(config.HORIZONS_DAYS).all():
         raise ValueError("Expected 10:00 Romanian issues and a configured future delivery day")
+    return issue_days, pd.to_timedelta(target.dt.hour, unit="h")
 
+
+def delivery_lag_keys(
+    issue_days: pd.Series, target_hour: pd.Series, days_back: int
+) -> pd.DatetimeIndex:
+    """Map a Romanian wall-clock hour on an issue-relative date to its UTC delivery key."""
+    local_clock = issue_days + target_hour - pd.Timedelta(days=days_back)
+    # A missing or repeated local hour cannot identify a unique delivery interval.
+    keys = local_clock.dt.tz_localize(
+        config.LOCAL_TZ,
+        ambiguous="NaT",
+        nonexistent="NaT",
+    ).dt.tz_convert("UTC")
+    return pd.DatetimeIndex(keys)
+
+
+def add_price_features(rows: pd.DataFrame, prices: pd.DataFrame) -> pd.DataFrame:
+    """Add market features to rows keyed by issue_ts and target_ts_utc.
+
+    At 10:00 local, day D's day-ahead auction has already cleared under the repo's
+    availability policy. The historical price snapshot does not establish revision vintages.
+    """
+    price_index = hourly_price_index(prices)
+    issue_days, target_hour = forecast_clock(rows)
     result = rows.copy()
-    target_hour = pd.to_timedelta(target.dt.hour, unit="h")
     for days_back, column in ((0, "f_price_same_hour_d"), (6, "f_price_same_hour_d_minus_6")):
-        local_clock = issue_days + target_hour - pd.Timedelta(days=days_back)
-        # A missing or repeated local hour cannot identify a unique delivery interval.
-        keys = local_clock.dt.tz_localize(
-            config.LOCAL_TZ,
-            ambiguous="NaT",
-            nonexistent="NaT",
-        ).dt.tz_convert("UTC")
-        result[column] = price_index.reindex(pd.DatetimeIndex(keys)).to_numpy()
+        keys = delivery_lag_keys(issue_days, target_hour, days_back)
+        result[column] = price_index.reindex(keys).to_numpy()
 
     stats = _daily_stats(price_index, issue_days).reindex(issue_days)
     for column in stats:

@@ -63,11 +63,11 @@ def test_lag_for_ambiguous_local_hour_stays_missing():
     assert result["f_price_same_hour_d_minus_6"].iloc[0] == 25
 
 
-def test_four_city_sample_yields_one_price_label_per_dst_hour():
+def test_configured_city_sample_yields_one_price_label_per_dst_hour():
     weather = synthetic_weather()
     prices = price_frame("2025-03-22", "2025-03-31")
     result = join_sample(weather, prices)
-    assert len(weather) == 92
+    assert len(weather) == len(target_hours()) * len(config.WEATHER_POINTS)
     assert set(weather["location"]) == set(config.WEATHER_POINTS)
     assert len(result) == 23
     assert result["target_ts_utc"].is_unique

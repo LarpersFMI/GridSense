@@ -13,6 +13,9 @@ from gridsense.models.base import OUTPUT_COLUMNS, feature_columns, recency_weigh
 LABELS = {"p_near_zero": "y_near_zero", "p_cheap": "y_cheap"}
 
 DEFAULT_PARAMS = {
+    # The only metric early stopping watches (= PR-AUC). Passing it as eval_metric instead would
+    # add binary_logloss too, and early stopping halts on whichever metric stalls first.
+    "metric": "average_precision",
     "n_estimators": 2000,
     "learning_rate": 0.03,
     "num_leaves": 31,
@@ -48,7 +51,6 @@ class LowPriceClassifier:
                 fit_kwargs = {
                     "eval_X": (val[self.features],),
                     "eval_y": (val[label].astype(int),),
-                    "eval_metric": "average_precision",
                     "callbacks": [lgb.early_stopping(self.early_stopping_rounds, verbose=False)],
                 }
             model.fit(train[self.features], y, sample_weight=weights, **fit_kwargs)

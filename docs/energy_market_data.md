@@ -100,7 +100,7 @@ Observed results for Romanian calendar dates 2023-01-01 through 2026-07-31:
 
 Use `gridsense.config.WEATHER_POINTS` for the first model (Bucharest, Constanța, Craiova
 and Timișoara). For the expanded experiment, use
-`gridsense.locations.TOP_20_WEATHER_POINTS`. Both mappings use the `weather_fc.location`
+`gridsense.config.TOP_20_WEATHER_POINTS`. Both mappings use the `weather_fc.location`
 ID as the key and a WGS84 `(latitude, longitude)` pair as the value. Use those same IDs
 when selecting or pivoting weather features. The price target is one value per hour for
 the Romanian bidding zone.
@@ -158,6 +158,90 @@ weather rows for four cities. After pivoting, the check requires one real price
 label for each of the 23 UTC delivery hours on March 30 in Bucharest. The second
 command checks the same issue and delivery day in a supplied file. The synthetic
 outputs are integration fixtures.
+
+## Regional market inputs for ML
+
+Run the regional build from the repository root. The command uses pinned public
+sources and works on a fresh checkout without an ENTSO-E token.
+
+```bash
+uv sync --locked
+uv run python -m gridsense.data.build_regional
+```
+
+| File in `data/processed/` | Contract |
+| --- | --- |
+| `regional_prices_hourly.parquet` | One row per `bidding_zone` and `ts_utc`. RO, HU and BG, with `country_code` and the existing `price_mean`, `price_min`, `price_max` fields in EUR/MWh. |
+| `regional_load_hourly.parquet` | One row per `country_code` and `ts_utc`. RO, HU and BG actual hourly system load (`load_actual_mw`, MW), with zone and source identifiers. |
+| `regional_market_features.parquet` | One row per `issue_ts`, `target_ts_utc`, `horizon_days`, with 11 regional `f_*` columns. Left join on those keys with one-to-one validation. |
+| `regional_market_manifest.json` | Input release pins, coverage and output SHA-256 checksums. |
+
+RO is included in the regional prices for the spread calculation and as a reference
+for labels. The existing `prices_hourly.parquet` remains the Romanian target contract.
+The regional feature table has no labels. Use the normal chronological splits and
+compare model variants on the same validation hours.
+
+- **Prices.** The same pinned ENTSO-E snapshot used for RO supplies HU
+  (`10YHU-MAVIR----U`) and BG (`10YCA-BULGARIA-R`). This build covers Romanian
+  delivery dates 2023-01-01 through 2026-07-31. Keep complete hours only, using the
+  native hourly observation or all four 15-minute prices. Negative prices are valid.
+- **Load.** [ENTSO-E Power Statistics, Monthly Hourly Load Values](https://www.entsoe.eu/data/power-stats/)
+  supplies national UTC observations from 2023-01-01 through 2026-06-30. Retain only
+  `Cov_ratio = 100` and use `Value`. ENTSO-E's public files can be revised in place.
+  The build checks each file against its release pin. If the publisher updates a
+  file, use the original cached release or review the new release before updating
+  its checksum.
+- **Availability.** The issue clock is 10:00 in Bucharest. Use the target's
+  Romanian clock hour to look up HU/BG prices and RO-minus-neighbor spreads on
+  issue day D and D−6, from auctions already cleared under the project's timing
+  policy. Use actual load from D−1 for each of RO/HU/BG, allowing for reporting
+  delay. All legs of a spread use the same UTC hour. A missing or ambiguous
+  interval stays null. Load lags beyond the pinned consumption coverage also stay
+  null. Historical exports do not establish which revisions were visible at issue time.
+
+**Team handoff.** The repository includes the processed regional tables, the
+Romanian price and grid tables, and their quality reports. Raw inputs and synthetic
+fixtures stay in ignored directories. ML can read the processed Parquet files directly
+or rebuild them with the pinned sources and commands above. The source dataset card
+uses `license: other` and refers users to the applicable ENTSO-E terms. The ENTSO-E
+website's disclaimer also restricts redistribution of website content without
+written permission, so the team needs to establish the applicable rights for these
+derived datasets before any further redistribution.
+[Dataset card](https://huggingface.co/datasets/hsilvosa/entsoe-day-ahead)
+[ENTSO-E disclaimer](https://www.entsoe.eu/about/legal-and-regulatory/disclaimer/)
+
+### Romanian grid table and regional join
+
+After building the regional tables, run:
+
+```bash
+uv run python -m gridsense.data.build_grid
+uv run python -m gridsense.data.check_regional_ml_join
+```
+
+`build_grid` uses Romanian rows from `regional_load_hourly.parquet` and writes the
+shared `grid_hourly.parquet` contract through `gridsense.io.write`. The file has
+UTC hourly timestamps and real load in MW. `solar_actual_mw` and `wind_actual_mw`
+are null until corresponding measurements are collected. Missing load hours remain
+absent. The command accepts an existing identical output and stops if the existing
+file differs, so later generation data is preserved for reconciliation.
+
+The join check calls the existing ML `build_training_table` with real prices and
+load plus a synthetic weather and calendar fixture. It validates a D+1 forecast
+for 2025-03-30, checks all 23 UTC hours and price labels, joins the regional table
+on `issue_ts`, `target_ts_utc` and `horizon_days`, and verifies the RO load
+features against D−1 measurements. Its output is the ignored
+`data/interim/weather_join_2025-03-30/ml_regional_join.synthetic.parquet`.
+Weather and calendar in that output are synthetic, and the file is an integration
+fixture. The reusable `join_regional_features` helper checks key uniqueness and
+returns both the left-joined table and the number of unmatched forecast keys.
+The normal ML build does not yet call this helper.
+
+Load hours are retained only when the original ENTSO-E coverage ratio is 100%.
+The current ML daily mean groups the available hours; verify that each D−1 day is
+complete before treating the mean as a complete-day statistic. Historical load
+exports can contain later revisions, and their exact availability at a past issue
+time has not been established.
 
 ## Optional grid signals
 
