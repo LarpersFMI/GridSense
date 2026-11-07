@@ -1,0 +1,29 @@
+{
+  "warning": "Retrospective comparison only. Neither historical validity nor forecast-time availability is established; not an ML feature.",
+  "inputs_sha256": {
+    "outages": "abd640c2705014f66fcc80c2e805c94d73b6c9878534d23dcf03a16df2ab2c66",
+    "production": "45d3e3db27816e40c5483ba6ce199ec0041e2c674ec70798dceeaf5c0768dba1",
+    "generation": "cc62366a030a48cae3dbc45acbc90baf0e010788369acdb57f08e714d33664d2",
+    "historical": "1dc8f80a6e4227a79665f55213cb30d4529621ad2b642e5ff56b70fec0914813"
+  },
+  "results": {
+    "production": {
+      "segments": 2461,
+      "segments_with_current_reference": 2461,
+      "capacity_pairs_compared": 2461,
+      "same_capacity_segments": 434,
+      "different_capacity_segments": 2027,
+      "different_capacity_assets": 14,
+      "maximum_absolute_difference_mw": 303.0
+    },
+    "generation": {
+      "segments": 5404,
+      "segments_with_current_reference": 5404,
+      "capacity_pairs_compared": 4082,
+      "same_capacity_segments": 732,
+      "different_capacity_segments": 3350,
+      "different_capacity_assets": 23,
+      "maximum_absolute_difference_mw": 67.4
+    }
+  }
+}
