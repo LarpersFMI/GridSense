@@ -1,0 +1,644 @@
+{
+  "start_utc": "2022-12-31T22:00:00+00:00",
+  "end_exclusive_utc": "2026-10-31T22:00:00+00:00",
+  "inputs": {
+    "prices": {
+      "source_files": 47,
+      "source_sha256": {
+        "selected/prices/2022_12_EnergyPrices_12.1.D_r3.1.csv.gz": "881ce1b73a932c2107a09e92646238e3b158a45d3b3b5f7081f9255c1de2c7bc",
+        "selected/prices/2023_01_EnergyPrices_12.1.D_r3.1.csv.gz": "5c5067667c5e3f22c843c72a0e89417109595d91f2bb872de555991cf1075513",
+        "selected/prices/2023_02_EnergyPrices_12.1.D_r3.1.csv.gz": "51493ffa9e2dc3f2969562dbd47ffb00e14540723428e7c1da5262dd82967849",
+        "selected/prices/2023_03_EnergyPrices_12.1.D_r3.1.csv.gz": "458e618fc85f48d56c85b8f99a5560b7c51f54e3b89e944774fdbdebc94bf4df",
+        "selected/prices/2023_04_EnergyPrices_12.1.D_r3.1.csv.gz": "d690910edd458fcb0f433daf890a8cf0e0bdc5cc781f7ff7b4edfeeb22d6c624",
+        "selected/prices/2023_05_EnergyPrices_12.1.D_r3.1.csv.gz": "a569f27ad52d18bbbb32a71fda5825d1352994c90874402c1affde66604c3162",
+        "selected/prices/2023_06_EnergyPrices_12.1.D_r3.1.csv.gz": "9468300fdd0a0c392d85c98dc82eaa9c36dbdcd0f37bdda78279561d2c859aba",
+        "selected/prices/2023_07_EnergyPrices_12.1.D_r3.1.csv.gz": "d30e7efd6be1f051a7b59addd4ea3a09be141332eea3f8faeb1f5017fc4e60c2",
+        "selected/prices/2023_08_EnergyPrices_12.1.D_r3.1.csv.gz": "1eede2389a318a720f6a83fb3757e3f6f45a8b9aacf00d3d470ac41751acc708",
+        "selected/prices/2023_09_EnergyPrices_12.1.D_r3.1.csv.gz": "0678860dd0924dc9d59b05731b0a7eaaf2eef34453c180224419b5d2eb13f6e2",
+        "selected/prices/2023_10_EnergyPrices_12.1.D_r3.1.csv.gz": "8cd2c922621ac4ebd037cec4a21265f3851ca4ed17ed12a56484b43792165d86",
+        "selected/prices/2023_11_EnergyPrices_12.1.D_r3.1.csv.gz": "126bed628c2061e2351c2154f43286c1b8594f4c2da604a2e6abb5e1a1236ca1",
+        "selected/prices/2023_12_EnergyPrices_12.1.D_r3.1.csv.gz": "5e8457bc6ebadc5602d080cf22dae1294fa840d7b63f408acb717e0327ddeadf",
+        "selected/prices/2024_01_EnergyPrices_12.1.D_r3.1.csv.gz": "997af7528b2cbccba9eb5ab107b4c54583f8c7ceb87b376299e6e93d5d8d5fa1",
+        "selected/prices/2024_02_EnergyPrices_12.1.D_r3.1.csv.gz": "ba8d9decc44e9f213667107d9a08baa19fbdecc486af5a490d4016c1aa2bed29",
+        "selected/prices/2024_03_EnergyPrices_12.1.D_r3.1.csv.gz": "4c9e5cd92799b45e26bfcd6ed1b3c31bd8842628e3adf487066f58863bdbe367",
+        "selected/prices/2024_04_EnergyPrices_12.1.D_r3.1.csv.gz": "d0b13dcaa67312abe2746c23c97971dc19d5a3db23df2c789d4f6e6205842c7a",
+        "selected/prices/2024_05_EnergyPrices_12.1.D_r3.1.csv.gz": "a5e18aae0a204b6b4cfb10bb8ba8fb1d6eca0aa0eaab666b8b9729b5205a5f81",
+        "selected/prices/2024_06_EnergyPrices_12.1.D_r3.1.csv.gz": "689a93ebe5ea2784354b1c73d095e7a29ecde6592c505cd95c267aab21c6feb8",
+        "selected/prices/2024_07_EnergyPrices_12.1.D_r3.1.csv.gz": "4ffbeec972a92470e15bd66cfb497678aa3f2c853350dca85614447d3e1af56b",
+        "selected/prices/2024_08_EnergyPrices_12.1.D_r3.1.csv.gz": "a64b33a32db7c33aeea2a7085353c0b7600d7fb031e991cd93348f716636741c",
+        "selected/prices/2024_09_EnergyPrices_12.1.D_r3.1.csv.gz": "e5034f456da593eef1f36d47b133f78ea00c1f9cb70497b8bb1c815f38dae824",
+        "selected/prices/2024_10_EnergyPrices_12.1.D_r3.1.csv.gz": "3d433464541f0a2eaa3746a90791d1701b2e3b50ac2a0a3be30396a9079a3104",
+        "selected/prices/2024_11_EnergyPrices_12.1.D_r3.1.csv.gz": "3534648251a1a4ed9b8e0a58d9352c2f279ed7ac8c21ff0148dad5b22f196665",
+        "selected/prices/2024_12_EnergyPrices_12.1.D_r3.1.csv.gz": "b90a5b25d04662cfd923a33d313d02e1039631823c67ce84a6ff4772b03d0e51",
+        "selected/prices/2025_01_EnergyPrices_12.1.D_r3.1.csv.gz": "f00980cd68824f93e9e10b09496887bd535b070d31187c416b657b567cd89f06",
+        "selected/prices/2025_02_EnergyPrices_12.1.D_r3.1.csv.gz": "a1053dace28d54da382b0ecf09f93178b6e1514c0714f0a7ed62a408aad3310d",
+        "selected/prices/2025_03_EnergyPrices_12.1.D_r3.1.csv.gz": "4caf17211b46bba627e3c98a73a74f5773446c3418aeafb81226a48e76a47b12",
+        "selected/prices/2025_04_EnergyPrices_12.1.D_r3.1.csv.gz": "0d98cce2a644d9a92224f5afcaf7588018f331ed78a8bba5db69b52de669dca6",
+        "selected/prices/2025_05_EnergyPrices_12.1.D_r3.1.csv.gz": "5dfc0260ebe6a349e8660ad99707821148bf4449c2c9ac3ed5611edef9d68686",
+        "selected/prices/2025_06_EnergyPrices_12.1.D_r3.1.csv.gz": "7dc2e3551e0f5ced9a2ad3c10fc23bd5344ff864df720c64d04d1fbea0ed6d2a",
+        "selected/prices/2025_07_EnergyPrices_12.1.D_r3.1.csv.gz": "a1d349a21bb9620f27926eb2b6787381af886b3ca1fcb8667ddec1494d2b0be2",
+        "selected/prices/2025_08_EnergyPrices_12.1.D_r3.1.csv.gz": "e8de4a4084f887c48fb3fd5b68fbd99edcd3e542e61d5703b34a2f82aee071a0",
+        "selected/prices/2025_09_EnergyPrices_12.1.D_r3.1.csv.gz": "e67f13761f2e6a09f0ece67e280737a7c4f8ae9a3c0976da590e1c3fe4253fbd",
+        "selected/prices/2025_10_EnergyPrices_12.1.D_r3.1.csv.gz": "c74c07fb41d69ba97b68638d1d94ca13a262b4196f59d62454970761cf670940",
+        "selected/prices/2025_11_EnergyPrices_12.1.D_r3.1.csv.gz": "5ce0bc20d900a11bcbb37ab54b980f3b31057f079cc9460baac7ed9d4fc61d71",
+        "selected/prices/2025_12_EnergyPrices_12.1.D_r3.1.csv.gz": "df2f711c3ec031a40d1ce382c1d7ccc8b4c418a3dcedfb3a1a607fe8ed23fd06",
+        "selected/prices/2026_01_EnergyPrices_12.1.D_r3.1.csv.gz": "a1b9f859e4263b49d84d7e65438a77a231ef1275f2f9117830503282deb246e2",
+        "selected/prices/2026_02_EnergyPrices_12.1.D_r3.1.csv.gz": "81381f8584cc2880c6cdecebba1f9f367eec1ebac11c2920ded2ee3e8f1dbe0e",
+        "selected/prices/2026_03_EnergyPrices_12.1.D_r3.1.csv.gz": "9be940af7899b66553eee8284125b1bd170326562cd2c78648a9a8e083909b35",
+        "selected/prices/2026_04_EnergyPrices_12.1.D_r3.1.csv.gz": "c5171c2dacd7f5cc96fa0ee108381936c3b13fd4b583d41026baa5a38d5f8757",
+        "selected/prices/2026_05_EnergyPrices_12.1.D_r3.1.csv.gz": "eaf95e30c24edaf2313e995111c20dae67524eb530b2cd8a4d8b30a70ff9c9f3",
+        "selected/prices/2026_06_EnergyPrices_12.1.D_r3.1.csv.gz": "cb71d0501d54ebe4e03c9c1d4d4c025a8c896b4477c6ad2b66c996366fa989ac",
+        "selected/prices/2026_07_EnergyPrices_12.1.D_r3.1.csv.gz": "ae77121a105a287134439977b05377f0d19b8ec692cb34566a4a2ec416726d9f",
+        "selected/prices/2026_08_EnergyPrices_12.1.D_r3.1.csv.gz": "95692d9e5d2d9d212371e64cff9eb4f92219bd5d46e7cf32b6340176a04c4125",
+        "selected/prices/2026_09_EnergyPrices_12.1.D_r3.1.csv.gz": "4538934cb4adb41167297c9f0bbb532e5adb0ff4aeabf54c2a61957e44fb9964",
+        "selected/prices/2026_10_EnergyPrices_12.1.D_r3.1.csv.gz": "e100c4e864ef8b1f5d601633a43a2d4543866873338274d9ebd909e0433907df"
+      },
+      "selected_rows": 388704,
+      "duplicates_removed": 5856
+    },
+    "actual_load": {
+      "source_files": 51,
+      "source_sha256": {
+        "selected/actual_load/2022_12_ActualTotalLoad_6.1.A_r3.csv.gz": "7ea34d5e62b2ef9ab7152c4dcf11e6d2d3d3010625e36069069f79bbf386cd7e",
+        "selected/actual_load/2023_01_ActualTotalLoad_6.1.A_r3.csv.gz": "78a7083776dbdfa3661de1be201e8aa12dbde255742103f91f07c046d8d1f70a",
+        "selected/actual_load/2023_02_ActualTotalLoad_6.1.A_r3.csv.gz": "cd92e1c1e757178c6ec6fc02f39c007d2a12d656e4f70dbc4973b531c0fc5320",
+        "selected/actual_load/2023_03_ActualTotalLoad_6.1.A_r3.csv.gz": "6d0a39163f6374e1dfb3adb676142f8b5f5bb2954c6c516f50270dcd5d832f9d",
+        "selected/actual_load/2023_04_ActualTotalLoad_6.1.A_r3.csv.gz": "937d26f5288eb19fbfd09b2ed55c01ec3141538881f4a3a0687b6cabb4329ab7",
+        "selected/actual_load/2023_05_ActualTotalLoad_6.1.A_r3.csv.gz": "1983531c8d9dbe43fb33434e611ccaec044954ee9afa8da24893aeb23aee5994",
+        "selected/actual_load/2023_06_ActualTotalLoad_6.1.A_r3.csv.gz": "0d2d711c0286348df664886ee06861b0c3750654c45353432328d543850eaad1",
+        "selected/actual_load/2023_07_ActualTotalLoad_6.1.A_r3.csv.gz": "a551a04de72eaf2b303e1244e6c742a9f1307d02ed8a12abfff232fe8ef5308d",
+        "selected/actual_load/2023_08_ActualTotalLoad_6.1.A_r3.csv.gz": "bb1c7404e39837c33f38e8ced50e23b7f72f9626686cde8e90850c38e7f42f0e",
+        "selected/actual_load/2023_09_ActualTotalLoad_6.1.A_r3.csv.gz": "0afa1441a5818286c4200b9a9460bb74f027909fd8e570b0ebdc32d1c9e7af24",
+        "selected/actual_load/2023_10_ActualTotalLoad_6.1.A_r3.csv.gz": "19d3b6e042b047843841be959b15efe9bd33a0be67696a12bd4617f90fc3969a",
+        "selected/actual_load/2023_11_ActualTotalLoad_6.1.A_r3.csv.gz": "d468e5587f59f7dfcf78bd95fd0bf17cce43ae3462d8dd179d5ef283c343473a",
+        "selected/actual_load/2023_12_ActualTotalLoad_6.1.A_r3.csv.gz": "6e6943030a2746058b7896449ba96aec4ac4d7f19d58c8bf590fb2748d9bc6cd",
+        "selected/actual_load/2024_01_ActualTotalLoad_6.1.A_r3.csv.gz": "5afeb3062108b84fbb24aa397dd7bf4f320d7b8ae28cbabdbe78ace800778383",
+        "selected/actual_load/2024_02_ActualTotalLoad_6.1.A_r3.csv.gz": "79997bdea7d86b943e3f523761817c8d8970c61d76ab22438075db26a780007d",
+        "selected/actual_load/2024_03_ActualTotalLoad_6.1.A_r3.csv.gz": "adb091563527cfca67f02532f4c431d010e7facce30cc6470d9fcf30dc57d7c3",
+        "selected/actual_load/2024_04_ActualTotalLoad_6.1.A_r3.csv.gz": "120a46f13fefff948c9e6b417493954ae9ca4e1aca6fab69f79323bc8451564e",
+        "selected/actual_load/2024_05_ActualTotalLoad_6.1.A_r3.csv.gz": "48791f1a4e3ea7cb8bcf9c0fb18d95c3760c60f5d4659937078ddcdffd782d55",
+        "selected/actual_load/2024_06_ActualTotalLoad_6.1.A_r3.csv.gz": "07719b817d070b4bccdfa56f2840cce8c5fda29d50797ef10453bf89094fdf2b",
+        "selected/actual_load/2024_07_ActualTotalLoad_6.1.A_r3.csv.gz": "9e8baa6ae6fb2e4bedacefc856067de85becf0b151cd146089b99e061b9906ee",
+        "selected/actual_load/2024_08_ActualTotalLoad_6.1.A_r3.csv.gz": "971e802585f047dfefc71b2e5ff7592a26079c22366a0be700328d76e64134f9",
+        "selected/actual_load/2024_09_ActualTotalLoad_6.1.A_r3.csv.gz": "58863b24b564daae12f03888b2251c235711c51e54be61f971595a08b198c157",
+        "selected/actual_load/2024_10_ActualTotalLoad_6.1.A_r3.csv.gz": "08831178f78dfa3f4e159084a12ee84741bdbaa2192734a4250ccd3d87291b91",
+        "selected/actual_load/2024_11_ActualTotalLoad_6.1.A_r3.csv.gz": "645448bd5f5d7b1bf6a36bdeffa067c1aeeb7ce0a05a38b4d1fb7d883458572e",
+        "selected/actual_load/2024_12_ActualTotalLoad_6.1.A_r3.csv.gz": "cda800b9396cf6895ed45d0751f994ab58b281c02c503d5d36a57afa5ff2fb74",
+        "selected/actual_load/2025_01_ActualTotalLoad_6.1.A_r3.csv.gz": "6c46c512beb2edf2e6dd87f16856b17faba24bb16c4119e7b924e1380ab9c409",
+        "selected/actual_load/2025_02_ActualTotalLoad_6.1.A_r3.csv.gz": "3cd1047fb3400d66276ad47e516b3c3bc63a9a7cff4bbf39534150d7863c81b8",
+        "selected/actual_load/2025_03_ActualTotalLoad_6.1.A_r3.csv.gz": "906472691ff78f5b08bc8ca703ffb1936a5bdce2330474aef80d4badc8ab8bce",
+        "selected/actual_load/2025_04_ActualTotalLoad_6.1.A_r3.csv.gz": "d91110c2eeec87cd3c63e8b59b0e09d917f6b22fef77ea88094958ffd728010e",
+        "selected/actual_load/2025_05_ActualTotalLoad_6.1.A_r3.csv.gz": "70986d0f2ab222e754ee3c9175f27a6ba39171cbcda22cc96799986de454ce59",
+        "selected/actual_load/2025_06_ActualTotalLoad_6.1.A_r3.csv.gz": "dd7e6185b51b2d0f0fc8e4974161120e67b73b0962d035410fdd553e5ec9d616",
+        "selected/actual_load/2025_07_ActualTotalLoad_6.1.A_r3.csv.gz": "55f5f8d37e84e82ea0cd5a6802f160c71593bdea5c57303f1de09143072111f8",
+        "selected/actual_load/2025_08_ActualTotalLoad_6.1.A_r3.csv.gz": "2ca31195155cead80227ffbe1f7facc7bad7037832cc2386509f7491fa6863e0",
+        "selected/actual_load/2025_09_ActualTotalLoad_6.1.A_r3.csv.gz": "69fbf104eb72a0a08fba2e1fe62023b7df7107e8567feff356565b7506b87cfc",
+        "selected/actual_load/2025_10_ActualTotalLoad_6.1.A_r3.csv.gz": "c264c7a4a51cdeff5fa88a1da22ec380b64a2ad9fb8dc9c417380da982281c2d",
+        "selected/actual_load/2025_11_ActualTotalLoad_6.1.A_r3.csv.gz": "597b1ce1e1a6d072f0512a28348b14e4b7ad66de9575698ccae6eff056f30604",
+        "selected/actual_load/2025_12_ActualTotalLoad_6.1.A_r3.csv.gz": "53cfee69e5be9130cc85c3383b203b4d738e3c5639fd64cef8455e49fcec3e47",
+        "selected/actual_load/2026_01_ActualTotalLoad_6.1.A_r3.csv.gz": "56dbd6e7d56fbc471a3357fa69e896ab40579137e4807328fb1c4a1f4ac1e434",
+        "selected/actual_load/2026_02_ActualTotalLoad_6.1.A_r3.csv.gz": "f103a3c1d969309e51037f00e617e07672da31c832e022796061fceb8168bac0",
+        "selected/actual_load/2026_03_ActualTotalLoad_6.1.A_r3.csv.gz": "b5958e653388d12f66d3614eb8653e1fc193a238924eba4ab16d991a3d800be5",
+        "selected/actual_load/2026_04_ActualTotalLoad_6.1.A_r3.csv.gz": "de39545b4f044766599cf4309a5b1dd1b3a9f492bac6ab31b61a75dd91b23ce4",
+        "selected/actual_load/2026_05_ActualTotalLoad_6.1.A_r3.csv.gz": "ca2fe2096b3210cc43c8e881be811993212d6621c6b46c8e803e65a22682a43f",
+        "selected/actual_load/2026_06_ActualTotalLoad_6.1.A_r3.csv.gz": "b4b36682d529c30bb5f08389c3aa2b3272f65ade4cb811532bcbf48a9e771e55",
+        "selected/actual_load/2026_07_ActualTotalLoad_6.1.A_r3.csv.gz": "c7593a690d2035aa3ff0b87ba88fb7047e706ef2674b68b28353e636c56fad3b",
+        "selected/actual_load/2026_08_ActualTotalLoad_6.1.A_r3.csv.gz": "8dc8ddbd7f3b3ec8097ff38628c27e5f0eba2b646344b9d2bf69bce977947d3b",
+        "selected/actual_load/2026_09_ActualTotalLoad_6.1.A_r3.csv.gz": "5cade50c019acf1b07ee72860e42387cb0af43afe0ae106aafaa25d4e8632676",
+        "selected/actual_load/2026_10_ActualTotalLoad_6.1.A_r3.csv.gz": "15df8232afd3a2bdc6f603b4a07a321f06c8273b00f93e01556dc20d31cc2137",
+        "ActualTotalLoad_6.1.A_r3/2026_07_ActualTotalLoad_6.1.A_r3.csv.zip": "fa724b21f26958faefd5161a1cddd030dc0da09b9127ad8ad53bbee995b54555",
+        "ActualTotalLoad_6.1.A_r3/2026_08_ActualTotalLoad_6.1.A_r3.csv.zip": "1279bc08e7402c64794c93abe71711cdb709f85ced9782824dde07911919f6da",
+        "ActualTotalLoad_6.1.A_r3/2026_09_ActualTotalLoad_6.1.A_r3.csv.zip": "1482cef4610d6cf851be82e7ca588c87a72685b7d920dd3fa922d5679bd52fca",
+        "ActualTotalLoad_6.1.A_r3/2026_10_ActualTotalLoad_6.1.A_r3.csv.zip": "4ce1a2bc6063d88a74538b48ddd5453404c3f89c120e6c25755c6dc596e3a760"
+      },
+      "selected_rows": 149123,
+      "duplicates_removed": 0
+    },
+    "day_ahead_load": {
+      "source_files": 47,
+      "source_sha256": {
+        "selected/day_ahead_load/2022_12_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "af582501844cf7eab7bae34f6bc42d3bf5e5322bb8c54203f383f720bd864b75",
+        "selected/day_ahead_load/2023_01_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "55122a8d1c69bdc26ea97243c1658cd5cb144757f705caa238039eb211203d19",
+        "selected/day_ahead_load/2023_02_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "3e41c4f825df0cf741acc4862278b9edbc5c75979761dea3f98f17018d2f6f37",
+        "selected/day_ahead_load/2023_03_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "d8bfbcda62b8110594f5f6bc473ead91b0e020afd6396f56725dd43534ad5af9",
+        "selected/day_ahead_load/2023_04_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "8a0677b84451448555e7fbc16cfb6e6edce3af51b46db7538ca30bea711b4736",
+        "selected/day_ahead_load/2023_05_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "ff4ae5ccb12c5bd2033aecb5613857a3a62b26ed0431d95a9f7bb060a3937bf3",
+        "selected/day_ahead_load/2023_06_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "0b7b0eae3210b69d5b0ab2e9d6cfb30e94429613fb3fc9ca8205e7307b539823",
+        "selected/day_ahead_load/2023_07_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "d888e0c87113f04b0a71b988e51331eb45ad60922716af1aa2c67ee99f436092",
+        "selected/day_ahead_load/2023_08_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "4d52c168cd2ccd5a942c3e5afcb0b3deff77d378468af0f50bf1fbc3e4dfd885",
+        "selected/day_ahead_load/2023_09_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "b68352732f5cbb7f9bb3d837671d4c1a8ee45f96cf00ac72c6a5fa9cab555f8e",
+        "selected/day_ahead_load/2023_10_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "9421413d67cabbc93f3670552268c404fa3641542b5862f56c8ce75ae6db954a",
+        "selected/day_ahead_load/2023_11_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "1e34b5c9ab9d4a2a7d774d3a43bd3372b227fe0af771375f32ab2adb977314b8",
+        "selected/day_ahead_load/2023_12_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "9db5858c8bed5d46fde1e5cf9d429236b318c8f1bcbee6c9a3105c00067cda0e",
+        "selected/day_ahead_load/2024_01_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "6c4e13bf5047202e359213675c17342d1a9d88312753e09bf120ca184ca3d28f",
+        "selected/day_ahead_load/2024_02_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "11c7feab6d17bc0f73857472d82ed23fcc9689bbd48335fa51fff9d99c8adfa6",
+        "selected/day_ahead_load/2024_03_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "259aecb359a1b6b894275366604d11f7bae280468d0edb04bda9597c0af273e0",
+        "selected/day_ahead_load/2024_04_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "fcc5b9ec2f08fa739b7a2490fc924718ac376579a05e3fd16150d2b5e17582ce",
+        "selected/day_ahead_load/2024_05_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "255e8217475f3ccd2e379dfd7a0f7375c22f25d3a5b105c8b2a0a0e7aad07454",
+        "selected/day_ahead_load/2024_06_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "c8b6af961eb9c39ec527ff5bca7a237d003f97ef74d795893c38311bc56c7527",
+        "selected/day_ahead_load/2024_07_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "4f0940bed7a55584d72feace41890f79078d85dc0f04e2814b37956c572f70a7",
+        "selected/day_ahead_load/2024_08_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "0c25d881675d7372b32fefff51df382a4d09c06f8536f605a144393efbe7d6da",
+        "selected/day_ahead_load/2024_09_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "df9c5b9681401f6be6b07432847ec426d3ca1bbba03247621ca4033f7bb8dcd1",
+        "selected/day_ahead_load/2024_10_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "21eb108a3e74d11b46d7c01b5a86b799532d4b3b3a84314f22f4ea60c771afc0",
+        "selected/day_ahead_load/2024_11_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "c3968021c47bc09c7b9da114249324b6ed534c420c83db2268d36c546d6be0a1",
+        "selected/day_ahead_load/2024_12_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "aa9238c7c1a53d6e58f97cd567409ff0a990b90fe24bb3b5b9e6fb5ffd10e6a8",
+        "selected/day_ahead_load/2025_01_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "5d86ddd72010eaf92b0939fc2b5335a1112cdf27b889f9b13ab8436535e6098d",
+        "selected/day_ahead_load/2025_02_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "bf3283e9c8e6aea7c16967270170e98e334a8ee314105b78c5792ffb651086ca",
+        "selected/day_ahead_load/2025_03_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "4f01d730fab04a2db9eb85a534e639d9de8b920485e5af09f90000fc604fc621",
+        "selected/day_ahead_load/2025_04_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "f6f18583d3ddfe6ff3c9956c8486dfe3bb309bc9f61f7e649cd329b9262df588",
+        "selected/day_ahead_load/2025_05_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "40aefe6e73aeca0c189d443971a0a7c0bac0e6f00ba2caf4dcdb94c7ccfd198a",
+        "selected/day_ahead_load/2025_06_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "7af9364e2c04c882f102fbc241980c42ca2ab2f93b629b393bd7e165aa030430",
+        "selected/day_ahead_load/2025_07_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "a964f7008fffd87f4b89977c50251972c3bdaed9e381997185302ff170c6ad05",
+        "selected/day_ahead_load/2025_08_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "0be32d757639a08cd542138f6c884a1e691ac4e1abe539092ccf227342a43f8f",
+        "selected/day_ahead_load/2025_09_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "516bca1df1696508f2b028fd5474716c19b9afb3ef69ab6e28c1488c2b3ad78b",
+        "selected/day_ahead_load/2025_10_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "45ae26fccb8af126a51fb564ebe5a18c1aad8cd890469749f14d96a31b66c138",
+        "selected/day_ahead_load/2025_11_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "77890005cd3b84e4462972e00d67b8fadcb46ce7a005c22e6c5fa3f15839403e",
+        "selected/day_ahead_load/2025_12_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "82c6af94ba3f15d0ee736a3b785791840e69ec824aa638657bb294a1afa0481f",
+        "selected/day_ahead_load/2026_01_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "8ad5116a40d51700ccbb24c25cd9f67f4f9611dc79dcaeac4050220994d0f53d",
+        "selected/day_ahead_load/2026_02_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "a62efc0dc2879248b44a237b69ebc66507997078e3f4eba6507a75379224d434",
+        "selected/day_ahead_load/2026_03_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "17541aeddb604b306bab0f63d2ef014e40316f081eef1b4a470424f2d2733c4e",
+        "selected/day_ahead_load/2026_04_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "241d2104e6eb5c4604f3fe2a688ddf34ef449562116024165a6456e64a718db2",
+        "selected/day_ahead_load/2026_05_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "9adf457b2dbb92f9067d5ef7eecfb9f803a1690ee13aacaa419039fb89283417",
+        "selected/day_ahead_load/2026_06_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "d6eb2c61778d89cd2637c01cf3bd08fe416a4207c85c73aba305bf0a7b61c489",
+        "selected/day_ahead_load/2026_07_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "5cbdc84844ce0aa53b64327c48521005cb4a2feeec69111db866715f0bb7602a",
+        "selected/day_ahead_load/2026_08_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "7926670e6a0ffa5bf97d65325e0c9b2985029221fd148b08ff086080c29c1133",
+        "selected/day_ahead_load/2026_09_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "e3da6ad101fa516d81a996f55f52b7fb5232741abdce6a6ea9ab337cf7be4ad6",
+        "selected/day_ahead_load/2026_10_DayAheadTotalLoadForecast_6.1.B_r3.csv.gz": "984bc4cd0ec140a22c5b61aeece124f48405051a7a323e562e8fd40e006ba93f"
+      },
+      "selected_rows": 134400,
+      "duplicates_removed": 0
+    },
+    "generation": {
+      "source_files": 47,
+      "source_sha256": {
+        "selected/generation/2022_12_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "2cce636ef1b0bbb11481eeedcf128c6289cef044a97df1f32b95577aa240ca84",
+        "selected/generation/2023_01_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "415527a3d13a6964097366fc9ba5cae48f4114c6a05f9a7bf54e9396d164b9e5",
+        "selected/generation/2023_02_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "ce82ca39ac2db2c40534b7c1df404a08bb0f35ecc1209f3c4d3396c419cfa58c",
+        "selected/generation/2023_03_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "7e5fb009cf0d28289fcb3c7121fc1d12cc5e286e1cd39b6314bd3710e65d7aa8",
+        "selected/generation/2023_04_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "6c1d2fe8b35a4402ebc288077d383dbeecdaf4f155424a463fc6986a60e089c8",
+        "selected/generation/2023_05_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "12a74341e6d33e2d22987d06668856b3d90145ea22c271ce14f631125631463e",
+        "selected/generation/2023_06_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "ca91296ed91ed1a2491d4ea7ebbd475a2d00e765598115dadeb3f56c65c22529",
+        "selected/generation/2023_07_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "30ac238d667c4ef0c4659ffad50a99c5d5c19edcb704370e914c9b252882f12d",
+        "selected/generation/2023_08_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "3c3c2a9d5c0270c3aa28c7f2afa60eceb4bf766ffff191833d26350e046633ad",
+        "selected/generation/2023_09_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "bddece2ab601113354aba15986c4a67bc4ad193659ea9e60ae26b35379c88f0f",
+        "selected/generation/2023_10_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "7ba1f435a6d7845c2ea492b8f93b9494b76acc7ec44c9725f168fa95368cc783",
+        "selected/generation/2023_11_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "d89521fb7c7a8819eb1cca59eaba10c7ba81fe2d279e5e226a25b2bbd2e027a3",
+        "selected/generation/2023_12_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "b465495fa8e68fcf49b0d119d9336ecb3590546baf17dc84d50dbc4e4e05b084",
+        "selected/generation/2024_01_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "4781c6ed3115b132b06f9d4589c6bfd3da09680ab545b8df5c4c7682e9956cba",
+        "selected/generation/2024_02_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "99ca0d1102fed60c47b62ff181700446c45916b4d40e54e13b7a67d0374d518a",
+        "selected/generation/2024_03_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "368e8571ede1ae19c81fe00f53c05b0208880d74762db2ea93b14dcda2e4f718",
+        "selected/generation/2024_04_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "a47c6ae12accebcebd492adaf4e5e8e4978b617f40f6d2a6db50706043ef96ce",
+        "selected/generation/2024_05_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "d88100721909a7e6f716a848a9f9b3d2e5756af4989c00641c25790575f3b2fc",
+        "selected/generation/2024_06_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "ed5057315ec347a7053ba236645f1c7311fb13f52893e0b2ea857c22a7d7eb1f",
+        "selected/generation/2024_07_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "10dded43dbd7461bf2c35414df57d0e5059f309a6191b400022e1828a3d50741",
+        "selected/generation/2024_08_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "c5c62d179af90f7f1504113a05d0f341560ddab2befa978f4d9ce1b7f273b0c4",
+        "selected/generation/2024_09_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "d953e1ab8990ba6b7595dd042d0fd60f46a15ec5c4d28164f18d3eb29227acfa",
+        "selected/generation/2024_10_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "4a1c83171669277ed2bdd8f00860de70f6b091aa052c909b4b54d2e624ca8f5f",
+        "selected/generation/2024_11_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "c940200d51703f1a49a18ef94fd0b1e2819b99f79f8b3fcf67801ca3ccd6903d",
+        "selected/generation/2024_12_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "fd2165663451e5cb7b10af04504eab804cad4a7db536ab29e865bf8a69a84c42",
+        "selected/generation/2025_01_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "f640433e46338470e326ec4c61f77be6f3f312845cfe8adb871478d345388dcd",
+        "selected/generation/2025_02_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "2bc8513f9d7494667c233c442ff08d3c3afc94ab82088aa7e505a6075f18af92",
+        "selected/generation/2025_03_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "1429898489231d714de4a97d0f45f50f5478436b67e024811af9915b325186ea",
+        "selected/generation/2025_04_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "cddb949966cd1e251c555db79dfa94993ae6a376ed7deadfda97a019c8b2d2f2",
+        "selected/generation/2025_05_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "c3df96709fa5dcf79b23aea299af68644b0d53af251772df4db4f07831199083",
+        "selected/generation/2025_06_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "1d26c846f30f9b8f599ee499f93c1037012fc17f743e4a943a160c7efbbdc27b",
+        "selected/generation/2025_07_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "f3615f0e9cdef6ebece186f5f234059f7b453bf2fb2e7286ccca885f92100a8f",
+        "selected/generation/2025_08_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "f88f1f4e59eebc9fa6f9a91d0d8359bb3230122e2a9ddf68f2ab6111ac1d2851",
+        "selected/generation/2025_09_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "e3b40a606d98ac646e3b986c5594c87a4aa353f70560a949edc58bbfce0cac27",
+        "selected/generation/2025_10_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "62c1c860cf124e5f0e21b15732892a53e4e4d45d1deed6d5344ce35b4f4ac868",
+        "selected/generation/2025_11_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "d7346d4cd9d3296ed90d34cd947f3cb560f097daee38efda929c51e9de8c3fbb",
+        "selected/generation/2025_12_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "f2f71b76b52f645674671343bf651b5956e90a31bb0a32cd7a70261e43edc5d4",
+        "selected/generation/2026_01_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "eb897890675e73b3d8a517cd221ce112011fbbd4d457f4101ada8553c6d5f7ec",
+        "selected/generation/2026_02_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "7cc95a9d5cbb9e5b708f5beed07d19909b33ec5b98169f71f2c54f749960757a",
+        "selected/generation/2026_03_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "6d2e13bf60b51beb8447f6743655a44f06c5294e56b16976ada78166256a4ba5",
+        "selected/generation/2026_04_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "70abc02986b496a97b11c4dab3e3a6bf924c9f142c3d909f318e80a80fea7aba",
+        "selected/generation/2026_05_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "1afb17b72419060961be1e259ce519f760ae22594e4411559d8d090157df7cf1",
+        "selected/generation/2026_06_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "8520a9d23caf5ca17df70272625cc23049c9d3e69ba27b169daceecc11705e2f",
+        "selected/generation/2026_07_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "e13d1ccfcb5002b9ad16ed12515d841fcd67e9731b125b85e25119d05b1e5fdc",
+        "selected/generation/2026_08_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "d0d19425f29636093b9195eb7373523b81d5ee83be46b5c0d13a42a931361ae4",
+        "selected/generation/2026_09_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "2ed1a91be3a9826bf6e77ec0461581d13013d6d4a5e0e4ddc49db8c4c635d80f",
+        "selected/generation/2026_10_AggregatedGenerationPerType_16.1.B_C_r3.csv.gz": "5c574df9f48d5f924787d71a13d47a3c90e5a0ffbe66d8d23c19910743a27181"
+      },
+      "selected_rows": 1270504,
+      "duplicates_removed": 0
+    },
+    "week_ahead_load": {
+      "source_files": 47,
+      "source_sha256": {
+        "selected/week_ahead_load/2022_12_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "27a9181d835587368d87f033121054c179b8765d551d64cd86b3857d714284bc",
+        "selected/week_ahead_load/2023_01_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "5d7d9ead0a0ccf2c0ad5ae6df20086dd1bfff9ea43a1c9783d03e48aef01cd3d",
+        "selected/week_ahead_load/2023_02_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "aba332d1f6a0a3616724b1b0a64d5ad686d9aea4a29b6c59079103e93f95ecee",
+        "selected/week_ahead_load/2023_03_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "c913845b123ba59f1e90edaadb973056b52e42bb71a30935ae9a3a19073d3635",
+        "selected/week_ahead_load/2023_04_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "5150c54435310581c9369c77d80180b98d5e28e829f05466cf45a7a1aed47d7c",
+        "selected/week_ahead_load/2023_05_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "05d39d5104bff70442ae7cc94d615bf05ab814a679bb251f0cb1b4036b4773b1",
+        "selected/week_ahead_load/2023_06_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "5a3e15e8ca91e8886e9dc82a735bc854f841544dad89dd59caf518860734c619",
+        "selected/week_ahead_load/2023_07_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "6778ff15206f369a0089d1ef273adcf3361eefb0ea79bfdada8d78ea5684b61e",
+        "selected/week_ahead_load/2023_08_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "0af35ad38d4aebac38d2957f1b875c8411278352127be2c79d0667777ed90cf2",
+        "selected/week_ahead_load/2023_09_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "62ac81663afd6e62890feeef9771f90522cd7355723587f316c4c1f2e65eb6c6",
+        "selected/week_ahead_load/2023_10_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "b5fefb98163d8b9d5a1f57d71e03d668547a6a70cb1b800c9f79b43709e940e8",
+        "selected/week_ahead_load/2023_11_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "a5021b3424bf0409e39abb9d27e48aadb586bf0e6a3316c80c8f4b67303b4c57",
+        "selected/week_ahead_load/2023_12_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "43f12b0aede5f17510385956fae2051d633e1643188e4f829635498388257c00",
+        "selected/week_ahead_load/2024_01_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "1062c2bb8d619803f99b8c8e33b13bd83d8e9a0573a025a10e51dfffc074bb39",
+        "selected/week_ahead_load/2024_02_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "ce2fbe1b5923cebb3b2fa25f0768653d8248e9288d43ae7da41514858dff5d58",
+        "selected/week_ahead_load/2024_03_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "92aecc35be713c5f8899302d671decc7092d1a390a680e838b694723bd57d9ce",
+        "selected/week_ahead_load/2024_04_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "5549f8babe7635405b9dad5501000fe448920d15734e0713ce07f1feee8fc5c9",
+        "selected/week_ahead_load/2024_05_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "d9d03903742448b700102f51a797b712181df1e65947b4a967a68d606040fb94",
+        "selected/week_ahead_load/2024_06_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "bed18c509a20ccc0a7a5e9a5aae5f77fdb4718590b0e513a807512e9b4c83af7",
+        "selected/week_ahead_load/2024_07_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "0bdea23768fe6d883f2b3b8f23421df8bb856adccb819dc506e0edf75d287b15",
+        "selected/week_ahead_load/2024_08_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "d961b8bcd8a0c12403eab7fef24d32f838ac2801779a8b307450f0bbcf7e4f33",
+        "selected/week_ahead_load/2024_09_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "89324aeaa974dd48bcf578caf481a58b615aec8958b4ffda9617d63fd18dea25",
+        "selected/week_ahead_load/2024_10_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "14577722d891da0830e44584d2e3a69a341e0ed22e1b337f2fb189b46ab83252",
+        "selected/week_ahead_load/2024_11_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "0717cae692693a3b5d2a5ef0ef5c9ccd1b81e957768623d801939e29e85dcdd8",
+        "selected/week_ahead_load/2024_12_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "e1dbaa4bf637accb4d5c86ebc8373578a13d9ee1f99fd18b2348dc356bd49b7c",
+        "selected/week_ahead_load/2025_01_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "cc76a75961a949668a0a3bb7d2e1d14c4982baa7847fa2e340c1be92bcb03101",
+        "selected/week_ahead_load/2025_02_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "5a0dcee5d35f52531c41116e15e7d8a9f49948146599cfca8306e72a9d02221d",
+        "selected/week_ahead_load/2025_03_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "5147a4321fc97d18174e56ec74af4aab611b876378b73e956cd40176068b8500",
+        "selected/week_ahead_load/2025_04_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "8a34e3694c7eddacfdbdfc74c66e63416b3c0beb7ab606aae50cbbe117a46c20",
+        "selected/week_ahead_load/2025_05_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "60992e03148de0ace16fce7ca3696c16b822240bd2df275bc1b7cf97ce5c82a4",
+        "selected/week_ahead_load/2025_06_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "c7ae8fabdba1be9fe7af8a9e6bce8b1d41fd5f54670c74dbfdeac853f989b60e",
+        "selected/week_ahead_load/2025_07_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "87ec5a690d00264946dbfbf50126f017908c69cc7be639c61c8e366b65eb390e",
+        "selected/week_ahead_load/2025_08_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "8310b059ca0d41f8ab246a14fd4cc9daf2cda63868c0a22bdf5bbd4645bee69a",
+        "selected/week_ahead_load/2025_09_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "c05388103f003d350ba2aa22cf76279f135e06e0cc6723f5d5add0ab1fef6d16",
+        "selected/week_ahead_load/2025_10_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "0ab76a29a6e6f2a22af346dc147bd57e09a3caea6485bd2406d9b9ac6b9a7c1c",
+        "selected/week_ahead_load/2025_11_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "831258ab87a0e0d43c20b0b5f099e6deb8ecb166b2ec4bb82e6ffa746a0a196a",
+        "selected/week_ahead_load/2025_12_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "528647163f27e3ccf6f031fabda51756d38d62a52dd793a5b61db1dc21e5220f",
+        "selected/week_ahead_load/2026_01_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "717fc355b18673bd5bd7ee7ada9f93db1bd48179d0f8af32734ca48f5856bf4d",
+        "selected/week_ahead_load/2026_02_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "af9a0c4b3fd7b6e4b27814877d54e02bb19fa4dc3360bb52114300ad91cd2175",
+        "selected/week_ahead_load/2026_03_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "12f20eb8acb15f04aa7a72e15d5042a13f2b3e3307df7a27a785452b83b5d6cc",
+        "selected/week_ahead_load/2026_04_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "8e8175b9fddfad6838cea6d259755e764dcf2a5cd1bd438168bde5079b4ac1c2",
+        "selected/week_ahead_load/2026_05_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "c23c69d845e71f5851d39b0bcfabd7c3cc96a5f1893e6259bfaae54d8cf75daa",
+        "selected/week_ahead_load/2026_06_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "3f4369ea27f871df016206ada6becc31b0e1a6fe2928dcb1a2d0d8e243281dd7",
+        "selected/week_ahead_load/2026_07_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "941fa4b96edf7bdafd365e1b4bf390e3cb4651ef7b1bc55e3dd52aa8ebeb66ea",
+        "selected/week_ahead_load/2026_08_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "15c02c91478630e29be7c998fa21ca4446816a01288ea26c9595b7064b1eac65",
+        "selected/week_ahead_load/2026_09_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "ab44805456c841d10ad322328da6b2370f9fdece177c76f689240989bf3bdd4e",
+        "selected/week_ahead_load/2026_10_TotalLoadForecast_6.1.C_D_E_r3.csv.gz": "a57b7cca4d3595d5e6dfa7708a0dc1b0023e65ab415d9512f9174509e6fb2f61"
+      },
+      "selected_rows": 1391,
+      "duplicates_removed": 0
+    },
+    "installed_capacity": {
+      "source_files": 1,
+      "source_sha256": {
+        "selected/installed_capacity/InstalledGenerationCapacityAggregated_14.1.A_r3.csv.gz": "bf95ec5029399110ffc793c9a213ad530e44b70940e1c894af030437aaa57858"
+      },
+      "selected_rows": 38,
+      "duplicates_removed": 0
+    },
+    "hydro_storage": {
+      "source_files": 4,
+      "source_sha256": {
+        "selected/hydro_storage/2023_AggregatedFillingRateOfWaterReservoirsAndHydroStoragePlants_16.1.D_r3.csv.gz": "83e48d8ddb42a1a15cd8b2b5d8b6d9daae4f0c3f6a7526ee241f3e3f0f1171cd",
+        "selected/hydro_storage/2024_AggregatedFillingRateOfWaterReservoirsAndHydroStoragePlants_16.1.D_r3.csv.gz": "9f0a05f16adf6f0024cb26b515557d42b2f2a6108889b50dc326af1fb03cb3e7",
+        "selected/hydro_storage/2025_AggregatedFillingRateOfWaterReservoirsAndHydroStoragePlants_16.1.D_r3.csv.gz": "63b089d06cf98fe3a34f104c0dd5dc480c05fd68bde61ddd1ab35ee02f31780f",
+        "selected/hydro_storage/2026_AggregatedFillingRateOfWaterReservoirsAndHydroStoragePlants_16.1.D_r3.csv.gz": "360c3770d0bb1bbd8f62e9a7d3c1f5ec5e9562c68248988e8cca2d738033f282"
+      },
+      "selected_rows": 199,
+      "duplicates_removed": 0
+    },
+    "outages": {
+      "source_files": 47,
+      "source_sha256": {
+        "selected/outages/2022_12_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "57e78dfda7b4ff0f8f39266ed90501df4a9e12d8b8759cfebb4ac52ed37633c5",
+        "selected/outages/2023_01_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "ec670e5725ac2a21aca305d6a031dcd826c6f5d76d47a8fcfb88e8dbf0088490",
+        "selected/outages/2023_02_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "76761ced3da32bf88a2e19b819a1ee44015299bca79ef4020a2b90e86ba99cbc",
+        "selected/outages/2023_03_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "5d8f98aa88719e08aaad362906ad9c0a5a1a5dcfe41047e33ec295c2c02fe105",
+        "selected/outages/2023_04_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "127f68371bf4dc7a8313b39a0302c63030303e80b7456643778de3b177648f23",
+        "selected/outages/2023_05_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "8a4af9c272e21bf65d286e2b150fc0bc45702ebb689c54ae206d0eef83a66af4",
+        "selected/outages/2023_06_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "b9493339974efb869ff68940bc4535d0eae5cf357e697043de52e13631f244b4",
+        "selected/outages/2023_07_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "2a4b98c9698cff353532550e17b16496f85bee8dafc4759ce2a0084fa6c57089",
+        "selected/outages/2023_08_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "601742507e728903c9c2ddceac76ed3ebe86c3db7fb357241d29a6bdaee8eea3",
+        "selected/outages/2023_09_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "161bc992b528dc6853d79d3e65e30ee83c05dc2e25f692d8f5eb361b2db560df",
+        "selected/outages/2023_10_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "bae5693fbbc8726ca5393477c9b2d9a87c3064abc8fa5559b77449401581f6a0",
+        "selected/outages/2023_11_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "586d8f0ded5cb741bcfe7a33f9e6f7c9dd1cba8dd58b22956e2adc64b4a81c37",
+        "selected/outages/2023_12_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "bfd1a52023aa3bc30221bf5e067064fd22e70f1ffb01bba89ce9214215a3c418",
+        "selected/outages/2024_01_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "9b4d67ad9d7e2888e0a414bced975deaf60403e212c6f30e6bd735759bb16071",
+        "selected/outages/2024_02_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "4c39d3a8cb9e7045363c30db940ca80844897242902220a4c02c2ee042d0db71",
+        "selected/outages/2024_03_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "4ee13e0a418ffae808d36ca255527397471cfe2026d0c8d2a093f9d14eae6c0c",
+        "selected/outages/2024_04_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "088ef6d10324ec41a1e1078af2eb5867b25fa69637db0f8538de7087536bf874",
+        "selected/outages/2024_05_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "c645e67e4a7c7e1a087318aaad7a1f803a74b4748d4881d1356234a38e639939",
+        "selected/outages/2024_06_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "d857e862f8aa165c03a9106e42da17f7ed44178a9dd620b3e18a7ebd01f089b4",
+        "selected/outages/2024_07_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "f66d618ad2afa05ec7c5a438e7c2984fdcc2cd95076adf02fa670364176e42f3",
+        "selected/outages/2024_08_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "57a29569ae012d6b2ada77ccc401a9eb0cc5fbd7ee5d8ff14024e19dc587876e",
+        "selected/outages/2024_09_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "f2c4ee7eb974d67a1fd173238332d3f302581886d8561eff6b1d415eaa089194",
+        "selected/outages/2024_10_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "8cf6503e3ed27a209ea7c62d2a9f8036774dc6e050fa3b47a7edb55453366b27",
+        "selected/outages/2024_11_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "5be3d3d63de1e80e17fff378aba7b7db3c33c3102aa9dea43f4f47e2cc9bc90d",
+        "selected/outages/2024_12_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "4268899a710d9965b75138dff561fb79879ed7af00f05fcc886e8cf149812b41",
+        "selected/outages/2025_01_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "f538448aabc124227eadf9929106de4fae66ddd343854d3e947bab4b561ab2b5",
+        "selected/outages/2025_02_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "b68334e95a807b20f3ec635f1b2075b6ec0c727306ebf036b75327f2e91553bf",
+        "selected/outages/2025_03_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "9aff729e5185c247ec33b024c3883ce0ca35c12a21bb93fef41235d9310d5dfb",
+        "selected/outages/2025_04_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "5a517165c751d6d695995fb4bfed311d5aba34e7924afc60a3cca9f23cb6cfcb",
+        "selected/outages/2025_05_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "2455bad89008bd39ebce47a6ee897241d601b8cbdedeb6d2b6c249926524750f",
+        "selected/outages/2025_06_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "849c42668b875197ac63c5b1987c5e307ddb00f16f1968485d51a1c2177b6c2c",
+        "selected/outages/2025_07_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "94750d8a11364c81442f5b650cbe4aaf5860b5bc00c8761ee57317f3aae179e4",
+        "selected/outages/2025_08_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "9ee1f6ae6d156557bca994ccb0ccafadb113395634cfad95e0f03d5ef145e585",
+        "selected/outages/2025_09_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "bb5f92314f476c4b9565c8a22865c7003de2987aa99e2c5a5601128940cf51bc",
+        "selected/outages/2025_10_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "b2ae079931399f3ed672bd66b5d4e195051466ec738f3707915cda3bb0c0b091",
+        "selected/outages/2025_11_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "d6206780a00ed42788597f50cb6b5df95a8bbcf823f46d9e8fdbf1add4fb6a8d",
+        "selected/outages/2025_12_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "ee0d8f20aacbd139aa6398765b46a67daa9b315208f8dce6432a3aa33bd673ca",
+        "selected/outages/2026_01_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "61246d037091a1a1e759e875411ef758ffdecfc003513ebd84f9a719022d8b52",
+        "selected/outages/2026_02_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "9c09dc0077d6269c219d87517a27e08faeb3b6e12198f30a34a9edbeff189311",
+        "selected/outages/2026_03_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "4ff892e3d1d849b1cc79bfee789ac9077571df234d62fe1538e7b94aa4775c06",
+        "selected/outages/2026_04_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "759a140ba7f8eac1df3a85e9f5b6788b4aaef4eb7df987291cfa5216134987f1",
+        "selected/outages/2026_05_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "0c5ef3a725f5c9bff1919014b1daf7fa43db5b8fdcc237641e6ddb81340cd5b3",
+        "selected/outages/2026_06_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "c73b28d8b80accb5fea2e0fe1278ce36ae7a483e598b1ddc51494ea6bffb6f28",
+        "selected/outages/2026_07_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "c449a7ea2c3f4fdfadfcae0880286f9ca4b46483cf28926f85fcd24d150c59fb",
+        "selected/outages/2026_08_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "0bfd8af099e2614b6604179d6e245bcd0e05a5a20e6eb3afb8de14f5b2938447",
+        "selected/outages/2026_09_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "3d7df7d83201cc40b596a44d63f18fb2e873caf2dd6ee49f487e99eb81eae662",
+        "selected/outages/2026_10_UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1.csv.gz": "5e244622bcc35106b9125fdc3d713110229fc34deec4a0cc898daaa332f24c39"
+      },
+      "selected_rows": 7865,
+      "duplicates_removed": 0
+    },
+    "physical_flows": {
+      "source_files": 47,
+      "source_sha256": {
+        "selected/physical_flows/2022_12_PhysicalFlows_12.1.G_r3.csv.gz": "38bf30bc10092e2f6d1909696779e9dd7f26c3eff54f603f45d74354f2122be6",
+        "selected/physical_flows/2023_01_PhysicalFlows_12.1.G_r3.csv.gz": "a4c0bb75ae165fca2833e70be9c500867057073d293e96b7238a3171f6954593",
+        "selected/physical_flows/2023_02_PhysicalFlows_12.1.G_r3.csv.gz": "7c899ebdcb26da47cdfec24b4743e49a69607a40ff839b7a62d4d5fd197012e2",
+        "selected/physical_flows/2023_03_PhysicalFlows_12.1.G_r3.csv.gz": "df08097ca57b2878094aa5e6cdd42dd479932b028f2a480cf6fec5e6b676cc34",
+        "selected/physical_flows/2023_04_PhysicalFlows_12.1.G_r3.csv.gz": "c832f139e884e81d306049321abdb7cb58e865f90df2c21e5d4af5a009b0e6b6",
+        "selected/physical_flows/2023_05_PhysicalFlows_12.1.G_r3.csv.gz": "be6b8b51352f42e8ebb5bbbeb0f4238da31d016cd7ea916f20da54b5282da33e",
+        "selected/physical_flows/2023_06_PhysicalFlows_12.1.G_r3.csv.gz": "52d3b0b4588e93f14d3235833930c76f43084c056522e3c72b75c84173b080fb",
+        "selected/physical_flows/2023_07_PhysicalFlows_12.1.G_r3.csv.gz": "778c28f9832f70f9e1ee875cdc5aaecf475fbc9d7072836f0fed7e08e5c4c327",
+        "selected/physical_flows/2023_08_PhysicalFlows_12.1.G_r3.csv.gz": "a4ba7f2678f6a8c732b2dce95466eabc2108a33f0d6718e0f77928fb5acff921",
+        "selected/physical_flows/2023_09_PhysicalFlows_12.1.G_r3.csv.gz": "5f3bddfa6375f9a6a89062585c9a3f8535104671c2ecb68d2d7b68df263e8d16",
+        "selected/physical_flows/2023_10_PhysicalFlows_12.1.G_r3.csv.gz": "df47c9767e210ae9dcca94f188b583858cbb9794f93dc0919b3ec0e061787d0e",
+        "selected/physical_flows/2023_11_PhysicalFlows_12.1.G_r3.csv.gz": "114ea552269a1b27fcb52882733f8d65288b6159ebb58da64df707edaf5b6da4",
+        "selected/physical_flows/2023_12_PhysicalFlows_12.1.G_r3.csv.gz": "824de92c0fa0d1aa15e3ffb0ff74084d361f829d1e9d1f46fa2fa79c0588f540",
+        "selected/physical_flows/2024_01_PhysicalFlows_12.1.G_r3.csv.gz": "771599b952c20fe91fc038042c0aac8c294becbb51760a0b2fb4f3631c0daed4",
+        "selected/physical_flows/2024_02_PhysicalFlows_12.1.G_r3.csv.gz": "d2e604301770c7f4465aa6f807b1cf558839eacd8be42762a16028bcbbf3884c",
+        "selected/physical_flows/2024_03_PhysicalFlows_12.1.G_r3.csv.gz": "a7189a9bc991b5b6ab3b0e939d00a1481b8908227ce56651ee81a7f755e43bbb",
+        "selected/physical_flows/2024_04_PhysicalFlows_12.1.G_r3.csv.gz": "54197acbc7b1eb9485ea9197902d82c7d2fedb4bfb37751fdc89ec99f5632142",
+        "selected/physical_flows/2024_05_PhysicalFlows_12.1.G_r3.csv.gz": "999b2d716bf3d9dd8ebf14e6975bae539d383607410657a1f7d6ba44c86eea22",
+        "selected/physical_flows/2024_06_PhysicalFlows_12.1.G_r3.csv.gz": "01562e64ad9adc73cdc38e68a3460c6990c1613fe0105eb50340842bff440148",
+        "selected/physical_flows/2024_07_PhysicalFlows_12.1.G_r3.csv.gz": "b58aed6be58a2e9a3c39412c7879b873a5806f7caf2c2a7307ad6480665d2ec8",
+        "selected/physical_flows/2024_08_PhysicalFlows_12.1.G_r3.csv.gz": "185cf12336e9c954a3b2644d734398f39b7642613e0aee5339f64ce23cbf27f1",
+        "selected/physical_flows/2024_09_PhysicalFlows_12.1.G_r3.csv.gz": "eb3b26816b37710d99d9fdb607e786b39de58469405326a975573cd0ab5dba81",
+        "selected/physical_flows/2024_10_PhysicalFlows_12.1.G_r3.csv.gz": "4cc9c06f64c740b76a2fbaa7d2ec9da7b2aaa8d81c2345aba5a3521eb71775da",
+        "selected/physical_flows/2024_11_PhysicalFlows_12.1.G_r3.csv.gz": "752b00e4b016356eaccbbc0646d09ef55c5b468e296b6e01b1c81dc03478cf37",
+        "selected/physical_flows/2024_12_PhysicalFlows_12.1.G_r3.csv.gz": "29cdaaf4cb769a0b9367fe6f1f0ae996b0b46f4b5e799e58319fcd3906b50344",
+        "selected/physical_flows/2025_01_PhysicalFlows_12.1.G_r3.csv.gz": "5eb6858af3f3559ead21f2dd82646a3bb3b06355666496a09ea963c191127d52",
+        "selected/physical_flows/2025_02_PhysicalFlows_12.1.G_r3.csv.gz": "9dd2b484726884bbc972a55b5c8d73ec2351a7fb600e6c2bdca78727bbf2c585",
+        "selected/physical_flows/2025_03_PhysicalFlows_12.1.G_r3.csv.gz": "4b9e16efd1d150499509456ab9e719b503faf701ba883a6e8784354ec346e8a7",
+        "selected/physical_flows/2025_04_PhysicalFlows_12.1.G_r3.csv.gz": "f43af1ba5725491c64b36a70851f8d96118646db4389d4a169f1dbe02607cf20",
+        "selected/physical_flows/2025_05_PhysicalFlows_12.1.G_r3.csv.gz": "8578eeda2d3ef4a9117c5e7966e7a6fdeb72c5484bf82868617d30ea011f9a0e",
+        "selected/physical_flows/2025_06_PhysicalFlows_12.1.G_r3.csv.gz": "cf106befca3d73da058232287e954158186e8e3f4742dad9cea72612b3281632",
+        "selected/physical_flows/2025_07_PhysicalFlows_12.1.G_r3.csv.gz": "dd112884c540f4fc293ad1f7bf306aa8e91f2f9eabbe3de801d2011612937055",
+        "selected/physical_flows/2025_08_PhysicalFlows_12.1.G_r3.csv.gz": "25c73dc0fa50e277b2766024909b2b01c8fe0fa899073b875a8b1593d9855863",
+        "selected/physical_flows/2025_09_PhysicalFlows_12.1.G_r3.csv.gz": "b640fd93f38dfda9c9ad219bfced26fe93318a383df6d0326eecbc2b0129e792",
+        "selected/physical_flows/2025_10_PhysicalFlows_12.1.G_r3.csv.gz": "02eb9d3411deb3399a9c9ebd5d967bb677718108c5c5e5247e12bbe401b4590c",
+        "selected/physical_flows/2025_11_PhysicalFlows_12.1.G_r3.csv.gz": "152793f95537aa06f9a79d2d73aa2e372ffb4c14e49c36eb4baaedf430345035",
+        "selected/physical_flows/2025_12_PhysicalFlows_12.1.G_r3.csv.gz": "d1b3de3213a405497c3dc65d041ee2499cbbade75209a37790bf17d85c24c87e",
+        "selected/physical_flows/2026_01_PhysicalFlows_12.1.G_r3.csv.gz": "064f8184cbd9d19e2b1061a340cb2e703478658c8e70570038da3be6c9633e6b",
+        "selected/physical_flows/2026_02_PhysicalFlows_12.1.G_r3.csv.gz": "bf52b53d78d46bdbada1f8036140a67a9c48fe8de7220682dfb42807d24a79fe",
+        "selected/physical_flows/2026_03_PhysicalFlows_12.1.G_r3.csv.gz": "57771d24e73d643089c9fd59ce653d4cb32afa263ff50801cdaf28640c3b13d1",
+        "selected/physical_flows/2026_04_PhysicalFlows_12.1.G_r3.csv.gz": "db96a42473163f65657757c65db9c75ef3019b5c38484afa869b056e5848b485",
+        "selected/physical_flows/2026_05_PhysicalFlows_12.1.G_r3.csv.gz": "6aca71d832a0efb26ba918e8573e0a194f64febc230984d7a16989d4095df86c",
+        "selected/physical_flows/2026_06_PhysicalFlows_12.1.G_r3.csv.gz": "b30a438425a3eb999c3ad1a10187a9fdde63c5347e8aa0fb6d8621e7eb0327f3",
+        "selected/physical_flows/2026_07_PhysicalFlows_12.1.G_r3.csv.gz": "99cb8046c15dd1b155b141cdd5b94b3a623277ba6726506bc8da557c52a9adcd",
+        "selected/physical_flows/2026_08_PhysicalFlows_12.1.G_r3.csv.gz": "7117614b0d995e53ae8561491210afc669ec08c49b49a9b531f3d2cccf0537ee",
+        "selected/physical_flows/2026_09_PhysicalFlows_12.1.G_r3.csv.gz": "e791489547c00641edb383ae159c8ffcbe83fd742b031b970decd0e130a42b1f",
+        "selected/physical_flows/2026_10_PhysicalFlows_12.1.G_r3.csv.gz": "9e0d3eda0e3abfd08f87602a9ed971d23abd4628801e508f794b3392bc3ad265"
+      },
+      "selected_rows": 336000,
+      "duplicates_removed": 0
+    }
+  },
+  "outputs": {
+    "entsoe_file_library/prices.parquet": {
+      "rows": 382848,
+      "key": [
+        "bidding_zone",
+        "ts_utc",
+        "sequence"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 4001742,
+      "sha256": "f46ff77ec3528abea0c4dce139ac543f28d7a2e5fbfdcdbe2bccccc106a046ba"
+    },
+    "entsoe_file_library/actual_load.parquet": {
+      "rows": 149123,
+      "key": [
+        "area_code",
+        "ts_utc"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 2034482,
+      "sha256": "a5552af79255e322833b7a287f849edfe8d65fd3f45e0c4dabb30c459d648e3e"
+    },
+    "entsoe_file_library/day_ahead_load.parquet": {
+      "rows": 134400,
+      "key": [
+        "area_code",
+        "ts_utc",
+        "updated_at_utc"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 1452990,
+      "sha256": "7cd829195f6413a76ae3e40e3a04ba5770412eae15c85c89b1cc36147e66f818"
+    },
+    "entsoe_file_library/generation.parquet": {
+      "rows": 1270504,
+      "key": [
+        "area_code",
+        "production_type",
+        "ts_utc"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 13232175,
+      "sha256": "74f46e57502b8116590702e2afbfd6cdc5f7e8427a9b6f6ec4905c815453e7e4"
+    },
+    "entsoe_file_library/week_ahead_load.parquet": {
+      "rows": 1391,
+      "key": [
+        "area_code",
+        "ts_utc",
+        "updated_at_utc"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 25583,
+      "sha256": "f18cd67e006b9a9f49a588a6c743031bc26afcfcea0d8433615f30f688199965"
+    },
+    "entsoe_file_library/installed_capacity.parquet": {
+      "rows": 38,
+      "key": [
+        "area_code",
+        "year",
+        "production_type"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 6010,
+      "sha256": "20c77c015b7eed6b2bfc90d3af1225c752860293d83c8272ace13d62a6313976"
+    },
+    "entsoe_file_library/hydro_storage.parquet": {
+      "rows": 199,
+      "key": [
+        "area_code",
+        "year",
+        "week"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 8793,
+      "sha256": "f9a1e32c07cd5dbad866984a1f83799b42542ab3ab6d4e570159e58adfbfe504"
+    },
+    "entsoe_file_library/outages.parquet": {
+      "rows": 7865,
+      "key": [
+        "area_code",
+        "instance_code",
+        "version",
+        "asset_code",
+        "segment_start_utc",
+        "segment_end_utc"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 290957,
+      "sha256": "abd640c2705014f66fcc80c2e805c94d73b6c9878534d23dcf03a16df2ab2c66"
+    },
+    "entsoe_file_library/physical_flows.parquet": {
+      "rows": 336000,
+      "key": [
+        "out_area_code",
+        "in_area_code",
+        "ts_utc"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 4026208,
+      "sha256": "c657691aba3f16947409a8d9535ff0844916ce5ace8191a06cbcec2f96cc44b7"
+    },
+    "prices_native.parquet": {
+      "rows": 62112,
+      "key": [
+        "ts_utc"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 1376975,
+      "sha256": "8fe4220a7e4774c627349f4c6a55414361443cbd51753de2457346469d403c0f"
+    },
+    "prices_hourly.parquet": {
+      "rows": 33600,
+      "key": [
+        "ts_utc"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 730851,
+      "sha256": "65a64f71b3f153691d507ecbc7226bf6e232debbfbdfdfab65a175f5ffdb3303"
+    },
+    "regional_prices_hourly.parquet": {
+      "rows": 100800,
+      "key": [
+        "country_code",
+        "ts_utc"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 1382471,
+      "sha256": "ae3c3a9b2869fc3e892650bfd9bcfe0a63bdaa4cf1be35a1a3fc804313cc03bf"
+    },
+    "regional_load_hourly.parquet": {
+      "rows": 100786,
+      "key": [
+        "country_code",
+        "ts_utc"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 1089985,
+      "sha256": "465318340b0c2b831256af4324acf3d4eeca6338d4820a0722a99796ef925e7f"
+    },
+    "entsoe_file_library/grid_actual_hourly.parquet": {
+      "rows": 33600,
+      "key": [
+        "ts_utc"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 591559,
+      "sha256": "d118cdad28ead562ff4db0bdd2bfcc437d7fb28ef062538754bb97531483893d"
+    },
+    "grid_hourly.parquet": {
+      "rows": 33600,
+      "key": [
+        "ts_utc"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 488220,
+      "sha256": "9bbf124ef0e60df60ebd01f4e8a24217679f37040cf2699f1bf6327e26e34279"
+    },
+    "regional_market_features.parquet": {
+      "rows": 235200,
+      "key": [
+        "issue_ts",
+        "target_ts_utc",
+        "horizon_days"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 2146848,
+      "sha256": "0a64b87ea2d0bfb8ed74c8325fe00ce5342a2c387bc4885cb3ec20aa7d778090"
+    }
+  },
+  "integration": {
+    "legacy_load_input_sha256": "465318340b0c2b831256af4324acf3d4eeca6338d4820a0722a99796ef925e7f",
+    "legacy_load_rows_by_country": {
+      "BG": 30648,
+      "HU": 30646,
+      "RO": 30643
+    },
+    "file_library_load_hours_by_country": {
+      "RO": 2955,
+      "HU": 2950,
+      "BG": 2944
+    },
+    "late_file_library_load_hours_by_country": {
+      "BG": 2872,
+      "RO": 378,
+      "HU": 73
+    },
+    "load_coverage_by_country": {
+      "RO": {
+        "missing_hours": 2,
+        "missing_hours_since_power_stats_end": 1,
+        "first_missing_hours_utc": [
+          "2026-05-27T06:00:00+00:00",
+          "2026-10-02T20:00:00+00:00"
+        ]
+      },
+      "HU": {
+        "missing_hours": 4,
+        "missing_hours_since_power_stats_end": 0,
+        "first_missing_hours_utc": [
+          "2022-12-31T22:00:00+00:00",
+          "2022-12-31T23:00:00+00:00",
+          "2023-06-20T20:00:00+00:00",
+          "2023-06-20T21:00:00+00:00"
+        ]
+      },
+      "BG": {
+        "missing_hours": 8,
+        "missing_hours_since_power_stats_end": 6,
+        "first_missing_hours_utc": [
+          "2022-12-31T22:00:00+00:00",
+          "2022-12-31T23:00:00+00:00",
+          "2026-10-24T21:00:00+00:00",
+          "2026-10-24T22:00:00+00:00",
+          "2026-10-24T23:00:00+00:00",
+          "2026-10-25T00:00:00+00:00",
+          "2026-10-25T01:00:00+00:00",
+          "2026-10-25T02:00:00+00:00"
+        ]
+      }
+    },
+    "grid_actual_non_null_hours": {
+      "load_actual_mw": 33598,
+      "solar_actual_mw": 33579,
+      "wind_actual_mw": 33580
+    },
+    "grid_late_hours_excluded": {
+      "load_actual_mw": 378,
+      "solar_actual_mw": 25408,
+      "wind_actual_mw": 26312
+    },
+    "grid_non_null_hours": {
+      "load_actual_mw": 33220,
+      "solar_actual_mw": 8171,
+      "wind_actual_mw": 7268
+    }
+  }
+}

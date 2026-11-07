@@ -1,0 +1,48 @@
+{
+  "run_at_utc": "2026-11-07T16:22:54.169731+00:00",
+  "data_mode": "real",
+  "test_evaluated": false,
+  "production_artifacts_changed": false,
+  "train_rows": 132048,
+  "val_rows": 35945,
+  "price_scored_rows": 35932,
+  "lear_weight": 0.7,
+  "price_best_iterations": {
+    "0.05": 105,
+    "0.1": 78,
+    "0.25": 65,
+    "0.5": 179,
+    "0.75": 459,
+    "0.9": 324,
+    "0.95": 227
+  },
+  "classifier_best_iterations": {
+    "p_near_zero": 323,
+    "p_cheap": 218
+  },
+  "probability_order_violations_crossfit": 5558,
+  "slot_rule": {
+    "local_hours": [
+      9,
+      18
+    ],
+    "slot_hours": [
+      2,
+      6
+    ],
+    "max_slots_per_day": 2,
+    "monthly_budget_hours": 70,
+    "hit": "every hour <= 20.0 EUR/MWh"
+  },
+  "inputs_sha256": {
+    "training_table": "e1b8a8345afe81e65b34129ad500187dc4e491a150777f36ca6073cc619b5108"
+  },
+  "caveats": [
+    "Each horizon is planned separately for every validation month; budget always fills (no tau).",
+    "Greedy mean-probability slot proxy, not the agent planner; cancellation = 1 - slot_hit_rate.",
+    "Platt cross-fit is monotone within a month, so its budget ranking equals lgbm_raw.",
+    "Early stopping, conformal widening and ensemble weight reuse validation.",
+    "oracle ranks by realised prices and is only an upper bound.",
+    "Forecast rows across horizons repeat target labels and are not independent."
+  ]
+}

@@ -26,6 +26,8 @@ export namespace Predictions {
             price_p90:     z.number(),
             data_quality:  DataQuality,
             top_features:  z.string(),                     // "ghi_forecast:+0.24; off_day:+0.20; …"
+            model_name:    z.string().optional(),          // absent in files written before the column existed
+            model_version: z.string().optional(),
         })
     }
     export type Row = z.infer<typeof Row.Schema>

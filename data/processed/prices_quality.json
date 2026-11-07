@@ -1,0 +1,28 @@
+{
+  "requested_start_utc": "2022-12-31T22:00:00+00:00",
+  "requested_end_exclusive_utc": "2026-10-31T22:00:00+00:00",
+  "first_native_start_utc": "2022-12-31T22:00:00+00:00",
+  "last_native_end_utc": "2026-10-31T22:00:00+00:00",
+  "first_hour_utc": "2022-12-31T22:00:00+00:00",
+  "last_hour_utc": "2026-10-31T21:00:00+00:00",
+  "expected_native_rows": 62112,
+  "native_rows": 62112,
+  "native_rows_by_resolution": {
+    "PT15M": 38016,
+    "PT60M": 24096
+  },
+  "missing_native_intervals": 0,
+  "first_missing_native_intervals_utc": [],
+  "native_coverage": 1.0,
+  "expected_hours": 33600,
+  "hourly_rows": 33600,
+  "missing_hours": 0,
+  "incomplete_hours": 0,
+  "hourly_coverage": 1.0,
+  "negative_native_rows": 1000,
+  "negative_hours": 508,
+  "source": "entsoe_file_library",
+  "snapshot_revision": null,
+  "bidding_zone": "10YRO-TEL------P",
+  "unit": "EUR/MWh"
+}

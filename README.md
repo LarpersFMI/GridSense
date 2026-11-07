@@ -3,26 +3,46 @@
 Smarthack XI 2026, PPC challenge "24h to Power PPC" ([brief](docs/Smarthack_XI_2026_Tema_PPC.pdf), in Romanian).
 Full plan, rationale and timeline: [docs/project_plan.md](docs/project_plan.md).
 Agent layer (alerts, dashboard, chatbot): [docs/agent_design.md](docs/agent_design.md).
+ML plan (models, two-person split, working before data exists): [docs/ml_plan.md](docs/ml_plan.md).
 
-GridSense forecasts which hours will have negative or near-zero electricity prices in Romania,
-1–7 days ahead. It then plans "zero-cost hour" slots for PPC Energie customers, confirms or
-cancels them after the day-ahead auction, sends targeted notifications, and hands uncertain
-cases to a human. It automates PPC Energie's 2026 "Energie Electrică Activă Zero" pilot, in
-which 83% of enrolled customers shifted consumption.
+An AI agent that forecasts, days in advance, which hours will have negative or near-zero electricity prices in Romania. It then automatically plans, confirms and announces "zero-cost hours" to the right PPC Energie customers, so PPC moves consumption into cheap solar hours without ever giving away energy during expensive ones.
+
+GridSense extends PPC Energie's 2026 "Energie Electrică Activă Zero" pilot, in which 83% of
+enrolled customers shifted consumption. Forecasts cover 1–7 days ahead; planned slots remain
+provisional until the day-ahead auction prices confirm them, and uncertain cases go to a human.
 
 ## How it works
 
+The intended end-to-end workflow is shown below; see [Status](#status) for current readiness
+and [the agent design](docs/agent_design.md) for approval rules and demo actions.
+**Implemented today:** data/feature pipelines, forecasting models and validation experiments.
+**Still planned on `dev`:** the customer-facing planner, auction reconciliation, notifications,
+human-approval workflow and dashboard. The pitch's "never" is a safety requirement, not a
+demonstrated operational guarantee; no live customer offers are being sent.
+
 ```mermaid
-flowchart LR
-    A[ENTSO-E prices, load, generation] --> D[data/ → data/processed/*.parquet]
-    B[Open-Meteo archived forecasts] --> D
-    C[Holiday calendar] --> D
-    D --> F[features/ → one row per issue_date × target hour × horizon]
-    F --> M[models/ → LightGBM classifier + quantile regressor, calibrated]
-    M --> P[predictions.parquet]
-    P --> G[agent/ → slots, decision rule, budget, confirm/cancel]
-    G --> X[actions: calendar, notifications, trading-desk alert, human review, weekly report]
-    G --> L[llm/ → wording only]
+flowchart TD
+  subgraph ML["Implemented: data and forecasting"]
+  A["ENTSO-E market data"] --> D["Validate data and build features known at issue time"]
+  B["Open-Meteo archived forecasts"] --> D
+  C["Holiday calendar"] --> D
+  D --> M["Forecast D+1 to D+7: calibrated low-price probabilities and P10/P50/P90"]
+  end
+  subgraph AGENT["Planned: customer-facing agent"]
+  M --> P["Plan zero-cost slots: confidence, expected value and monthly budget"]
+  P --> O["Provisional calendar: Likely / Possible"]
+  P -->|"Uncertain or bad data"| H["Human review: approve or reject"]
+  H -->|"Approved plan"| O
+  O --> G{"Every slot hour clears at or below the price threshold?"}
+  DA["Published D+1 day-ahead auction prices"] --> G
+  G -->|Yes| OK["Confirm zero-cost slots"]
+  G -->|"No / missing prices"| X["Cancel or withhold: no free-energy offer"]
+  OK --> T["Target eligible PPC Energie customer segments"]
+  T --> N["Announce confirmed hours: email / myPPC, calendar and EV charging suggestions"]
+  L["LLM or templates: wording only, never decisions"] -.-> N
+  OK --> R["Trading-desk alerts, decision trace and weekly impact report"]
+  X --> R
+  end
 ```
 
 | Step | What happens |
@@ -30,55 +50,68 @@ flowchart LR
 | Perceive | Download and validate market, weather and calendar data. |
 | Estimate | Our model outputs `p_near_zero`, `p_cheap` and price P10/P50/P90 for each hour D+1…D+7. |
 | Decide | Build 2–6 h slots between 09:00 and 18:00, score them by expected value, and apply thresholds, the monthly free-hours budget and confidence. Low-confidence or bad-data slots get `NEEDS_REVIEW`. |
-| Act | Publish the calendar, notify customer segments, alert the trading desk, escalate to a human, write the weekly report. |
+| Confirm | After the D+1 day-ahead auction, confirm only slots where every hour clears at or below the price threshold; cancel or withhold the rest. |
+| Act | Announce confirmed slots to eligible customer segments, publish the calendar, recommend EV charging windows, alert the trading desk and write the weekly report. |
 
 ## Rules for anyone (or any coding agent) working in this repo
 
 1. **No leakage.** Every feature is computed as of **10:00 Romanian time on the issue date**. Price lags are relative to the issue date (the latest known prices are for day D), never to the target date. Weather features are archived forecasts with the matching lead time, never observed weather.
 2. **The test set (2026-03-01 → 2026-10-31) is evaluated once**, at the end. Tune everything on validation.
 3. **Split dates, thresholds and paths come from [src/gridsense/config.py](src/gridsense/config.py).** Don't hard-code them.
-4. **Parquet files follow [src/gridsense/schemas.py](src/gridsense/schemas.py).** If you change a column, update the schema and tell the team that consumes it.
+4. **Teams talk through parquet files, not through each other's code.** Columns are defined in [src/gridsense/schemas.py](src/gridsense/schemas.py); read and write tables with `gridsense.io.read(name)` / `gridsense.io.write(df, name)`, which check them. If you change a column, update the schema and tell the team that consumes it.
 5. **Timestamps are stored in UTC** (`ts_utc`) and converted to `Europe/Bucharest` only for calendar logic and display. Days have 23 or 25 hours at DST changes.
-6. **Labels use the hourly mean** of the 15-minute prices (the day-ahead market moved to 15-minute periods in October 2025). `is_near_zero` (≤ 20 €/MWh) is the primary label and `is_cheap` (≤ 0 €/MWh) is secondary.
+6. **Labels use the hourly mean** of the 15-minute prices (the day-ahead market moved to 15-minute periods in October 2025). `y_near_zero` (≤ 20 €/MWh) is the primary label and `y_cheap` (≤ 0 €/MWh) is secondary.
 7. **The LLM never makes decisions.** It only writes text (notifications, reports), with a template fallback. All predictions come from our models and all decisions from the decision rule.
-8. **Only public or synthetic data.** Anything synthetic is labelled as such here and in code.
+8. **Only public or synthetic data.** Anything synthetic is labelled as such here and in code. Never report a number obtained in fake mode.
 9. **Commit small and often.** Commit history across the 24 hours is part of the score.
+10. **Splits come only from `gridsense.splits.assign_split`.** Models implement `gridsense.models.base.Forecaster` so the evaluation harness can compare them all.
 
 ## Team and ownership
 
 | Area | Owner | Code | Delivers |
 |---|---|---|---|
-| Data engineering | Data engineers | `src/gridsense/data/`, `src/gridsense/synthetic/` | `prices_hourly`, `grid_hourly`, `weather_fc`, `calendar` parquet files |
-| ML | ML engineers | `src/gridsense/features/`, `src/gridsense/models/` | `predictions.parquet`, metrics, plots, SHAP |
-| Agent | TBD | `src/gridsense/agent/`, `src/gridsense/llm/` | Plan, actions, decision trace |
-| Demo | TBD | `app/` | Streamlit replay demo, slides |
+| Data engineering | Data engineers | `src/gridsense/data/`, `src/gridsense/synthetic/customers.py` | `prices_hourly`, `grid_hourly`, `weather_fc`, `calendar` tables |
+| ML-P: price forecasting | ML engineer | `models/price.py`, `features/`, `synthetic/market.py`, price baselines (seasonal naive, LEAR), conformal intervals | `training_table`, P10/P50/P90 model |
+| ML-C: low-price classification | ML engineer | `models/classify.py`, classification baselines, calibration, `models/{evaluate,predict}.py`, SHAP | `p_near_zero` / `p_cheap` model, `predictions` table, evaluation reports |
+| Agent | TBD | `src/gridsense/agent/`, `src/gridsense/llm/` | Alerts, plan, actions, decision trace |
+| Demo | TBD | `app/` | Streamlit dashboard, slides |
+
+Shared files (`config.py`, `schemas.py`, `io.py`, `splits.py`, `models/base.py`, `models/artifacts.py`, `models/train.py`): change them only after telling the people who depend on them.
+
+### Working before the real data exists
+
+Set `GRIDSENSE_DATA=fake` to read and write `data/fake/`, `models/fake/` and `reports/fake/` instead of the real folders (all gitignored). `make fake-data` writes synthetic market, weather and calendar tables that follow the schemas. `make fake-predictions` writes a realistic fake `predictions` table (test period, consistent probabilities and quantiles, a few `missing_weather` rows) so the agent and demo teams can build now. Switching to real data means running `make data`; no code changes.
 
 ## Repository layout
 
 ```
 src/gridsense/
-  config.py        paths, split dates, horizons, thresholds, weather points
-  schemas.py       parquet column contract between teams
+  config.py        paths (switched by GRIDSENSE_DATA), split dates, horizons, thresholds
+  schemas.py       table column contract between teams
+  io.py            read/write tables with column checks
+  splits.py        train / val / test assignment
   data/            entsoe.py, weather.py, calendar.py, quality.py (input validation), build.py
   features/        build.py: training table, as-of-issue-time features
-  models/          baselines.py (seasonal naive, climatology, solar rule, LEAR), train.py,
-                   calibrate.py, metrics.py, evaluate.py, explain.py (SHAP)
+  models/          base.py (Forecaster interface), artifacts.py (save/load, experiment log),
+                   price.py (P10/P50/P90), classify.py (p_near_zero, p_cheap), baselines.py,
+                   train.py, calibrate.py, predict.py, metrics.py, evaluate.py, explain.py
   agent/           decision_rule.py, planner.py, actions.py, run.py
   llm/             wording.py
-  synthetic/       customers.py (synthetic customer portfolio)
+  synthetic/       market.py (fake market data), predictions.py (fake predictions),
+                   customers.py (synthetic customer portfolio)
 app/               Streamlit demo
 tests/             pytest
-data/              raw/, interim/, processed/, synthetic/ (gitignored, recreated by scripts)
-models/            trained model files (gitignored)
-reports/           agent outputs and evaluation results
+data/              raw/, interim/, processed/, synthetic/, fake/ (selected processed tables are tracked)
+models/            real/ and fake/ trained models (gitignored)
+reports/           real/ results (committed) and fake/ (gitignored)
 notebooks/         EDA and error analysis
-docs/              hackathon brief and project plan
+docs/              hackathon brief, project plan, agent design, ML plan
 ```
 
 ## Modelling summary
 
 - **Forecast setup:** issued daily at 10:00 for horizons D+1…D+7. D+1 is forecast before the day-ahead auction closes at 13:00.
-- **Models:** LightGBM classifier (`is_near_zero`, `is_cheap`) with isotonic calibration on validation, plus LightGBM quantile regression (P10/P50/P90). Horizon is a feature, so one model covers all horizons.
+- **Models:** LightGBM classifier (`y_near_zero`, `y_cheap`) with Platt calibration by default (isotonic optional), plus LightGBM quantile regression (P10/P50/P90) with conformal adjustment. Calibration validation scores are cross-fitted by target month. Horizon is a feature, so one model covers all horizons.
 - **Baselines:** same hour last week, climatology (month × weekday × hour), solar-irradiance rule, and LEAR (Lasso autoregressive model per hour, the standard day-ahead benchmark).
 - **Metrics (all by horizon):** PR-AUC, precision@k, Brier score, calibration curve, pinball loss, P10–P90 coverage, slot hit rate and cancellation rate.
 
@@ -94,14 +127,24 @@ cp .env.example .env   # add your ENTSO-E API token
 ## Reproduce
 
 ```bash
-make data       # download + clean raw data into data/processed/
+make data       # build real day-ahead prices with ENTSOE_API_TOKEN
+make weather    # cached archived GFS weather for train + validation (partial history/horizons)
 make features   # build the (issue_date, target_ts, horizon) training table
-make train      # train classifier + quantile regressor on train split
-make evaluate   # metrics vs baselines on the held-out test split
+make train      # train both models on train, early-stop on val (TASK=price or TASK=classify for one)
+make predict    # write the predictions table for the agent
+make evaluate   # metrics vs baselines on validation
+make evaluate FINAL=1   # test set, run once at the end
 make agent      # run the agent loop and write actions to reports/
 make app        # Streamlit demo (replay mode)
 make test
 make lint
+```
+
+Fake mode (no real data needed):
+
+```bash
+make fake-data
+GRIDSENSE_DATA=fake make features train predict evaluate
 ```
 
 ## Data splits
@@ -117,8 +160,75 @@ covers spring and summer on purpose, because winter has almost no negative-price
 
 ## Status
 
-Scaffold only: modules are stubs that raise `NotImplementedError`. The `make` targets will
-fail until each stage is implemented.
+The ML implementation has tested training and validation paths, including an isolated,
+smoke-tested overnight queue. This is not a deployed end-to-end agent:
+[slot planning and auction reconciliation](src/gridsense/agent/planner.py),
+[customer actions](src/gridsense/agent/actions.py) and
+[LLM wording](src/gridsense/llm/wording.py) still raise `NotImplementedError`, and the
+[Streamlit app](app/streamlit_app.py) is a title-only skeleton. The separate `main` branch
+adds dataset-trigger/server/frontend infrastructure, not completed customer-facing actions.
+Existing pre-chain classifier artifacts need retraining before normal prediction export.
+
+The [Romanian day-ahead price pipeline](docs/energy_market_data.md) writes native and hourly
+Parquet files from ENTSO-E, with a pinned snapshot option that needs no token. The latest
+validated File Library price tables cover RO/HU/BG through October 2026; the grid includes
+release-masked load/solar/wind, and week-ahead load inputs are also available. `make weather` builds cached
+GFS archived forecast offsets for four Romanian locations, retaining provenance and missing
+history rather than filling with observed weather. Its conservative 12-hour availability buffer
+is an assumption, not verified historical publication timing; D+7 is unavailable and late D+6
+hours are partial. The download defaults to the train/validation window. See the
+[ML handoff](docs/ml_handoff.md) for coverage, validation results, and final-test limitations.
+Missing/partial weather rows propagate `missing_weather` to prediction consumers.
+Regional features are opt-in: `make features REGIONAL=1` verifies and joins the existing
+HU/BG market handoff on the full forecast key, retaining unmatched rows and quality flags.
+The current-versus-regional experiment runs with
+`GRIDSENSE_DATA=real uv run python -m gridsense.models.regional_validation`; it scores
+validation only and saves models separately, without changing the normal model artifacts
+or the tracked training table. Default `make features` keeps the existing feature set.
+Observed weather and the new country calendars have separate contracts: the observed
+weather table is for analysis or carefully lagged inputs, never target-hour forecast features.
+Country calendars supplement rather than replace the continuous Romanian ML target calendar.
+The latest classifier calibration and the separate `main` watchdog integration requirements
+are recorded in the [ML handoff](docs/ml_handoff.md).
+
+Extra archived weather is also opt-in: `make weather EXTRA=1`, then
+`make features WEATHER_EXTRA=1`. Humidity, total precipitation, surface pressure and 10 m
+wind forecasts use the existing cutoff policy; direction is encoded as sine/cosine.
+The matched-row extras/grid comparisons do not justify changing the 50-feature default.
+`weather_grid_validation --cache-only` reuses the downloaded grid without network access.
+
+Forecast-based engineering is a separate opt-in: `make features FORECAST_ENGINEERED=1`
+adds physical weather proxies, hour/weekday cyclic encodings and 3/6/24-hour price-memory
+statistics. [The implementation](src/gridsense/features/forecast_engineering.py) uses only
+selected archived forecasts for the existing four RO points and price history before the
+issue timestamp, never target-hour observed weather or the upstream permutation ranking.
+Missing weather inputs remain missing; point means require every configured point.
+Solar/cloud potential is dimensionless, and surface-air/10 m wind-power density is a proxy,
+not renewable generation. Existing archive/cutoff limitations still apply.
+This explicit feature-build command writes the normal training table; for isolated comparisons
+choose the `forecast_engineered` overnight variant instead. Default features and the six
+default queue variants remain unchanged; there is no automatic feature promotion.
+
+For isolated overnight development experiments, use `make overnight-prepare RUN_DIR=...`,
+then `make overnight-smoke RUN_DIR=...`, then `make overnight RUN_DIR=...` (macOS).
+Preparation fails if a grid request is absent from the local cache. The queue snapshots only
+labelled train/validation rows, verifies code/data checksums, keeps production artifacts
+unchanged, and resumes verified completed jobs. Default candidates are current, weather
+extras, RO grid, RO/HU/BG grid, regional prices and regional load. `PROFILES="default recent
+regularized"` adds a bounded recency/regularization comparison when preparing a new queue.
+Add `chain_730_90` to `PROFILES` to test 730-day near-zero / 90-day conditional-cheap
+recency while keeping the price model at 365 days. Every chronological profile explicitly
+sets both classifier steps: default/regularized use 365/365 and recent uses 180/180,
+independent of the normal classifier's 730/90 defaults.
+See [the chronological protocol and limitations](docs/ml_handoff.md#chronological-validation-and-overnight-queue)
+before interpreting the June–September scoring blocks. No command in this queue evaluates
+test or promotes a feature/model automatically.
+
+The [latest incoming-data audit](docs/ml_handoff.md#incoming-data-audit-origin-dev-9839df0)
+keeps the new observed-weather augmentation out of forecasting: target-hour observations
+and delivery-relative price windows are not issue-known D+1…D+7 inputs. The opt-in
+adaptation above reuses the ideas with archived forecasts and issue-time price memory;
+validation must establish whether it improves forecasting before adoption.
 
 ## Data sources
 
