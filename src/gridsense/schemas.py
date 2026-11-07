@@ -16,8 +16,29 @@ GRID_HOURLY = {
     "wind_actual_mw": "float64",
 }
 
-# weather_fc.parquet: forecasts as they were issued, one row per (issue, target, location).
+# weather_hourly.parquet: historical weather observations.
 WEATHER_FC = {
+    "issue_date": "datetime64[ns]",
+    "target_ts_utc": "datetime64[ns, UTC]",
+    "lead_days": "int64",
+    "location": "string",
+    "country": "string",
+    "latitude": "float64",
+    "longitude": "float64",
+    "temp_c": "float64",
+    "relative_humidity_pct": "float64",
+    "precip_mm": "float64",
+    "rain_mm": "float64",
+    "snowfall_cm": "float64",
+    "pressure_hpa": "float64",
+    "cloud_cover_pct": "float64",
+    "wind10_ms": "float64",
+    "wind_dir_deg": "float64",
+    "split": "string",
+}
+
+# weather_fc.parquet: forecasts as issued, one row per (issue, target, location).
+WEATHER_ARCHIVED_FC = {
     "issue_date": "datetime64[ns]",
     "target_ts_utc": "datetime64[ns, UTC]",
     "lead_days": "int64",
@@ -32,10 +53,13 @@ WEATHER_FC = {
 # must extend 7 days past the latest price date for the newest issue date to get all horizons.
 CALENDAR = {
     "ts_utc": "datetime64[ns, UTC]",
+    "country": "string",
     "is_holiday": "bool",
+    "is_working_holiday": "bool",
     "is_bridge_day": "bool",
     "is_dst": "bool",
     "day_hours": "int64",
+    "split": "string",
 }
 
 # training_table.parquet: one row per (issue date, target hour, horizon). Owned by ML.
@@ -69,7 +93,8 @@ PREDICTIONS = {
 TABLES = {
     "prices_hourly": PRICES_HOURLY,
     "grid_hourly": GRID_HOURLY,
-    "weather_fc": WEATHER_FC,
+    "weather_fc": WEATHER_ARCHIVED_FC,
+    "weather_hourly": WEATHER_FC,
     "calendar": CALENDAR,
     "training_table": TRAINING_TABLE,
     "predictions": PREDICTIONS,

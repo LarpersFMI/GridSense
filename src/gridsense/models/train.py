@@ -4,6 +4,7 @@ import pandas as pd
 
 from gridsense import config, io
 from gridsense.models import artifacts
+from gridsense.models.calibrate import cross_fit
 from gridsense.models.classify import LABELS, LowPriceClassifier
 from gridsense.models.metrics import by_horizon, classification_report, price_report
 from gridsense.models.price import PriceForecaster
@@ -17,16 +18,27 @@ def load_train_val() -> tuple[pd.DataFrame, pd.DataFrame]:
 
 
 def classify_metrics(model: LowPriceClassifier, val: pd.DataFrame) -> dict:
-    pred = model.predict(val)
+    # Raw LightGBM scores. The calibrators were fitted on val, so scoring the calibrated model on val
+    # would flatter it; the _cal_ metrics use cross-fitted calibration (each val month calibrated by
+    # the other months) instead.
+    pred = model.predict(val, apply_calibration=False)
+    val_month = val["target_ts_utc"].dt.tz_convert(config.LOCAL_TZ).dt.month.to_numpy()
     metrics = {}
     for col, label in LABELS.items():
         y = val[label].astype(int)
         # k = number of positives, i.e. R-precision.
         for key, value in classification_report(y, pred[col], k=int(y.sum())).items():
             metrics[f"{col}_{key}"] = value
+        if col in model.calibrators:
+            p_cal = cross_fit(pred[col], y, val_month, model.calibration)
+            for key, value in classification_report(y, p_cal, k=int(y.sum())).items():
+                if key != "positives":
+                    metrics[f"{col}_cal_{key}"] = value
 
         def pr_auc(g: pd.DataFrame, label: str = label) -> dict:
-            return {"pr_auc": classification_report(g[label], g["_p"], k=int(g[label].sum()))["pr_auc"]}
+            return {
+                "pr_auc": classification_report(g[label], g["_p"], k=int(g[label].sum()))["pr_auc"]
+            }
 
         per_h = by_horizon(val.assign(_p=pred[col]), pr_auc)
         for h, row in per_h.drop(index="all").iterrows():

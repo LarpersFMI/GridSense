@@ -9,7 +9,7 @@ import pandas as pd
 
 from gridsense import config, io
 from gridsense.data.price_features import add_price_features, hourly_price_index, utc_hours
-from gridsense.schemas import WEATHER_FC
+from gridsense.schemas import WEATHER_ARCHIVED_FC
 
 TARGET_DAY = date(2025, 3, 30)
 ISSUE_DAY = TARGET_DAY - timedelta(days=1)
@@ -42,7 +42,7 @@ def synthetic_weather() -> pd.DataFrame:
     frame["cloud_cover_pct"] = 20 + 10 * city
     frame["wind100_ms"] = 3 + city + local_hour / 24
     frame["temp_c"] = 7 + city + local_hour / 4
-    return frame[list(WEATHER_FC)].astype(WEATHER_FC)
+    return frame[list(WEATHER_ARCHIVED_FC)].astype(WEATHER_ARCHIVED_FC)
 
 
 def join_sample(weather: pd.DataFrame, prices: pd.DataFrame) -> pd.DataFrame:
@@ -64,7 +64,7 @@ def join_sample(weather: pd.DataFrame, prices: pd.DataFrame) -> pd.DataFrame:
         raise ValueError("weather_fc has duplicate city-hour rows for the sample issue")
     if len(sample) != len(hours) * len(locations):
         raise ValueError(f"Expected {len(hours)} weather hours for each of {len(locations)} cities")
-    sample = sample.astype({column: WEATHER_FC[column] for column in WEATHER_VALUES})
+    sample = sample.astype({column: WEATHER_ARCHIVED_FC[column] for column in WEATHER_VALUES})
     if not np.isfinite(sample[list(WEATHER_VALUES)].to_numpy()).all():
         raise ValueError("Sample weather features must contain finite values")
 

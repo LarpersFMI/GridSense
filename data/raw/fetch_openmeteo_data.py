@@ -106,7 +106,7 @@ def fetch_hourly_weather() -> pd.DataFrame:
     if all_dfs:
         combined_df = pd.concat(all_dfs, ignore_index=True)
 
-        meta_cols = ["location", "split", "latitude", "longitude", "time"]
+        meta_cols = ["location","country", "split", "latitude", "longitude", "time"]
         final_cols = meta_cols + HOURLY_VARIABLES
         combined_df = combined_df[final_cols]
         return combined_df

@@ -29,6 +29,8 @@ reports/fake/
 !data/processed/regional_market_manifest.json
 !data/processed/calendar.parquet
 !data/processed/training_table.parquet
+data/raw/weather_hourly.csv
+data/raw/.weather_cache.sqlite
 
 models/*
 !models/.gitkeep

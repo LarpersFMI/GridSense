@@ -244,6 +244,12 @@ derived datasets before any further redistribution.
 [Dataset card](https://huggingface.co/datasets/hsilvosa/entsoe-day-ahead)
 [ENTSO-E disclaimer](https://www.entsoe.eu/about/legal-and-regulatory/disclaimer/)
 
+The team's `weather_hourly.parquet` follows `WEATHER_FC` for historical
+observations. The model's `weather_fc.parquet` follows
+`WEATHER_ARCHIVED_FC` and requires forecast issue dates, irradiance and
+100 m wind. The Romanian calendar now includes country, working-holiday and
+split columns. Working-holiday flags come from the tracked holiday CSV.
+
 ### Romanian grid table and regional join
 
 For the pinned public-source build, run:

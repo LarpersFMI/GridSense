@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 from gridsense import config, io
+from gridsense.splits import assign_split
 
 
 def calendar_for_hours(ts: pd.DatetimeIndex) -> pd.DataFrame:
@@ -21,13 +22,25 @@ def calendar_for_hours(ts: pd.DatetimeIndex) -> pd.DataFrame:
     bridge = days[(~off & off.shift(1, fill_value=False) & off.shift(-1, fill_value=False)).to_numpy()]
 
     hours_per_day = pd.Series(day).value_counts()
+    holiday_records = pd.read_csv(config.RAW_DIR / "holidays.csv")
+    working = holiday_records.loc[
+        holiday_records["country"].eq("Romania") & holiday_records["category"].eq("Working"),
+        "date_utc",
+    ]
+    utc = ts.tz_convert("UTC").as_unit("ns")
+    split = assign_split(pd.Series(utc)).map(
+        {"train": "Train", "val": "Validation", "test": "Test"}
+    ).astype("string")
     return pd.DataFrame(
         {
-            "ts_utc": ts.tz_convert("UTC").as_unit("ns"),
+            "ts_utc": utc,
+            "country": pd.Series("Romania", index=range(len(ts)), dtype="string"),
             "is_holiday": day.isin(holiday_days),
+            "is_working_holiday": day.isin(pd.to_datetime(working)),
             "is_bridge_day": day.isin(bridge),
             "is_dst": np.array([t.dst() != pd.Timedelta(0) for t in ts]),
             "day_hours": pd.Series(day).map(hours_per_day).to_numpy(dtype="int64"),
+            "split": split,
         }
     )
 
