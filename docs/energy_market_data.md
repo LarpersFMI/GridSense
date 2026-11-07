@@ -25,8 +25,9 @@ make data
 
 Both dates are inclusive Romanian calendar dates. `make data` uses the direct API, from
 the configured train start to the end of the test period. It builds price data only.
-Each successful run replaces the price outputs for the requested range. Failed coverage
-checks leave previous outputs in place. Run in `GRIDSENSE_DATA=real` (the default).
+The sample commands refuse to replace differing existing price outputs; to intentionally
+replace them after review, add `--replace-existing`. Failed coverage or replacement checks
+leave previous outputs in place. Run in `GRIDSENSE_DATA=real` (the default).
 
 - **Direct source.** [ENTSO-E Transparency Platform A44](https://transparencyplatform.zendesk.com/hc/en-us/articles/17703493179028-Guidance-on-Creating-a-Support-Ticket),
   daily contract A01, Romanian bidding zone `10YRO-TEL------P`. The pipeline uses UTC
@@ -177,6 +178,26 @@ Subhourly prices and measurements require four distinct quarters per hourly
 average. Bulgarian load uses the source's hourly values. The regional manifest
 reports missing hours by country.
 
+The build checks every staged output and report before installation and refuses
+to replace a differing existing file unless `--replace-existing` is passed. To
+inspect a build without replacing the shared data, copy the existing regional
+load baseline into a separate directory, then build there:
+
+```bash
+mkdir -p /tmp/gridsense-data-review
+cp data/processed/regional_load_hourly.parquet /tmp/gridsense-data-review/
+uv run python -m gridsense.data.build_file_library \
+  --destination /tmp/gridsense-data-review --replace-existing
+```
+
+Compare the review outputs and coverage reports with the current files before
+an intentional replacement. Installation is checked as a group but individual
+file replacements are not a single filesystem transaction. The manifest records
+SHA-256 hashes for each selected extract and the existing regional load input;
+the build depends on that regional load input as well as the selected extracts.
+An isolated rebuild with the recorded inputs reproduced all 16 tracked Parquet
+outputs byte for byte.
+
 The normalized source tables live under `data/processed/entsoe_file_library/`.
 They retain separate forecast updates, outage versions and segments, border
 directions, and Germany–Luxembourg price sequences. Equal prices within the same
@@ -304,7 +325,7 @@ Collect them separately from prices and keep their availability metadata.
 | Solar and wind generation | A75 actual by type | Use lagged actuals; never join on future target time as a feature. |
 | Total / wind / solar forecasts | A71 / A69 day-ahead | Require publication time and revision history before using at the 10:00 cutoff. |
 | Cross-border physical flows | A11 actual | Use lagged values with directional border metadata; actual flows arrive after delivery. |
-| Generation unit unavailability | A80 (TR 15.1), File Library `UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1` | Planned and forced. Use only the latest version of each message published by issue time (`gridsense.data.outages.offline_mw_as_of`). |
+| Generation unit unavailability | A80 (TR 15.1), File Library `UnavailabilityOfProductionAndGenerationUnits_15.1.A_B_C_D_r3.1` | Planned and forced. Model use requires issue-time-safe message versions and verified unit capacity. The existing outage helper does not yet support this normalized export. |
 
 Live grid acquisition and verification of forecast vintages are separate follow-up work.
 
@@ -337,6 +358,15 @@ this extract; ML should exclude them from training and evaluation until the
 training builder is corrected and the team agrees on a safe replacement. The
 supplementary file does not change the shared training schema or training table.
 
+One possible vintage-recovery route is ENTSO-E's registered-user
+[value history](https://transparencyplatform.zendesk.com/hc/en-us/articles/33729752039441-Value-details-and-value-history),
+which describes historical submissions. Its availability and completeness for
+Romanian week-ahead forecasts, and whether it can be exported in bulk, have not
+been established. For outages, the REST API's
+[update-time filter](https://transparencyplatform.zendesk.com/hc/en-us/articles/15696716612372-Request-Parameters)
+is documented as returning the latest updated version in the specified window;
+it should not be assumed to reconstruct all historical versions.
+
 The normalized outage table is retained for investigation, not as a model-ready
 feature: it contains publication and update timestamps, but some rows are
 revised after their outage and the export does not include installed capacity.
@@ -345,6 +375,12 @@ unavailable MW from installed capacity; it cannot be used on this normalized tab
 as-is. Outage version and segment semantics, historical availability, and unit
 capacity need resolving before creating as-of outage features. In particular, do
 not use `old_version` as an issue-time input: it reflects later knowledge.
+The checked-in extract has 7,865 segments across 2,105 message instances and
+4,737 instance/version groups. Publication is later than outage start for 6,137
+rows, the recorded update is later than outage start for 7,471 rows, and 50
+instance/version groups contain more than one publication timestamp. Those are
+row and group counts, not counts of independent outages or proof that a forecast
+was unavailable; they show why publication and update semantics need investigation.
 
 The Romanian price builder refuses to replace either existing price Parquet when a
 new build differs, including a build for a shorter window. Review the printed

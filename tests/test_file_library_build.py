@@ -1,8 +1,11 @@
+import hashlib
+
 import pandas as pd
 import pytest
 
 from gridsense.data.build_file_library import (
     complete_hours,
+    install_staged,
     read_export,
     updated_by_next_issue,
 )
@@ -36,6 +39,9 @@ def test_price_deduplication_preserves_market_sequences(tmp_path):
     prices, stats = read_export(tmp_path, "prices", start, end)
     assert prices["instance_code"].tolist() == ["earlier", "second_sequence"]
     assert stats["duplicates_removed"] == 1
+    assert stats["source_sha256"][f"{tmp_path.name}/prices/month.csv.gz"] == hashlib.sha256(
+        path.read_bytes()
+    ).hexdigest()
 
     rows.loc[0, "Price[Currency/MWh]"] = 41
     rows.to_csv(path, sep="\t", index=False)
@@ -75,3 +81,24 @@ def test_native_hourly_load_preserves_gaps():
     pd.testing.assert_frame_equal(actual, rows.drop(columns="resolution"))
     with pytest.raises(ValueError, match="conflicting records"):
         complete_hours(pd.concat([rows, rows.iloc[:1]]), "load_mw", resolution="PT60M")
+
+
+def test_staged_install_checks_all_outputs_before_writing(tmp_path):
+    staged = tmp_path / "staged"
+    dest = tmp_path / "dest"
+    staged.mkdir()
+    dest.mkdir()
+    (dest / "a").write_text("old a")
+    (dest / "b").write_text("old b")
+    (staged / "a").write_text("new a")
+    (staged / "b").write_text("old b")
+
+    with pytest.raises(ValueError, match="No outputs written"):
+        install_staged(staged, dest, ["b", "a"])
+    assert (dest / "a").read_text() == "old a"
+    assert (dest / "b").read_text() == "old b"
+    assert (staged / "b").exists()
+
+    install_staged(staged, dest, ["b", "a"], replace_existing=True)
+    assert (dest / "a").read_text() == "new a"
+    assert (dest / "b").read_text() == "old b"
