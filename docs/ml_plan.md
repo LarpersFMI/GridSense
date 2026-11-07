@@ -62,7 +62,7 @@ Rules that keep two people from blocking each other:
 
 ## 4. Splitting ML between two people
 
-Split by **task**: one person forecasts the price, the other classifies low-price hours. Each owns a model file and trains it independently with `make train TASK=price` or `make train TASK=classify`; `predict.py` combines the latest version of both.
+Split by **task**: one person forecasts the price, the other classifies low-price hours. Each owns a model file and trains it independently with `make train TASK=price` or `make train TASK=classify`; `predict.py` combines the latest version of both. The detailed price plan is in [price_plan.md](price_plan.md).
 
 | | **ML-P: price forecasting** | **ML-C: low-price classification** |
 |---|---|---|

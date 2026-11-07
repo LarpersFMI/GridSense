@@ -31,6 +31,18 @@ def test_price_quantiles_never_cross(tiny_training_table):
     assert out["p_near_zero"].isna().all()
 
 
+def test_asinh_round_trip_and_conformal_coverage(tiny_training_table):
+    tr, val = _split(tiny_training_table)
+    model = PriceForecaster().fit(tr, val)
+    y = val["y_price"]
+    assert np.allclose(model._to_price(model._to_model_scale(y).to_numpy()), y)
+
+    assert set(model.conformal_offsets) == {1}
+    out = model.predict(val)
+    coverage = ((y >= out["price_p10"]) & (y <= out["price_p90"])).mean()
+    assert coverage >= 0.8
+
+
 def test_train_then_predict_end_to_end(tiny_training_table, tmp_dirs):
     io.write(tiny_training_table, "training_table")
     train.main([])

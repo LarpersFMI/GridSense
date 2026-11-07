@@ -5,7 +5,7 @@ import pandas as pd
 from gridsense import config, io
 from gridsense.models import artifacts
 from gridsense.models.classify import LABELS, LowPriceClassifier
-from gridsense.models.metrics import classification_report, quantile_report
+from gridsense.models.metrics import classification_report, price_report
 from gridsense.models.price import PriceForecaster
 from gridsense.splits import assign_split
 
@@ -28,9 +28,7 @@ def classify_metrics(model: LowPriceClassifier, val: pd.DataFrame) -> dict:
 
 
 def price_metrics(model: PriceForecaster, val: pd.DataFrame) -> dict:
-    pred = model.predict(val)
-    cols = [c for c in pred.columns if c.startswith("price_p")]
-    return quantile_report(val["y_price"], dict(zip(model.quantiles, (pred[c] for c in cols))))
+    return price_report(val["y_price"], model.predict(val))
 
 
 TASKS = {
@@ -54,7 +52,8 @@ def train_task(task: str, train: pd.DataFrame, val: pd.DataFrame) -> str:
             "train_range": [train["target_ts_utc"].min(), train["target_ts_utc"].max()],
             "val_range": [val["target_ts_utc"].min(), val["target_ts_utc"].max()],
             "val_metrics": val_metrics,
-        },
+        }
+        | (model.metadata() if hasattr(model, "metadata") else {}),
     )
     artifacts.log_experiment(
         {"task": task, "model": model.name, "version": version, "n_features": len(model.features)}

@@ -26,7 +26,7 @@ predict:
 
 # Scores validation by default; FINAL=1 scores the test set once.
 evaluate:
-	uv run python -m gridsense.models.evaluate $(if $(FINAL),--final,)
+	uv run python -m gridsense.models.evaluate $(if $(TASK),--task $(TASK),) $(if $(FINAL),--final,)
 
 agent:
 	uv run python -m gridsense.agent.run

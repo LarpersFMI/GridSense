@@ -28,7 +28,8 @@ WEATHER_FC = {
     "temp_c": "float64",
 }
 
-# calendar.parquet: one row per local hour.
+# calendar.parquet: one row per local hour. Defines the target hours of the training table, so it
+# must extend 7 days past the latest price date for the newest issue date to get all horizons.
 CALENDAR = {
     "ts_utc": "datetime64[ns, UTC]",
     "is_holiday": "bool",
