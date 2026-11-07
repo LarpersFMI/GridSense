@@ -232,6 +232,8 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--regional", action="store_true",
                         help="Opt in to verified HU/BG market features; keep missing inputs flagged")
+    parser.add_argument("--week-ahead", action="store_true",
+                        help="Opt in to week-ahead load min/max; historical publication vintages are unverified")
     args = parser.parse_args(argv)
     if args.regional and config.DATA_MODE != "real":
         parser.error("Regional market inputs are real-only; do not mix them into fake mode")
@@ -240,8 +242,14 @@ def main(argv: list[str] | None = None) -> None:
         _read_optional("grid_hourly"),
         _read_optional("weather_fc"),
         io.read("calendar"),
-        _read_optional("load_fc_week_ahead"),
+        _read_optional("load_fc_week_ahead") if args.week_ahead else None,
     )
+    split = assign_split(table["target_ts_utc"]).fillna("unassigned")
+    # A model can't learn a feature with no training values; it would only switch on at refit/test.
+    empty = [c for c in table if c.startswith(F) and table.loc[split.eq("train"), c].isna().all()]
+    if empty:
+        table = table.drop(columns=empty)
+        print(f"[{config.DATA_MODE}] dropped features with no training values: {empty}")
     if args.regional:
         from gridsense.features.regional import join_regional_features, read_regional_table
 
@@ -252,7 +260,6 @@ def main(argv: list[str] | None = None) -> None:
 
     n_features = sum(c.startswith(F) for c in table.columns)
     print(f"[{config.DATA_MODE}] training_table: {len(table):,} rows, {n_features} features")
-    split = assign_split(table["target_ts_utc"]).fillna("unassigned")
     summary = table.groupby(split).agg(
         rows=("y_price", "size"),
         near_zero=("y_near_zero", "sum"),

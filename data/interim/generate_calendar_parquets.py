@@ -1,6 +1,8 @@
+import holidays
 import pandas as pd
 
 from gridsense.config import (
+    HORIZONS_DAYS,
     PROCESSED_DIR,
     RAW_DIR,
     TEST_END,
@@ -9,16 +11,15 @@ from gridsense.config import (
     TRAIN_START,
     VAL_END,
     VAL_START,
-    WEATHER_POINTS,
 )
 from gridsense.schemas import COUNTRY_CALENDAR
 
+# Romania's ML calendar is calendar.parquet (gridsense.data.calendar). Moldova is outside SDAC.
 COUNTRY_TIMEZONES = {
-    "Romania": "Europe/Bucharest",
     "Hungary": "Europe/Budapest",
     "Bulgaria": "Europe/Sofia",
-    "Moldova": "Europe/Chisinau",
 }
+COUNTRY_CODES = {"Hungary": "HU", "Bulgaria": "BG"}
 
 
 SPLIT_RANGES_UTC = {
@@ -36,21 +37,22 @@ def build_country_calendar(
     ]
 
 
+    years = range(TRAIN_START.year, TEST_END.year + 2)
+    # The raw CSV only lists split-period dates; the holidays package also covers the refit gap.
     non_working_dates = set(
         country_holidays[
             country_holidays["category"] == "Non-Working (Public)"
         ]["date_utc"]
-    )
+    ) | {str(d) for d in holidays.country_holidays(COUNTRY_CODES[country_name], years=years)}
     working_holiday_dates = set(
         country_holidays[country_holidays["category"] == "Working"]["date_utc"]
     )
 
-    all_utc_ranges = [
-        pd.date_range(start_utc, end_utc, freq="1h", tz="UTC")
-        for start_utc, end_utc in SPLIT_RANGES_UTC.values()
-    ]
-    ts_utc_series = pd.DatetimeIndex(
-        pd.concat([pd.Series(r) for r in all_utc_ranges]).values, tz="UTC"
+    # Continuous like calendar.parquet: the refit gap between validation and test needs holidays too.
+    ts_utc_series = pd.date_range(
+        TRAIN_START.tz_convert("UTC"),
+        (TEST_END + pd.Timedelta(days=max(HORIZONS_DAYS))).tz_convert("UTC"),
+        freq="1h",
     )
 
     df = pd.DataFrame({"ts_utc": ts_utc_series})
@@ -120,14 +122,7 @@ def process_calendar_to_parquet() -> None:
 
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
-    countries = {country for _, _, country in WEATHER_POINTS.values()}
-
-    for country in countries:
-        tz_name = COUNTRY_TIMEZONES.get(country)
-        if not tz_name:
-            print(f"Warning: Timezone mapping missing for {country}. Skipping.")
-            continue
-
+    for country, tz_name in COUNTRY_TIMEZONES.items():
         print(f"Generating calendar Parquet for {country} ({tz_name})...")
         df_calendar = build_country_calendar(country, tz_name, df_holidays_raw)
 

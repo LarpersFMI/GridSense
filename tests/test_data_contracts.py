@@ -34,7 +34,7 @@ def test_minimal_ml_calendar_and_enriched_country_exports_coexist():
                               (config.TRAIN_START + pd.Timedelta(days=1)).date())
     io.check_columns(calendar, "calendar")
     country = calendar.assign(country="Romania", is_working_holiday=False, split="Train")
-    for name in ("calendar_romania", "calendar_hungary", "calendar_bulgaria", "calendar_moldova"):
+    for name in ("calendar_hungary", "calendar_bulgaria"):
         io.check_columns(country, name)
     assert set(COUNTRY_CALENDAR) == set(country.columns)
 

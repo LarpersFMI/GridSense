@@ -1,5 +1,5 @@
 {
-  "run_at_utc": "2026-11-07T16:03:32.803985+00:00",
+  "run_at_utc": "2026-11-07T16:22:54.169731+00:00",
   "data_mode": "real",
   "test_evaluated": false,
   "production_artifacts_changed": false,
@@ -8,19 +8,19 @@
   "price_scored_rows": 35932,
   "lear_weight": 0.7,
   "price_best_iterations": {
-    "0.05": 101,
+    "0.05": 105,
     "0.1": 78,
-    "0.25": 61,
-    "0.5": 150,
-    "0.75": 424,
-    "0.9": 343,
-    "0.95": 255
+    "0.25": 65,
+    "0.5": 179,
+    "0.75": 459,
+    "0.9": 324,
+    "0.95": 227
   },
   "classifier_best_iterations": {
-    "p_near_zero": 299,
-    "p_cheap": 487
+    "p_near_zero": 323,
+    "p_cheap": 218
   },
-  "probability_order_violations_crossfit": 3248,
+  "probability_order_violations_crossfit": 5558,
   "slot_rule": {
     "local_hours": [
       9,
@@ -35,7 +35,7 @@
     "hit": "every hour <= 20.0 EUR/MWh"
   },
   "inputs_sha256": {
-    "training_table": "8329e42ac60f7b12f1fda8ce47511d4ed92dd679076ffa23a16c8dc04b34a05e"
+    "training_table": "e1b8a8345afe81e65b34129ad500187dc4e491a150777f36ca6073cc619b5108"
   },
   "caveats": [
     "Each horizon is planned separately for every validation month; budget always fills (no tau).",

@@ -530,35 +530,82 @@ A slot hits only if every hour clears ≤20 €/MWh; cancellation = 1 − hit ra
 - Recorded for the refit rule: 132,048 train rows; P50 best iteration 150 (quantiles 61–424),
 	classifier 299 (near-zero) / 487 (cheap). Cross-fit probability-order violations: 3,248 rows.
 
+## Data and feature audit after the dev merge (2026-11-07)
+
+**Merge repair.** Upstream `757105a` committed `calendar*.parquet` and `weather_fc.parquet`
+through a text conversion (UTF-8 replacement bytes); none of the six files could be opened.
+The valid calendars and the archived GFS `weather_fc` were restored, and the `build.py`
+change that pointed the forecast join at observed-weather columns was reverted. The rebuilt
+54-feature table matched the pre-merge table exactly; 135 tests passed; pushed as `e207d85`.
+After every pull, check that each tracked Parquet opens before pushing.
+
+**Weather: `weather_fc`, not `weather_hourly`.** `weather_hourly` (34 points, 10 variables
+incl. humidity, precipitation, pressure, 10 m wind) is Open-Meteo *observed* archive weather.
+At 10:00 on D nobody knows D+1…D+7's actual weather, so joining it to target hours would
+leak the outcome; the extra variables do not change that. Valid uses are issue-relative lags
+(e.g. trailing precipitation as a hydro proxy, after D−1 publication) and forecast-error
+analysis. If an extra variable is wanted as a target-hour feature, fetch it as a *forecast*
+through the same Previous Runs pipeline (GFS offers humidity, precipitation, pressure, wind
+direction). Price relevance of these is low compared with radiation, cloud, 100 m wind and
+temperature; hydro storage (`entsoe_file_library/hydro_storage.parquet`) is a more direct
+hydro signal. `weather_hourly.parquet` stays in the repo for those lag/analysis uses.
+
+**Calendar: `calendar.parquet` for Romania, HU/BG exports for neighbour features.**
+`calendar_romania` held the same holiday/DST/day-hours values as `calendar.parquet` but
+lacked 3,793 hours, the Oct 2025–Feb 2026 refit gap and the post-test horizon extension,
+so it was removed. `calendar_moldova` was removed (Moldova is outside SDAC). `is_working_holiday`
+is empty for Romania and `day_hours` duplicates the DST flag, so neither is a feature.
+The HU/BG exports had the same refit gap, and the raw `holidays.csv` they were built from
+lists only split-period dates (it missed e.g. Christmas 2025). The generator now covers the
+continuous calendar range and adds the `holidays` package, the same source as the Romanian ML
+calendar; on the old rows the regenerated holidays/bridge days are identical. HU/BG holidays
+differ from Romanian ones on ~800 hours each, so they are the obvious next calendar feature.
+The superseded manual `data/entsoe/` downloads (ignored) were moved to `~/GridSense_backups/`.
+
+**Feature cleanup (default build now 50 features).**
+- `f_solar_max_dm1`, `f_wind_mean_dm1`: 0% populated in train and validation (the source
+	update mask keeps only recent generation), but ~97% in test. A tree never splits on an
+	all-missing training column, and at refit they would switch on from late 2025 only. The
+	builder now drops any feature with no training values and prints the list.
+- `f_load_fc_min`, `f_load_fc_max`: now opt-in (`make features WEEK_AHEAD=1`). The data team's
+	as-of build shows no train/validation forecast revision was recorded before issue time,
+	and the ablation showed no meaningful gain.
+
+Same-row validation, 54 → 50 features (`models.error_analysis`, default settings): ensemble MAE
+by horizon changes by −0.02 to +0.16 €/MWh (largest at D+2: 19.88 → 20.04); ≤0 and 0–20 band
+MAE worsen by 0.4–0.5; near-zero raw PR-AUC 0.7602 → 0.7639, cheap 0.6274 → 0.6195; budget
+precision 0.792 → 0.783, slot hit rate 0.658 → 0.659. The week-ahead features carried a small,
+unverified signal that may partly come from latest-revision leakage; restore them only with
+as-issued vintages. Production artifacts were retrained on the 50-feature table: classifier
+`20261107T162342-e207d85`, quantiles `20261107T162432-e207d85` (val MAE 22.595, coverage 80.0%).
+Cross-fitted probability-order violations are now 5,558 rows (3,248 before), so the ML-C nesting
+fix is more pressing. The [error analysis reports](../reports/real/eval/error_breakdown_val.csv)
+now reflect the 50-feature default; the 54-feature tables quoted above are the earlier run.
+
 ## Real data status (current after latest pull)
 
-The training table now has **54 feature columns, 52 with any training values**: 29 price/calendar,
-D−1 actual Romanian load, two week-ahead min/max features, and 20 archived weather features.
-Actual solar/wind generation features now have later-date values but are still unavailable
-throughout the training split under the source-update mask. Regional features are available
-through an opt-in build (65 columns), not enabled by default after the small ablation gain.
-Capacity and outage features are not consumed by the current feature entry point.
+The default training table now has **50 feature columns, all with training values**: 29
+price/calendar, D−1 actual Romanian load, and 20 archived weather features. Week-ahead min/max
+are opt-in (`WEEK_AHEAD=1`) and solar/wind D−1 lags are dropped automatically while the training
+split has no values (see the audit above). Regional features are opt-in (`REGIONAL=1`). Capacity,
+outage, hydro and flow tables are in the repo but not yet consumed by the feature builder.
 
 | Data | Local status | Remaining work |
 |---|---|---|
 | RO hourly prices | 33,600 complete hours through 2026-10-31 from File Library | Final-test label gap resolved; refit and explicit authorization still required before evaluation |
 | Actual RO load | Shared grid through Oct 2026; 33,220 available load hours; D−1 daily mean used | Check missing/re-stamped hours and historical publication latency. Forecast inputs still need as-of integration |
-| Week-ahead RO load | File Library table: 1,436 delivery days, 2022-12-02→2026-11-15; 9 missing days | Already used; resolve historical publication/revision provenance before relying on the gain |
+| Week-ahead RO load | File Library table: 1,436 delivery days, 2022-12-02→2026-11-15; as-of handoff has 0 train/val vintages | Opt-in only; needs original publication vintages before reuse |
 | HU/BG prices + loads | File Library tables regenerated; 11 features integrated opt-in and ablated | Current-vs-regional gain small; validate price/load subsets and chronological blocks before promotion |
-| Actual generation by type | Shared grid includes later-date solar/wind values, with source-update cutoff masking | Resolve training-history availability; actuals remain issue-relative lags, not target-hour features |
-| Installed capacity | Manual annual CSVs for 2020–2026 exist, including solar/wind/hydro/nuclear | Parse and establish publication/as-of policy; not a model feature yet |
-| Outages | Parser and as-of MW-offline helper exist, but no local extracts/table | Download versioned messages with original publication times; add features only after provenance checks |
-| Weather | Archived GFS offsets now integrated through validation end; observed/reanalysis raw file remains unused | Extend archive for final refit/inference, verify original release timing, and obtain full D+7 operational runs |
-| Reservoirs / physical flows | No processed training input | Lower-priority collection; release-aware lagged reservoir levels and D−1 RO↔HU/BG flows |
+| HU/BG holidays | `calendar_hungary/bulgaria.parquet`, continuous through the refit gap | Candidate neighbour-holiday features |
+| Actual generation by type | `entsoe_file_library/generation.parquet`; shared grid masks solar/wind by source update time | Resolve training-history availability; actuals remain issue-relative lags, not target-hour features |
+| Installed capacity | `entsoe_file_library/installed_capacity.parquet` (annual, by type) and `unit_reference/` | Establish publication/as-of policy; scale solar/wind forecasts |
+| Outages | `entsoe_file_library/outages.parquet` (normalized, versioned) | Data team: version/segment semantics and unit capacity unresolved; not model-ready |
+| Weather | Archived GFS offsets for 4 RO points through validation end; observed `weather_hourly` for lags/analysis only | Extend archive for final refit/inference, verify original release timing, and obtain full D+7 operational runs |
+| Reservoirs / physical flows | `entsoe_file_library/hydro_storage.parquet`, `physical_flows.parquet` | Release-aware lagged reservoir level/trend and D−1 RO↔HU/BG net flows |
 
-Manual `data/entsoe/` downloads are **gitignored** under the current root-data rules:
-
-| Folder | Actually contains | Usable? |
-|---|---|---|
-| `day_ahead/` (2026 monthly files) | **Offered cross-border capacity RO↔BG**, not energy prices or physical flows | Capacity candidate only; not checklist rows 1 or 9 |
-| `week_ahead/` (2026 weekly files) | Daily forecast min/max plus actual min/max | Forecast columns only; training uses the longer File Library history instead |
-| `generation_installed_capacity/` (2020–2026) | Annual installed capacity per production type | Structural candidate, not actual hourly generation |
-| `year_ahead/` (2020–2026) | Weekly forecast/actual min/max load | Low priority; forecast columns only |
+The former manual `data/entsoe/` downloads (offered RO↔BG capacity, 2026 week-ahead, annual
+capacity, year-ahead load) are superseded by the File Library tables and were moved to
+`~/GridSense_backups/data_entsoe_manual_downloads/`.
 
 Never use target-day `Actual min/max` columns. Native-time exports need their stated timezone:
 cross-border capacity files say CET/CEST; File Library timestamps explicitly say UTC.
