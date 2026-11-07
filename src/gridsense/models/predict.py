@@ -12,6 +12,24 @@ from gridsense.models.price import PriceForecaster
 KEY_COLUMNS = ["issue_ts", "target_ts_utc", "horizon_days"]
 EXPLAINED = "p_cheap"
 
+# The app accepts only these (packages/shared/domain/Dataset/Predictions.ts, Predictions.DataQuality):
+# one other value makes the Watchdog's whole check fail. `degraded`: an input was missing and a fallback
+# was used; `failed`: input checks failed.
+APP_DATA_QUALITY = ("ok", "degraded", "failed")
+
+
+def export_data_quality(detail: pd.Series) -> tuple[pd.Series, pd.Series]:
+    """(data_quality, data_quality_reason) for the app, from the training table's detailed flags.
+
+    Any flag outside APP_DATA_QUALITY (e.g. "missing_weather") becomes "degraded"; a missing flag also
+    becomes "degraded" (we can't vouch for the inputs). The detailed flag is kept as the reason, so
+    nothing is lost: "" when ok, otherwise the original value ("unknown" if it was missing).
+    """
+    detail = detail.astype("string")
+    status = detail.where(detail.isin(APP_DATA_QUALITY), "degraded").fillna("degraded")
+    reason = detail.fillna("unknown").where(status != "ok", "")
+    return status.astype("string"), reason.astype("string")
+
 
 def build_predictions(
     table: pd.DataFrame,
@@ -22,8 +40,9 @@ def build_predictions(
     out = table[KEY_COLUMNS].copy()
     out[list(PROBA_COLUMNS)] = classifier.predict(table)[list(PROBA_COLUMNS)]
     out[list(PRICE_COLUMNS)] = price.predict(table)[list(PRICE_COLUMNS)]
-    # Until data/quality.py feeds per-row flags into the training table.
-    out["data_quality"] = table.get("data_quality", "ok")
+    # Per-row input flags from the training table (features/build.py); "ok" for tables without them.
+    detail = table.get("data_quality", pd.Series("ok", index=table.index))
+    out["data_quality"], out["data_quality_reason"] = export_data_quality(detail)
     # Explains p_cheap (both chain steps): the probability the agent's decision rule acts on.
     models = classifier.explain_models(EXPLAINED)
     out["top_features"] = top_features(models, table[classifier.features]).to_numpy()
