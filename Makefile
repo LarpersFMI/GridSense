@@ -19,7 +19,7 @@ fake-predictions:
 	GRIDSENSE_DATA=fake uv run python -m gridsense.synthetic.predictions
 
 features:
-	uv run python -m gridsense.features.build $(if $(filter 1,$(REGIONAL)),--regional,) $(if $(filter 1,$(WEEK_AHEAD)),--week-ahead,) $(if $(filter 1,$(WEATHER_EXTRA)),--weather-extra,)
+	uv run python -m gridsense.features.build $(if $(filter 1,$(REGIONAL)),--regional,) $(if $(filter 1,$(WEEK_AHEAD)),--week-ahead,) $(if $(filter 1,$(WEATHER_EXTRA)),--weather-extra,) $(if $(filter 1,$(FORECAST_ENGINEERED)),--forecast-engineered,)
 
 # TASK=classify or TASK=price trains one model only.
 train:

@@ -48,6 +48,48 @@ WEATHER_HOURLY = {
     "wind_dir_deg": "float64",
     "split": "string",
 }
+WEATHER_HOURLY_AUGMENTED = {
+    # Timestamps & Core Metadata
+    "ts_utc": "datetime64[ns, UTC]",
+    "target_ts_utc": "datetime64[ns, UTC]",
+    "split": "string",
+    "lead_days": "int64",
+    # Price Targets & Memory Features
+    "price_mean": "float64",
+    "price_min": "float64",
+    "price_max": "float64",
+    "price_issue_day_mean": "float64",
+    "price_issue_day_max": "float64",
+    "price_issue_day_min": "float64",
+    "price_issue_day_std": "float64",
+    # Temporal & Cyclical Features
+    "hour": "int64",
+    "dayofweek": "int64",
+    "dayofyear": "int64",
+    "hour_sin": "float64",
+    "hour_cos": "float64",
+    "dayofyear_sin": "float64",
+    "dayofyear_cos": "float64",
+    # Spatial Macro & Location Weather Features
+    "solar_proxy_wm2_ro_max": "float64",
+    "solar_proxy_wm2_neighbors_mean": "float64",
+    "solar_proxy_wm2_budapesta": "float64",
+    "solar_proxy_wm2_paks": "float64",
+    "solar_proxy_wm2_kozlodui": "float64",
+    "solar_proxy_wm2_sofia": "float64",
+    "relative_humidity_pct_ramnicu_valcea": "float64",
+    "relative_humidity_pct_bekescsaba": "float64",
+    "relative_humidity_pct_cluj_napoca": "float64",
+    "relative_humidity_pct_paks": "float64",
+    "relative_humidity_pct_iasi": "float64",
+    "relative_humidity_pct_galati": "float64",
+    "cloud_cover_pct_budapesta": "float64",
+    "cloud_cover_pct_chisinau": "float64",
+    "wind10_ms_braila": "float64",
+    "wind_v_baia_mare": "float64",
+    "temp_c_sofia": "float64",
+    "cooling_degree_hour_bekescsaba": "float64",
+}
 
 # Compatibility name used by the upstream File Library/weather integration checks.
 WEATHER_ARCHIVED_FC = WEATHER_FC
@@ -113,6 +155,7 @@ TABLES = {
     "grid_hourly": GRID_HOURLY,
     "weather_fc": WEATHER_ARCHIVED_FC,
     "weather_hourly": WEATHER_HOURLY,
+    "weather_hourly_augmented": WEATHER_HOURLY_AUGMENTED,
     "calendar": CALENDAR,
     "calendar_hungary": COUNTRY_CALENDAR,
     "calendar_bulgaria": COUNTRY_CALENDAR,

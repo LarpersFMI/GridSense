@@ -13,13 +13,14 @@ import pandas as pd
 from gridsense import config, io
 from gridsense.models import artifacts
 from gridsense.models.ablate_price import WEATHER_PREFIXES, validation_tables
+from gridsense.models.base import feature_columns
 from gridsense.models.baselines import (
     NAIVE_COLUMN,
     PERSISTENCE_COLUMN,
     Climatology,
     SolarRule,
 )
-from gridsense.models.calibrate import cross_fit, plot_reliability, reliability_table
+from gridsense.models.calibrate import plot_reliability, reliability_table
 from gridsense.models.classify import LABELS, LowPriceClassifier
 from gridsense.models.metrics import by_horizon, classification_report, price_report
 from gridsense.models.price import PriceForecaster
@@ -52,29 +53,31 @@ def classification_scores(rows: pd.DataFrame, pred: pd.DataFrame) -> pd.DataFram
             raise ValueError("Classification probabilities must be finite and in [0,1]")
 
         def metric(group: pd.DataFrame, label: str = label) -> dict:
-            y = group[label].astype(int)
-            return {"n": len(y), **classification_report(y, group["probability"], k=int(y.sum()))}
+            y = group[label].to_numpy(dtype=int)
+            return {"n": len(y), **classification_report(
+                y, group["probability"].to_numpy(dtype=float), k=int(y.sum()))}
 
         reports.append(by_horizon(scored, metric).assign(label=label).reset_index())
     return pd.concat(reports, ignore_index=True)
 
 
 def cross_calibrated_predictions(
-    rows: pd.DataFrame, raw: pd.DataFrame, method: str = "platt"
+    rows: pd.DataFrame, classifier: LowPriceClassifier
 ) -> pd.DataFrame:
-    """Keep all horizons of each target month together when fitting the calibrator.
+    """Cross-fit each nested step, grouping all horizons of a target month together.
 
     The underlying model was early-stopped on validation, so this is cross-fitted
     calibration evidence, not independent or forward-only forecasting validation.
+    Calibrate P(cheap | near_zero) on eligible rows, never the final p_cheap product.
     """
     groups = rows["target_ts_utc"].dt.tz_convert(config.LOCAL_TZ).dt.strftime("%Y-%m")
     if groups.nunique() < 2:
         raise ValueError("Cross-fitted calibration needs at least two target months")
-    if not raw.index.equals(rows.index):
-        raise ValueError("Raw predictions must align with the scored validation rows")
-    calibrated = raw.copy()
-    for column, label in LABELS.items():
-        calibrated[column] = cross_fit(raw[column], rows[label].astype(int), groups, method)
+    calibrated = classifier.predict_cross_fitted(rows, groups.to_numpy())
+    if not calibrated.index.equals(rows.index):
+        raise ValueError("Cross-fitted predictions must align with the scored validation rows")
+    if calibrated.p_cheap.gt(calibrated.p_near_zero).any():
+        raise ValueError("Cross-fitted classifier probabilities must remain nested")
     return calibrated
 
 
@@ -101,11 +104,11 @@ def main() -> None:
     method = getattr(classifier, "calibration", None)
     if method and getattr(classifier, "calibrators", {}):
         predictions[f"lgbm_weather_{method}_crossfit"] = cross_calibrated_predictions(
-            val, predictions["lgbm_weather"], method
+            val, classifier
         )
     classification = [classification_scores(val, pred).assign(model=name, scope="all_validation")
                       for name, pred in predictions.items()]
-    ghi_columns = [c for c in val if c.startswith("f_ghi_") and c != "f_ghi_mean"]
+    ghi_columns = [c for c in feature_columns(val) if c.startswith("f_ghi_") and c != "f_ghi_mean"]
     if not ghi_columns:
         raise ValueError("No per-location forecast radiation features")
     solar_rows = val[val[ghi_columns].notna().all(axis=1)]
@@ -127,14 +130,15 @@ def main() -> None:
             model=name
         ).reset_index())
     classify_result, price_result = pd.concat(classification), pd.concat(prices)
-    availability = val.groupby("horizon_days")[[c for c in val if c.startswith(WEATHER_PREFIXES)]].agg(
+    availability = val.groupby("horizon_days")[[
+        c for c in feature_columns(val) if c.startswith(WEATHER_PREFIXES)]].agg(
         lambda x: float(x.notna().mean())
     )
     out = config.REPORTS_DIR / "eval"
     out.mkdir(parents=True, exist_ok=True)
     for column, label in LABELS.items():
         curves = {
-            name: reliability_table(pred[column], val[label].astype(int))
+            name: reliability_table(pred[column].to_numpy(dtype=float), val[label].to_numpy(dtype=int))
             for name, pred in predictions.items() if name != SolarRule.name
         }
         for name, curve in curves.items():

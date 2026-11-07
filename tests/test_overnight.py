@@ -244,6 +244,29 @@ def test_experiment_tables_filters_test_and_unassigned_rows(development_rows, mo
     assert assign_split(snapshots["current"].target_ts_utc).isin(["train", "val"]).all()
 
 
+def test_engineered_candidate_is_opt_in_and_receives_only_development_rows(
+        development_rows, monkeypatch):
+    assert "forecast_engineered" in overnight.VARIANTS
+    assert "forecast_engineered" not in overnight.DEFAULT_VARIANTS
+    assert len(overnight.DEFAULT_VARIANTS) == 6
+    stored = pd.concat([development_rows, _outside_row(development_rows, "test")],
+                       ignore_index=True)
+    monkeypatch.setattr(overnight.io, "read", lambda name: (
+        stored.copy() if name == "training_table" else pd.DataFrame()))
+    monkeypatch.setattr(overnight, "build_training_table", lambda *args, **kwargs: stored.copy())
+    monkeypatch.setattr(overnight, "drop_untrainable", lambda table: (table, []))
+
+    def engineer(current, weather, prices):
+        assert assign_split(current.target_ts_utc).isin(["train", "val"]).all()
+        return current.assign(f_feng_synthetic=2.0)
+
+    monkeypatch.setattr(overnight, "join_engineered_features", engineer)
+    snapshots = overnight.experiment_tables(["current", "forecast_engineered"])
+    pd.testing.assert_frame_equal(snapshots["forecast_engineered"][stored.columns],
+                                  snapshots["current"])
+    assert snapshots["forecast_engineered"].f_feng_synthetic.eq(2).all()
+
+
 def test_prepare_writes_read_only_development_snapshot_and_validated_folds(
         sandbox, development_rows, monkeypatch):
     monkeypatch.setattr(overnight, "experiment_tables", lambda variants: {

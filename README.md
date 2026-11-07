@@ -5,25 +5,44 @@ Full plan, rationale and timeline: [docs/project_plan.md](docs/project_plan.md).
 Agent layer (alerts, dashboard, chatbot): [docs/agent_design.md](docs/agent_design.md).
 ML plan (models, two-person split, working before data exists): [docs/ml_plan.md](docs/ml_plan.md).
 
-GridSense forecasts which hours will have negative or near-zero electricity prices in Romania,
-1–7 days ahead. It then plans "zero-cost hour" slots for PPC Energie customers, confirms or
-cancels them after the day-ahead auction, sends targeted notifications, and hands uncertain
-cases to a human. It automates PPC Energie's 2026 "Energie Electrică Activă Zero" pilot, in
-which 83% of enrolled customers shifted consumption.
+An AI agent that forecasts, days in advance, which hours will have negative or near-zero electricity prices in Romania. It then automatically plans, confirms and announces "zero-cost hours" to the right PPC Energie customers, so PPC moves consumption into cheap solar hours without ever giving away energy during expensive ones.
+
+GridSense extends PPC Energie's 2026 "Energie Electrică Activă Zero" pilot, in which 83% of
+enrolled customers shifted consumption. Forecasts cover 1–7 days ahead; planned slots remain
+provisional until the day-ahead auction prices confirm them, and uncertain cases go to a human.
 
 ## How it works
 
+The intended end-to-end workflow is shown below; see [Status](#status) for current readiness
+and [the agent design](docs/agent_design.md) for approval rules and demo actions.
+**Implemented today:** data/feature pipelines, forecasting models and validation experiments.
+**Still planned on `dev`:** the customer-facing planner, auction reconciliation, notifications,
+human-approval workflow and dashboard. The pitch's "never" is a safety requirement, not a
+demonstrated operational guarantee; no live customer offers are being sent.
+
 ```mermaid
-flowchart LR
-    A[ENTSO-E prices, load, generation] --> D[data/ → data/processed/*.parquet]
-    B[Open-Meteo archived forecasts] --> D
-    C[Holiday calendar] --> D
-    D --> F[features/ → one row per issue_date × target hour × horizon]
-    F --> M[models/ → LightGBM classifier + quantile regressor, calibrated]
-    M --> P[predictions.parquet]
-    P --> G[agent/ → slots, decision rule, budget, confirm/cancel]
-    G --> X[actions: calendar, notifications, trading-desk alert, human review, weekly report]
-    G --> L[llm/ → wording only]
+flowchart TD
+  subgraph ML["Implemented: data and forecasting"]
+  A["ENTSO-E market data"] --> D["Validate data and build features known at issue time"]
+  B["Open-Meteo archived forecasts"] --> D
+  C["Holiday calendar"] --> D
+  D --> M["Forecast D+1 to D+7: calibrated low-price probabilities and P10/P50/P90"]
+  end
+  subgraph AGENT["Planned: customer-facing agent"]
+  M --> P["Plan zero-cost slots: confidence, expected value and monthly budget"]
+  P --> O["Provisional calendar: Likely / Possible"]
+  P -->|"Uncertain or bad data"| H["Human review: approve or reject"]
+  H -->|"Approved plan"| O
+  O --> G{"Every slot hour clears at or below the price threshold?"}
+  DA["Published D+1 day-ahead auction prices"] --> G
+  G -->|Yes| OK["Confirm zero-cost slots"]
+  G -->|"No / missing prices"| X["Cancel or withhold: no free-energy offer"]
+  OK --> T["Target eligible PPC Energie customer segments"]
+  T --> N["Announce confirmed hours: email / myPPC, calendar and EV charging suggestions"]
+  L["LLM or templates: wording only, never decisions"] -.-> N
+  OK --> R["Trading-desk alerts, decision trace and weekly impact report"]
+  X --> R
+  end
 ```
 
 | Step | What happens |
@@ -31,7 +50,8 @@ flowchart LR
 | Perceive | Download and validate market, weather and calendar data. |
 | Estimate | Our model outputs `p_near_zero`, `p_cheap` and price P10/P50/P90 for each hour D+1…D+7. |
 | Decide | Build 2–6 h slots between 09:00 and 18:00, score them by expected value, and apply thresholds, the monthly free-hours budget and confidence. Low-confidence or bad-data slots get `NEEDS_REVIEW`. |
-| Act | Publish the calendar, notify customer segments, alert the trading desk, escalate to a human, write the weekly report. |
+| Confirm | After the D+1 day-ahead auction, confirm only slots where every hour clears at or below the price threshold; cancel or withhold the rest. |
+| Act | Announce confirmed slots to eligible customer segments, publish the calendar, recommend EV charging windows, alert the trading desk and write the weekly report. |
 
 ## Rules for anyone (or any coding agent) working in this repo
 
@@ -140,6 +160,15 @@ covers spring and summer on purpose, because winter has almost no negative-price
 
 ## Status
 
+The ML implementation has tested training and validation paths, including an isolated,
+smoke-tested overnight queue. This is not a deployed end-to-end agent:
+[slot planning and auction reconciliation](src/gridsense/agent/planner.py),
+[customer actions](src/gridsense/agent/actions.py) and
+[LLM wording](src/gridsense/llm/wording.py) still raise `NotImplementedError`, and the
+[Streamlit app](app/streamlit_app.py) is a title-only skeleton. The separate `main` branch
+adds dataset-trigger/server/frontend infrastructure, not completed customer-facing actions.
+Existing pre-chain classifier artifacts need retraining before normal prediction export.
+
 The [Romanian day-ahead price pipeline](docs/energy_market_data.md) writes native and hourly
 Parquet files from ENTSO-E, with a pinned snapshot option that needs no token. The latest
 validated File Library price tables cover RO/HU/BG through October 2026; the grid includes
@@ -168,6 +197,18 @@ wind forecasts use the existing cutoff policy; direction is encoded as sine/cosi
 The matched-row extras/grid comparisons do not justify changing the 50-feature default.
 `weather_grid_validation --cache-only` reuses the downloaded grid without network access.
 
+Forecast-based engineering is a separate opt-in: `make features FORECAST_ENGINEERED=1`
+adds physical weather proxies, hour/weekday cyclic encodings and 3/6/24-hour price-memory
+statistics. [The implementation](src/gridsense/features/forecast_engineering.py) uses only
+selected archived forecasts for the existing four RO points and price history before the
+issue timestamp, never target-hour observed weather or the upstream permutation ranking.
+Missing weather inputs remain missing; point means require every configured point.
+Solar/cloud potential is dimensionless, and surface-air/10 m wind-power density is a proxy,
+not renewable generation. Existing archive/cutoff limitations still apply.
+This explicit feature-build command writes the normal training table; for isolated comparisons
+choose the `forecast_engineered` overnight variant instead. Default features and the six
+default queue variants remain unchanged; there is no automatic feature promotion.
+
 For isolated overnight development experiments, use `make overnight-prepare RUN_DIR=...`,
 then `make overnight-smoke RUN_DIR=...`, then `make overnight RUN_DIR=...` (macOS).
 Preparation fails if a grid request is absent from the local cache. The queue snapshots only
@@ -175,9 +216,19 @@ labelled train/validation rows, verifies code/data checksums, keeps production a
 unchanged, and resumes verified completed jobs. Default candidates are current, weather
 extras, RO grid, RO/HU/BG grid, regional prices and regional load. `PROFILES="default recent
 regularized"` adds a bounded recency/regularization comparison when preparing a new queue.
+Add `chain_730_90` to `PROFILES` to test 730-day near-zero / 90-day conditional-cheap
+recency while keeping the price model at 365 days. Every chronological profile explicitly
+sets both classifier steps: default/regularized use 365/365 and recent uses 180/180,
+independent of the normal classifier's 730/90 defaults.
 See [the chronological protocol and limitations](docs/ml_handoff.md#chronological-validation-and-overnight-queue)
 before interpreting the June–September scoring blocks. No command in this queue evaluates
 test or promotes a feature/model automatically.
+
+The [latest incoming-data audit](docs/ml_handoff.md#incoming-data-audit-origin-dev-9839df0)
+keeps the new observed-weather augmentation out of forecasting: target-hour observations
+and delivery-relative price windows are not issue-known D+1…D+7 inputs. The opt-in
+adaptation above reuses the ideas with archived forecasts and issue-time price memory;
+validation must establish whether it improves forecasting before adoption.
 
 ## Data sources
 

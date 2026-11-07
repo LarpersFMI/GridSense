@@ -1,3 +1,4 @@
+from copy import deepcopy
 from types import SimpleNamespace
 
 import numpy as np
@@ -265,6 +266,8 @@ class _StubModel:
     def __init__(self, **kwargs):
         self.params = kwargs.get("params", {})
         self.calibrators = {}
+        self.half_life_days = kwargs.get("half_life_days")
+        self.step_half_lives = kwargs.get("step_half_lives", {})
 
     def fit(self, *args):
         return self
@@ -288,7 +291,13 @@ class _StubModel:
         return {"structure": "stub-chain"}
 
 
-def test_fit_fold_selects_on_selection_not_score_labels(development_table, monkeypatch):
+    def half_life(self, step):
+        return self.step_half_lives.get(step, self.half_life_days)
+
+
+@pytest.mark.parametrize("profile", tuple(chronological.PROFILES))
+def test_fit_fold_selects_on_selection_not_score_labels_and_locks_recency(
+        development_table, monkeypatch, profile):
     stages, _ = chronological.month_fold(development_table, str(_first_score_month()))
     assert assign_split(stages["score"].target_ts_utc).eq("val").all()
     stages["selection"] = _slot_rows(days=3, month=_first_score_month() - 1)
@@ -301,11 +310,19 @@ def test_fit_fold_selects_on_selection_not_score_labels(development_table, monke
     for name in ("price_scores", "classification_scores", "budget_metrics"):
         monkeypatch.setattr(chronological, name, lambda *args: pd.DataFrame())
 
-    before = chronological.fit_fold(stages, smoke=True)
+    original_profiles = deepcopy(chronological.PROFILES)
+    before = chronological.fit_fold(stages, profile=profile, smoke=True)
     changed = {name: part.copy() for name, part in stages.items()}
     changed["score"]["y_price"] = config.NEAR_ZERO_THRESHOLD_EUR + 100
     changed["score"][["y_near_zero", "y_cheap"]] = False
-    after = chronological.fit_fold(changed, smoke=True)
+    after = chronological.fit_fold(changed, profile=profile, smoke=True)
+    expected = chronological.PROFILES[profile]
+    assert before["metadata"]["price_half_life_days"] == expected["half_life_days"]
+    assert before["metadata"]["classifier_step_half_lives"] == expected["step_half_lives"]
+    assert set(expected["step_half_lives"]) == set(chronological.STEPS)
+    assert "step_half_lives" not in before["metadata"]["price_params"]
+    assert "step_half_lives" not in before["metadata"]["classifier_params"]
+    assert chronological.PROFILES == original_profiles
     assert before["metadata"]["policies"] == after["metadata"]["policies"]
     assert all(policy is not None for policy in before["metadata"]["policies"].values())
     pd.testing.assert_frame_equal(before["selection"], after["selection"])
@@ -313,6 +330,21 @@ def test_fit_fold_selects_on_selection_not_score_labels(development_table, monke
         pd.testing.assert_series_equal(before["policy_score"][column], after["policy_score"][column])
     assert before["policy_score"].cancellation_rate.eq(0).all()
     assert after["policy_score"].cancellation_rate.eq(1).all()
+
+
+def test_profiles_do_not_inherit_classifier_default_half_lives():
+    from gridsense.models.classify import CHEAP_GIVEN_NEAR_ZERO, NEAR_ZERO, LowPriceClassifier
+
+    expected = {"default": (365.0, 365.0), "recent": (180.0, 180.0),
+                "regularized": (365.0, 365.0), "chain_730_90": (730.0, 90.0)}
+    for profile, (near, cheap) in expected.items():
+        options = chronological.PROFILES[profile]
+        classifier = LowPriceClassifier(half_life_days=options["half_life_days"],
+                                        step_half_lives=dict(options["step_half_lives"]))
+        assert classifier.half_life(NEAR_ZERO) == near
+        assert classifier.half_life(CHEAP_GIVEN_NEAR_ZERO) == cheap
+    assert chronological.PROFILES["chain_730_90"]["half_life_days"] == (
+        chronological.PROFILES["default"]["half_life_days"])
 
 
 def test_forward_calibration_filters_conditional_step_and_ignores_score_labels(monkeypatch):
