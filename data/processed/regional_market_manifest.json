@@ -1,27 +1,84 @@
 {
   "bidding_zones": {
-    "BG": "10YCA-BULGARIA-R",
+    "RO": "10YRO-TEL------P",
     "HU": "10YHU-MAVIR----U",
-    "RO": "10YRO-TEL------P"
+    "BG": "10YCA-BULGARIA-R"
   },
-  "feature_non_null_rows": {
-    "f_load_bg_same_hour_d_minus_1": 214487,
-    "f_load_hu_same_hour_d_minus_1": 214473,
-    "f_load_ro_same_hour_d_minus_1": 214459,
-    "f_price_bg_same_hour_d": 211636,
-    "f_price_bg_same_hour_d_minus_6": 210761,
-    "f_price_hu_same_hour_d": 217149,
-    "f_price_hu_same_hour_d_minus_6": 216189,
-    "f_price_spread_ro_bg_d": 211318,
-    "f_price_spread_ro_bg_d_minus_6": 210458,
-    "f_price_spread_ro_hu_d": 212554,
-    "f_price_spread_ro_hu_d_minus_6": 211610
-  },
-  "load_end_exclusive_utc": "2026-07-01T00:00:00+00:00",
-  "load_rows_by_country": {
-    "BG": 30648,
-    "HU": 30646,
-    "RO": 30643
+  "price_source": "entsoe_file_library",
+  "price_snapshot_revision": null,
+  "prices_by_country": {
+    "RO": {
+      "requested_start_utc": "2022-12-31T22:00:00+00:00",
+      "requested_end_exclusive_utc": "2026-10-31T22:00:00+00:00",
+      "first_native_start_utc": "2022-12-31T22:00:00+00:00",
+      "last_native_end_utc": "2026-10-31T22:00:00+00:00",
+      "first_hour_utc": "2022-12-31T22:00:00+00:00",
+      "last_hour_utc": "2026-10-31T21:00:00+00:00",
+      "expected_native_rows": 62112,
+      "native_rows": 62112,
+      "native_rows_by_resolution": {
+        "PT15M": 38016,
+        "PT60M": 24096
+      },
+      "missing_native_intervals": 0,
+      "first_missing_native_intervals_utc": [],
+      "native_coverage": 1.0,
+      "expected_hours": 33600,
+      "hourly_rows": 33600,
+      "missing_hours": 0,
+      "incomplete_hours": 0,
+      "hourly_coverage": 1.0,
+      "negative_native_rows": 1000,
+      "negative_hours": 508
+    },
+    "HU": {
+      "requested_start_utc": "2022-12-31T22:00:00+00:00",
+      "requested_end_exclusive_utc": "2026-10-31T22:00:00+00:00",
+      "first_native_start_utc": "2022-12-31T22:00:00+00:00",
+      "last_native_end_utc": "2026-10-31T22:00:00+00:00",
+      "first_hour_utc": "2022-12-31T22:00:00+00:00",
+      "last_hour_utc": "2026-10-31T21:00:00+00:00",
+      "expected_native_rows": 62112,
+      "native_rows": 62112,
+      "native_rows_by_resolution": {
+        "PT15M": 38016,
+        "PT60M": 24096
+      },
+      "missing_native_intervals": 0,
+      "first_missing_native_intervals_utc": [],
+      "native_coverage": 1.0,
+      "expected_hours": 33600,
+      "hourly_rows": 33600,
+      "missing_hours": 0,
+      "incomplete_hours": 0,
+      "hourly_coverage": 1.0,
+      "negative_native_rows": 1511,
+      "negative_hours": 856
+    },
+    "BG": {
+      "requested_start_utc": "2022-12-31T22:00:00+00:00",
+      "requested_end_exclusive_utc": "2026-10-31T22:00:00+00:00",
+      "first_native_start_utc": "2022-12-31T22:00:00+00:00",
+      "last_native_end_utc": "2026-10-31T22:00:00+00:00",
+      "first_hour_utc": "2022-12-31T22:00:00+00:00",
+      "last_hour_utc": "2026-10-31T21:00:00+00:00",
+      "expected_native_rows": 62112,
+      "native_rows": 62112,
+      "native_rows_by_resolution": {
+        "PT15M": 38016,
+        "PT60M": 24096
+      },
+      "missing_native_intervals": 0,
+      "first_missing_native_intervals_utc": [],
+      "native_coverage": 1.0,
+      "expected_hours": 33600,
+      "hourly_rows": 33600,
+      "missing_hours": 0,
+      "incomplete_hours": 0,
+      "hourly_coverage": 1.0,
+      "negative_native_rows": 845,
+      "negative_hours": 410
+    }
   },
   "load_source_sha256_by_year": {
     "2023": "96525a65332ab6bcb180f1e435eedd32941909beabe2cf2b44baac9650436528",
@@ -29,130 +86,90 @@
     "2025": "cb18e827305823d5a773755ea4b066e4758205674a58ceb01367f22a8216a36a",
     "2026": "e449af0b6c615b473c2e42aa33e7c4248c4bd8672a28a75e35383aee3a190b04"
   },
-  "load_start_utc": "2023-01-01T00:00:00+00:00",
-  "outputs": {
-    "regional_load_hourly.parquet": {
-      "bytes": 986041,
-      "rows": 91937,
-      "sha256": "ddd248b9841e0c677ea2f9875da8a8d5222b68ea4b3a5cf95fdecdfe20f1002c"
-    },
-    "regional_market_features.parquet": {
-      "bytes": 2304159,
-      "rows": 219737,
-      "sha256": "5ffcede15799e53944c074918def279dcaf875cb21765c0a5bad596705bdf62b"
-    },
-    "regional_prices_hourly.parquet": {
-      "bytes": 1231872,
-      "rows": 91992,
-      "sha256": "a03101aaa031c69ce4f5101aab9656d95d7f3c50f3e895b9ea10fb43e06271f8"
-    }
-  },
-  "price_snapshot_revision": "d96677b452e97ebbeec83f9c00939a46e9c21c43",
-  "prices_by_country": {
-    "BG": {
-      "expected_hours": 31391,
-      "expected_native_rows": 53276,
-      "first_hour_utc": "2022-12-31T22:00:00+00:00",
-      "first_missing_native_intervals_utc": [
-        "2023-01-01T02:00:00+00:00",
-        "2023-01-01T03:00:00+00:00",
-        "2023-01-01T04:00:00+00:00",
-        "2023-01-01T05:00:00+00:00",
-        "2023-01-01T06:00:00+00:00",
-        "2023-01-13T12:00:00+00:00",
-        "2023-01-16T00:00:00+00:00",
-        "2023-01-18T02:00:00+00:00",
-        "2023-01-19T02:00:00+00:00",
-        "2023-01-19T03:00:00+00:00"
-      ],
-      "first_native_start_utc": "2022-12-31T22:00:00+00:00",
-      "hourly_coverage": 0.966073078270842,
-      "hourly_rows": 30326,
-      "incomplete_hours": 513,
-      "last_hour_utc": "2026-07-31T20:00:00+00:00",
-      "last_native_end_utc": "2026-07-31T21:00:00+00:00",
-      "missing_hours": 1065,
-      "missing_native_intervals": 1517,
-      "native_coverage": 0.9715256400630679,
-      "native_rows": 51759,
-      "native_rows_by_resolution": {
-        "PT15M": 28146,
-        "PT60M": 23613
-      },
-      "negative_hours": 296,
-      "negative_native_rows": 659,
-      "requested_end_exclusive_utc": "2026-07-31T21:00:00+00:00",
-      "requested_start_utc": "2022-12-31T22:00:00+00:00"
+  "power_stats_load_end_exclusive_utc": "2026-07-01T00:00:00+00:00",
+  "load_coverage_by_country": {
+    "RO": {
+      "missing_hours": 2,
+      "missing_hours_since_power_stats_end": 1,
+      "first_missing_hours_utc": [
+        "2026-05-27T06:00:00+00:00",
+        "2026-10-02T20:00:00+00:00"
+      ]
     },
     "HU": {
-      "expected_hours": 31391,
-      "expected_native_rows": 53276,
-      "first_hour_utc": "2022-12-31T22:00:00+00:00",
-      "first_missing_native_intervals_utc": [
-        "2023-01-16T00:00:00+00:00",
-        "2023-01-24T17:00:00+00:00",
-        "2023-02-12T13:00:00+00:00",
-        "2023-03-08T03:00:00+00:00",
-        "2023-04-16T04:00:00+00:00",
-        "2023-06-15T12:00:00+00:00",
-        "2023-07-27T10:00:00+00:00",
-        "2023-08-17T12:00:00+00:00",
-        "2023-10-01T18:00:00+00:00",
-        "2023-11-22T01:00:00+00:00"
-      ],
-      "first_native_start_utc": "2022-12-31T22:00:00+00:00",
-      "hourly_coverage": 0.9914306648402408,
-      "hourly_rows": 31122,
-      "incomplete_hours": 190,
-      "last_hour_utc": "2026-07-31T20:00:00+00:00",
-      "last_native_end_utc": "2026-07-31T21:00:00+00:00",
-      "missing_hours": 269,
-      "missing_native_intervals": 379,
-      "native_coverage": 0.9928861025602522,
-      "native_rows": 52897,
-      "native_rows_by_resolution": {
-        "PT15M": 28871,
-        "PT60M": 24026
-      },
-      "negative_hours": 766,
-      "negative_native_rows": 1348,
-      "requested_end_exclusive_utc": "2026-07-31T21:00:00+00:00",
-      "requested_start_utc": "2022-12-31T22:00:00+00:00"
+      "missing_hours": 4,
+      "missing_hours_since_power_stats_end": 0,
+      "first_missing_hours_utc": [
+        "2022-12-31T22:00:00+00:00",
+        "2022-12-31T23:00:00+00:00",
+        "2023-06-20T20:00:00+00:00",
+        "2023-06-20T21:00:00+00:00"
+      ]
     },
-    "RO": {
-      "expected_hours": 31391,
-      "expected_native_rows": 53276,
-      "first_hour_utc": "2022-12-31T22:00:00+00:00",
-      "first_missing_native_intervals_utc": [
-        "2023-01-01T02:00:00+00:00",
-        "2023-01-01T03:00:00+00:00",
-        "2023-01-01T04:00:00+00:00",
-        "2023-01-13T12:00:00+00:00",
-        "2023-01-16T00:00:00+00:00",
-        "2023-01-18T02:00:00+00:00",
-        "2023-01-19T02:00:00+00:00",
-        "2023-01-19T03:00:00+00:00",
-        "2023-01-19T09:00:00+00:00",
-        "2023-01-19T13:00:00+00:00"
+    "BG": {
+      "missing_hours": 8,
+      "missing_hours_since_power_stats_end": 6,
+      "first_missing_hours_utc": [
+        "2022-12-31T22:00:00+00:00",
+        "2022-12-31T23:00:00+00:00",
+        "2026-10-24T21:00:00+00:00",
+        "2026-10-24T22:00:00+00:00",
+        "2026-10-24T23:00:00+00:00",
+        "2026-10-25T00:00:00+00:00",
+        "2026-10-25T01:00:00+00:00",
+        "2026-10-25T02:00:00+00:00"
+      ]
+    }
+  },
+  "load_rows_by_country": {
+    "RO": 33598,
+    "HU": 33596,
+    "BG": 33592
+  },
+  "feature_non_null_rows": {
+    "f_price_hu_same_hour_d": 234473,
+    "f_price_spread_ro_hu_d": 234473,
+    "f_price_bg_same_hour_d": 234473,
+    "f_price_spread_ro_bg_d": 234473,
+    "f_price_hu_same_hour_d_minus_6": 233471,
+    "f_price_spread_ro_hu_d_minus_6": 233471,
+    "f_price_bg_same_hour_d_minus_6": 233471,
+    "f_price_spread_ro_bg_d_minus_6": 233471,
+    "f_load_ro_same_hour_d_minus_1": 231676,
+    "f_load_hu_same_hour_d_minus_1": 233767,
+    "f_load_bg_same_hour_d_minus_1": 214991
+  },
+  "outputs": {
+    "regional_prices_hourly.parquet": {
+      "rows": 100800,
+      "key": [
+        "country_code",
+        "ts_utc"
       ],
-      "first_native_start_utc": "2022-12-31T22:00:00+00:00",
-      "hourly_coverage": 0.9730177439393457,
-      "hourly_rows": 30544,
-      "incomplete_hours": 379,
-      "last_hour_utc": "2026-07-31T20:00:00+00:00",
-      "last_native_end_utc": "2026-07-31T21:00:00+00:00",
-      "missing_hours": 847,
-      "missing_native_intervals": 1206,
-      "native_coverage": 0.977363165402808,
-      "native_rows": 52070,
-      "native_rows_by_resolution": {
-        "PT15M": 28390,
-        "PT60M": 23680
-      },
-      "negative_hours": 383,
-      "negative_native_rows": 800,
-      "requested_end_exclusive_utc": "2026-07-31T21:00:00+00:00",
-      "requested_start_utc": "2022-12-31T22:00:00+00:00"
+      "duplicate_keys": 0,
+      "bytes": 1382471,
+      "sha256": "ae3c3a9b2869fc3e892650bfd9bcfe0a63bdaa4cf1be35a1a3fc804313cc03bf"
+    },
+    "regional_load_hourly.parquet": {
+      "rows": 100786,
+      "key": [
+        "country_code",
+        "ts_utc"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 1089985,
+      "sha256": "465318340b0c2b831256af4324acf3d4eeca6338d4820a0722a99796ef925e7f"
+    },
+    "regional_market_features.parquet": {
+      "rows": 235200,
+      "key": [
+        "issue_ts",
+        "target_ts_utc",
+        "horizon_days"
+      ],
+      "duplicate_keys": 0,
+      "bytes": 2146848,
+      "sha256": "0a64b87ea2d0bfb8ed74c8325fe00ce5342a2c387bc4885cb3ec20aa7d778090"
     }
   }
 }

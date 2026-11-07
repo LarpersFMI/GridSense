@@ -159,7 +159,39 @@ label for each of the 23 UTC delivery hours on March 30 in Bucharest. The second
 command checks the same issue and delivery day in a supplied file. The synthetic
 outputs are integration fixtures.
 
-## Regional market inputs for ML
+## Rebuild from local ENTSO-E File Library exports
+
+With the filtered `.csv.gz` extracts in `data/raw/entsoe_file_library/selected/`
+and the existing Power Statistics `regional_load_hourly.parquet` in place, run:
+
+```bash
+uv run python -m gridsense.data.build_file_library
+```
+
+The build refreshes the existing Romanian and regional Parquet contracts through
+the configured test end date. It keeps the pinned Power Statistics load on
+overlapping hours and adds complete Romanian hours from the File Library. The
+original `ActualTotalLoad_6.1.A_r3/` ZIP archives alongside `selected/` supply
+Hungarian and Bulgarian load after the end of the Power Statistics release.
+Subhourly prices and measurements require four distinct quarters per hourly
+average. Bulgarian load uses the source's hourly values. The regional manifest
+reports missing hours by country.
+
+The normalized source tables live under `data/processed/entsoe_file_library/`.
+They retain separate forecast updates, outage versions and segments, border
+directions, and Germany–Luxembourg price sequences. Equal prices within the same
+market sequence are collapsed to one observation. Each Parquet has a unique key
+and a checksum listed in `manifest.json`.
+
+`grid_actual_hourly.parquet` in that folder contains the historical hourly load,
+solar and wind measurements. In the shared `grid_hourly.parquet`, each new
+measurement from the File Library must have an update timestamp at or before
+10:00 Bucharest time the day after delivery, when the current D−1 features use
+it. The same check applies to new load for all three countries in the regional lag features.
+The timestamp of the extract's recorded update can be later than the original
+publication. Forecast and outage extracts remain separate from the model inputs.
+
+## Regional market inputs from pinned public sources
 
 Run the regional build from the repository root. The command uses pinned public
 sources and works on a fresh checkout without an ENTSO-E token.
@@ -200,9 +232,11 @@ compare model variants on the same validation hours.
   null. Historical exports do not establish which revisions were visible at issue time.
 
 **Team handoff.** The repository includes the processed regional tables, the
-Romanian price and grid tables, and their quality reports. Raw inputs and synthetic
-fixtures stay in ignored directories. ML can read the processed Parquet files directly
-or rebuild them with the pinned sources and commands above. The source dataset card
+Romanian price and grid tables, their quality reports, and the baseline calendar
+and training Parquet. Regenerate the baseline with
+`uv run python -m gridsense.data.calendar` and `make features`. The training table
+uses the calendar, Romanian prices, and grid lags. Raw inputs, normalized File
+Library extracts, and synthetic fixtures stay in ignored directories. The source dataset card
 uses `license: other` and refers users to the applicable ENTSO-E terms. The ENTSO-E
 website's disclaimer also restricts redistribution of website content without
 written permission, so the team needs to establish the applicable rights for these
@@ -212,7 +246,7 @@ derived datasets before any further redistribution.
 
 ### Romanian grid table and regional join
 
-After building the regional tables, run:
+For the pinned public-source build, run:
 
 ```bash
 uv run python -m gridsense.data.build_grid
