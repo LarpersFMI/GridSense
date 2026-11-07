@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { Foundations } from "../Foundations"
-import { Trigger } from "../Trigger/Trigger"
+import { Trigger } from "../Trigger"
 
 /** The agent's queues: the Watchdog hands it hits; the server hands it an admin's review. */
 export namespace Queue {

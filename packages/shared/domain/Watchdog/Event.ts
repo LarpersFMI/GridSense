@@ -1,7 +1,7 @@
 import { z } from "zod"
 import { Foundations } from "../Foundations"
 import { Realtime } from "../Realtime/Realtime"
-import { Trigger } from "../Trigger/Trigger"
+import { Trigger } from "../Trigger"
 
 /** Live changes from the Watchdog: what it checked, and the hits it raised. */
 export namespace Event {
@@ -23,12 +23,12 @@ export namespace Event {
 
     export namespace Check {
 
-        /** A signal or schedule was checked against the triggers on it. `cooledDown`: hits held back by a cooldown. */
+        /** A dataset update or a schedule was checked against the triggers on it. `cooledDown`: hits held back by a cooldown. */
         export namespace Completed {
 
             export const Schema = Base.extend({
                 type:            z.literal("watchdog:check:completed"),
-                cause:           Trigger.Cause,
+                cause:           Trigger.Check.Cause,
                 triggersChecked: z.number().int().nonnegative(),
                 hits:            z.number().int().nonnegative(),
                 cooledDown:      z.number().int().nonnegative(),

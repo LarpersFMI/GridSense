@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { Foundations } from "../../Foundations"
-import { Trigger } from "../../Trigger/Trigger"
+import { Trigger } from "../../Trigger"
 import { Event } from "../Event"
 
 const threadId = Foundations.Thread.Id.parse("trigger_20260509T0600Z-20260509T1100Z_run-1")

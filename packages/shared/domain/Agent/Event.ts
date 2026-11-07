@@ -1,7 +1,7 @@
 import { z } from "zod"
 import { Foundations } from "../Foundations"
 import { Realtime } from "../Realtime/Realtime"
-import { Trigger } from "../Trigger/Trigger"
+import { Trigger } from "../Trigger"
 import { Queue } from "./queue"
 
 /** Live changes from the agent: each thread as it works, and the admin's review inbox. */

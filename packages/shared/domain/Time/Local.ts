@@ -25,6 +25,21 @@ export namespace Local {
         }
     }
 
+    /** The UTC instant a local day (`2026-05-09`) starts at: its 00:00 in Bucharest, UTC+2 or UTC+3. */
+    export function startOfDay(day: string): Date {
+        const midnightUtc = Date.parse(`${day}T00:00:00Z`)
+
+        for (const offsetHours of [3, 2]) {
+            const instant = new Date(midnightUtc - offsetHours * 60 * 60_000)
+            const local = of(instant)
+
+            if (local.day === day && local.hour === 0)
+                return instant
+        }
+
+        throw new Error(`No local midnight found for ${day}`)
+    }
+
     /** Monday = 0 … Sunday = 6, for a local day `2026-05-09`. */
     export const getWeekday = (day: string) => (new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7
 }

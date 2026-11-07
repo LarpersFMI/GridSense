@@ -1,21 +1,22 @@
 import { z } from "zod"
+import { Dataset } from "../Dataset"
 import { Foundations } from "../Foundations"
-import { Trigger } from "../Trigger/Trigger"
-import { Signal as SignalD } from "./Signal"
+import { Trigger } from "../Trigger"
 
-/** The Watchdog's queues. The server produces signals and reconciles; BullMQ's job schedulers fire schedules. */
+/** The Watchdog's queues. The server reports dataset updates and reconciles; BullMQ's job schedulers fire schedules. */
 export namespace Queue {
 
-    /** Check every enabled trigger on this signal. */
-    export namespace Signal {
+    /** Hits raised by one check. */
+    export const CheckResult = z.object({ hits: z.number().int().nonnegative() })
+    export type  CheckResult = z.infer<typeof CheckResult>
 
-        export const Result = z.object({ hits: z.number().int().nonnegative() })
-        export type  Result = z.infer<typeof Result>
+    /** Check every enabled trigger on this dataset against the hours that changed. Job id: `Dataset.Update.getKey`. */
+    export namespace DatasetUpdated {
 
         export const Definition = Foundations.Queue.define({
-            name:    "watchdog.signal",
-            job:     SignalD.Schema,
-            result:  Result,
+            name:    "watchdog.dataset-updated",
+            job:     Dataset.Update.Schema,
+            result:  CheckResult,
             options: { removeOnComplete: 1000, removeOnFail: 1000 },
         })
     }
@@ -29,7 +30,7 @@ export namespace Queue {
         export const Definition = Foundations.Queue.define({
             name:    "watchdog.schedule",
             job:     Job,
-            result:  Signal.Result,
+            result:  CheckResult,
             options: { removeOnComplete: 1000, removeOnFail: 1000 },
         })
     }

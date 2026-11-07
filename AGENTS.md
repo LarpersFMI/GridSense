@@ -17,8 +17,22 @@ contracts are zod schemas in `packages/shared/domain/`, one namespace per concep
   in a parquet schema in `src/gridsense/schemas.py`, update its namespace in `packages/shared/domain/Dataset/` too
   (`PREDICTIONS` → `Dataset.Predictions`, `PRICES_HOURLY` → `Dataset.PricesHourly`). Columns keep their parquet names.
   A new dataset the TypeScript side reads gets its own file there.
-- If the column is one triggers can read, also update `Trigger.Column` and `Trigger.COLUMNS_OF` in
-  `packages/shared/domain/Trigger/Trigger.ts`.
+- Triggers don't know columns: a condition names a dataset and a column, and the UI lists them from
+  `Dataset.API.describe` (`GET /api/datasets/:name/schema`), which reads the parquet file itself. A column the file
+  adds is one an admin can write conditions on, with nothing to change here. The row schemas are loose.
+- Columns the Watchdog computes per hour (`local_hour`, `weekday`, …) are declared and computed next to their dataset:
+  `Dataset.Predictions.COMPUTED_COLUMNS` and `compute`.
+- **Run it:** `cp .env.example .env`, `npm run infra` (Postgres + Redis in Docker), then `npm run dev` (server on :4000,
+  Watchdog on :4100). The server migrates on boot. Report a run like the Python pipeline will:
+  `curl -XPOST localhost:4000/internal/runs -H 'content-type: application/json' -d '{"issueTs":"2026-05-07T07:00:00Z","modelVersion":"dummy-0","rows":168,"predictionsPath":"<absolute path to predictions.parquet>","start":"2026-05-07T21:00:00Z","end":"2026-05-14T21:00:00Z"}'`
+  (`start`/`end`: the forecast's hours). Report a day's cleared prices like the ingestion will:
+  `curl -XPOST localhost:4000/internal/datasets/prices/updates -H 'content-type: application/json' -d '{"start":"2026-05-08T21:00:00Z","end":"2026-05-09T21:00:00Z"}'`.
+- **How it runs, flow by flow:** `packages/docs/` — a run reported, a dataset update checked, a hit raised, schedules,
+  the trigger editor, the agent, realtime. Update the page when you change its flow.
+- Packages: `server` (owns Postgres, `/api` for the browser, `/internal` for workers and Python, `/socket` for live
+  events), `watchdog` (BullMQ worker, no database: checks triggers, hands hits to the agent), `central-agent`, `frontend`.
+- Common dependencies live in the root `package.json`; a package lists only what's its own. Compiler options come from
+  `tsconfig.base.json`.
 - `npm install --legacy-peer-deps` once (some npm versions fail on vitest's peers without it), then `npm test` and
   `npm run typecheck` before committing TypeScript changes.
 - Style follows Quarry: a concept is a namespace with its zod `Schema` and its type declared after it
