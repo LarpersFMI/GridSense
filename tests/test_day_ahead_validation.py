@@ -208,3 +208,35 @@ def test_real_lightgbm_early_stop_api_accepts_stage_matrices(development_table):
         730.0, experiment.Settings(), smoke=True)
     probability = experiment.positive_probability(model, stop[features])
     assert probability.shape == (len(stop),) and np.isfinite(probability).all()
+
+
+def test_progress_counts_finished_work_only_and_writes_json(tmp_path, capsys):
+    tracker = experiment.RunProgress(tmp_path, total=3, smoke=False)
+    tracker.update("starting")
+    value = experiment.json.loads((tmp_path / "progress.json").read_text())
+    assert value["percent"] == 0 and value["completed_steps"] == 0
+    tracker.update("one model complete", finished=True)
+    tracker.update("second model starting")
+    value = experiment.json.loads((tmp_path / "progress.json").read_text())
+    assert value["percent"] == 33.3 and value["completed_steps"] == 1
+    tracker.update("second model complete", finished=True)
+    tracker.finish()
+    value = experiment.json.loads((tmp_path / "progress.json").read_text())
+    assert value["percent"] == 100 and value["state"] == "completed"
+    assert not value["test_evaluated"]
+    assert "[D+1 progress 100.0%]" in capsys.readouterr().out
+
+
+def test_progress_does_not_report_completion_early(tmp_path):
+    tracker = experiment.RunProgress(tmp_path, total=3, smoke=True)
+    with pytest.raises(ValueError, match="unfinished work"):
+        tracker.finish()
+    value = experiment.json.loads((tmp_path / "progress.json").read_text())
+    assert value["percent"] < 100 and value["state"] == "running"
+
+
+def test_progress_rejects_extra_completed_work(tmp_path):
+    tracker = experiment.RunProgress(tmp_path, total=1, smoke=True)
+    tracker.finish()
+    with pytest.raises(ValueError, match="exceeds"):
+        tracker.update("unexpected extra work", finished=True)

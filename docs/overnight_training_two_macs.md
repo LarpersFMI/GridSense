@@ -276,7 +276,45 @@ context records the integrated implementation fingerprint independently.
 These are instructions for remaining work; this update launches **no new training**.
 For each new candidate: prepare, smoke, inspect success, then execute; stop on failure.
 
-### Your 48 GB Mac — completed training, no automatic rerun
+### One-command run with percentage tracking
+
+The [single-candidate launcher](../experiments/train_d1.zsh) prepares a fresh,
+timestamped run directory, runs the smoke and full comparison, then runs policy-only
+analysis. It prints completed-work percentages, the current month/predictor, and
+paths to the saved log and atomic progress JSON. From the repository root:
+
+```zsh
+# Optional replication of the already-completed preferred reference:
+caffeinate -i zsh experiments/train_d1.zsh weather_extra__default
+
+# A remaining matched feature comparison instead of a duplicate reference run:
+caffeinate -i zsh experiments/train_d1.zsh current__default
+```
+
+Choose **one**, not both in parallel. These commands default to the source-machine
+`reference-context-dev365`. On the receiving Mac, supply the verified local context:
+
+```zsh
+caffeinate -i zsh experiments/train_d1.zsh regional_prices__default \
+  reports/real/overnight/teammate-reference-context-dev365
+```
+
+The terminal shows messages such as `[D+1 progress 33.3%] 10/30 | ...`.
+Percentages count finished predictor/month and policy/month work plus final export,
+**not elapsed-time estimates or boosting iterations**. Smoke and full training
+have separate percentages; full training restarts at zero after smoke passes.
+The subsequent policy-only comparison is separate and prints its own completion.
+You can follow the saved log in another terminal using the actual path printed by
+the launcher. An interrupted run has no success guarantee; inspect progress/status
+and preserve partial outputs rather than deleting evidence.
+
+Only the standalone progress/launcher code changes here. Previously prepared D+1
+plans include the earlier experiment-file hash, so prepare a fresh run after this
+update. The integrated source reference context and historical report contents are
+unchanged. Copy/pull the new launcher and runner changes before using this command
+on another machine. This is development training, not final refitting/model promotion.
+
+### Your 48 GB Mac — completed training, no automatic rerun (details)
 
 Both assigned runs are complete. Reuse their checksummed results as historical
 development evidence. The old [Mac48 runner](../experiments/train_mac48.zsh) is

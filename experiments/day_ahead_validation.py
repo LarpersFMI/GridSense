@@ -8,6 +8,7 @@ import argparse
 import fcntl
 import itertools
 import json
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -25,6 +26,36 @@ from gridsense.models.overnight import atomic_json, verify_plan
 from gridsense.splits import assign_split
 
 PREDICTORS = ("hourly_pooled", "hourly_d1", "slot_d1")
+
+
+@dataclass
+class RunProgress:
+    """Completed-work percentage, not a wall-clock ETA or boosting-iteration count."""
+
+    output: Path
+    total: int
+    smoke: bool
+    completed: int = 0
+
+    def update(self, stage: str, finished: bool = False) -> None:
+        if finished:
+            if self.completed >= self.total:
+                raise ValueError("Progress exceeds planned work")
+            self.completed += 1
+        percent = round(100 * self.completed / self.total, 1)
+        value = {"state": "running", "stage": stage, "completed_steps": self.completed,
+                 "total_steps": self.total, "percent": percent, "smoke": self.smoke,
+                 "test_evaluated": False, "updated_at_utc": pd.Timestamp.now(tz="UTC").isoformat()}
+        atomic_json(self.output / "progress.json", value)
+        print(f"[D+1 progress {percent:5.1f}%] {self.completed}/{self.total} | {stage}", flush=True)
+
+    def finish(self) -> None:
+        self.update("reports/checksums verified", finished=True)
+        if self.completed != self.total:
+            raise ValueError("Cannot report 100% with unfinished work")
+        value = json.loads((self.output / "progress.json").read_text())
+        value["state"] = "smoke_passed" if self.smoke else "completed"
+        atomic_json(self.output / "progress.json", value)
 
 
 @dataclass(frozen=True)
@@ -160,7 +191,9 @@ def calibrate_probability(raw_calibration: np.ndarray, calibration: pd.DataFrame
 
 
 def predict_month(table: pd.DataFrame, month: str, profile: str, settings: Settings,
-                  smoke: bool = False) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
+                  smoke: bool = False,
+                  progress: Callable[[str, bool], None] | None = None
+                  ) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
     stages, metadata = prediction_stages(table, month)
     d1 = {name: part[part.horizon_days == 1].copy() for name, part in stages.items()}
     if any(part.empty for part in d1.values()):
@@ -174,6 +207,8 @@ def predict_month(table: pd.DataFrame, month: str, profile: str, settings: Setti
     calibration = candidate_frames["calibration"]
     classifications, models = [], {}
     for predictor in PREDICTORS:
+        if progress is not None:
+            progress(f"{month}: fitting/calibrating {predictor}", False)
         if predictor == "slot_d1":
             fit, stop, target = candidate_frames["fit"], candidate_frames["early_stop"], "y_slot"
         else:
@@ -208,6 +243,8 @@ def predict_month(table: pd.DataFrame, month: str, profile: str, settings: Setti
                              "best_iteration": model.best_iteration_, "params": model.get_params(),
                              "half_life_days": half_life, "stopping": reason,
                              "calibration": calibration_reason}
+        if progress is not None:
+            progress(f"{month}: {predictor} complete", True)
     return prediction, pd.DataFrame(classifications), metadata | {"models": models}
 
 
@@ -325,6 +362,11 @@ def execute(output: Path, smoke: bool = False) -> None:
         except Exception as error:
             atomic_json(output / "status.json", {"state": "failed", "smoke": smoke,
                 "error": str(error), "test_evaluated": False})
+            progress_path = output / "progress.json"
+            if progress_path.exists():
+                value = json.loads(progress_path.read_text())
+                value |= {"state": "failed", "error": str(error)}
+                atomic_json(progress_path, value)
             raise
 
 
@@ -350,23 +392,28 @@ def _execute(output: Path, plan: dict, smoke: bool) -> None:
     settings = Settings(**(plan["settings"] | {"thresholds": tuple(plan["settings"]["thresholds"]),
                                                "max_lengths": tuple(plan["settings"]["max_lengths"])}))
     months = plan["prediction_months"][:settings.selection_months + 1] if smoke else plan["prediction_months"]
+    score_months = plan["score_months"][:1] if smoke else plan["score_months"]
+    # One unit per predictor/month, per selected policy/month, and final export.
+    progress = RunProgress(output, len(months) * len(PREDICTORS) + len(score_months) * 2 + 1, smoke)
+    progress.update("inputs verified; starting forward predictions")
     predictions, metrics, metadata = {}, [], []
     for month in months:
         atomic_json(output / "status.json", {"state": "running", "prediction_month": month,
                                               "smoke": smoke, "test_evaluated": False})
         print(f"[D+1] forward prediction month={month}; smoke={smoke}", flush=True)
-        frame, report, info = predict_month(table, month, plan["reference"]["profile"], settings, smoke)
+        frame, report, info = predict_month(table, month, plan["reference"]["profile"], settings, smoke,
+                           progress=progress.update)
         predictions[month] = frame
         metrics.append(report.assign(prediction_month=month))
         metadata.append(info)
         verify(output)
-    score_months = plan["score_months"][:1] if smoke else plan["score_months"]
     policies, searches, decisions = [], [], []
     for month in score_months:
         history = history_before(predictions, month, settings)
         later = predictions[month]
         for conservative in (False, True):
             arm = "d1_conservative" if conservative else "d1_empirical_control"
+            progress.update(f"{month}: selecting/scoring {arm}")
             policy, report = choose_policy(history, settings, conservative)
             searches.append(report.assign(score_month=month, arm=arm))
             chosen = apply_policy(later, policy)
@@ -378,6 +425,7 @@ def _execute(output: Path, plan: dict, smoke: bool) -> None:
                 "history_start": str(history.date.min()), "history_end": str(history.date.max())})
             columns = slots.SLOT_KEY + ["date", "slot_end_utc", "y_slot", "quality_known"]
             decisions.append(later.loc[chosen, columns].assign(arm=arm, score_month=month))
+            progress.update(f"{month}: {arm} complete", finished=True)
         # Fixed, nonselected strict reference baseline: calibrated minimum hourly
         # probability >= .80, 2h slots. No score labels choose its predictor/threshold.
         baseline = {"predictor": "hourly_pooled", "tau": settings.thresholds[0],
@@ -410,6 +458,7 @@ def _execute(output: Path, plan: dict, smoke: bool) -> None:
                     "Source publication assumptions are unchanged; final test remains untouched."]})
     atomic_json(output / "status.json", {"state": "smoke_passed" if smoke else "completed",
                                          "test_evaluated": False, "smoke": smoke})
+    progress.finish()
     print(reports["summary"].to_string(index=False), flush=True)
     print(f"D+1 {mode} finished: {destination}", flush=True)
 
