@@ -20,7 +20,7 @@ from gridsense.models.baselines import (
     SeasonalNaivePrice,
     SolarRule,
 )
-from gridsense.models.calibrate import cross_fit, plot_reliability, reliability_table
+from gridsense.models.calibrate import plot_reliability, reliability_table
 from gridsense.models.classify import LABELS, LowPriceClassifier
 from gridsense.models.ensemble import PriceEnsemble
 from gridsense.models.lear import LEAR
@@ -87,12 +87,8 @@ def _cross_fitted(clf: LowPriceClassifier, table: pd.DataFrame) -> pd.DataFrame:
     Used on validation only: the saved calibrators were fitted on all of val, so scoring them there
     would flatter them. Needs the labels of `table`, which is fine for scoring.
     """
-    out = clf.predict(table, apply_calibration=False)
     month = table["target_ts_utc"].dt.tz_convert(config.LOCAL_TZ).dt.month.to_numpy()
-    for col, label in LABELS.items():
-        if col in clf.calibrators:
-            out[col] = cross_fit(out[col], table[label].astype(int), month, clf.calibration)
-    return out
+    return clf.predict_cross_fitted(table, month)
 
 
 def classify_models(
