@@ -35,6 +35,9 @@ reports/fake/
 data/processed/entsoe_file_library/*
 !data/processed/entsoe_file_library/*.parquet
 !data/processed/entsoe_file_library/manifest.json
+!data/processed/entsoe_file_library/unit_reference/
+!data/processed/entsoe_file_library/unit_reference/*.parquet
+!data/processed/entsoe_file_library/unit_reference/manifest.json
 data/raw/weather_hourly.csv
 data/raw/.weather_cache.sqlite
 

@@ -369,7 +369,7 @@ it should not be assumed to reconstruct all historical versions.
 
 The normalized outage table is retained for investigation, not as a model-ready
 feature: it contains publication and update timestamps, but some rows are
-revised after their outage and the export does not include installed capacity.
+revised after their outage and the outage export does not include installed capacity.
 The existing `data.outages` reader expects a different raw schema and computes
 unavailable MW from installed capacity; it cannot be used on this normalized table
 as-is. Outage version and segment semantics, historical availability, and unit
@@ -381,6 +381,32 @@ rows, the recorded update is later than outage start for 7,471 rows, and 50
 instance/version groups contain more than one publication timestamp. Those are
 row and group counts, not counts of independent outages or proof that a forecast
 was unavailable; they show why publication and update semantics need investigation.
+
+The separate `entsoe_file_library/unit_reference/` Parquets contain Romanian
+production-unit installed capacity (TR 14.1.B) and generation-unit reference
+data, with validity intervals, statuses and source update timestamps. They were
+filtered from the File Library files listed in their manifest. For the checked-in
+outage extract, every one of the 7,865 outage segments has exactly one reference
+row of the corresponding asset type whose validity interval includes the segment
+start and whose capacity is present. This is a descriptive match, not an outage
+feature: validity intervals and retrospective capacity do not establish when
+the value was known. All Romanian reference rows have an update on 2026-11-07,
+after every recorded outage publication, so the current snapshot cannot prove
+historical availability for a leakage-free training feature.
+The same diagnostic finds five segments with missing available capacity, four
+whose available capacity exceeds the matched installed capacity, and 25 whose
+end is later than the matched reference validity period. Investigate these
+cases and split intervals at capacity changes before calculating offline MW;
+do not silently clip inconsistencies to zero.
+
+The source ZIP is kept locally as the ignored
+`data/raw/entsoe_file_library/unit_capacity_reference.zip`. Regenerate the
+reference tables with `uv run python -m gridsense.data.unit_reference`; the
+command refuses to overwrite differing files unless `--replace-existing` is
+explicitly passed. Its manifest records the ZIP, source-file and output hashes.
+Reproduce the aggregate matching check with
+`uv run python -m gridsense.data.audit_unit_reference`. This diagnostic does
+not select an outage version or produce model features.
 
 The Romanian price builder refuses to replace either existing price Parquet when a
 new build differs, including a build for a shorter window. Review the printed
