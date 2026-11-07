@@ -1,15 +1,21 @@
+import os
 from pathlib import Path
 
 import pandas as pd
+
+# "fake" lets every team build against synthetic data before the real data exists.
+DATA_MODE = os.getenv("GRIDSENSE_DATA", "real")
+if DATA_MODE not in ("real", "fake"):
+    raise ValueError(f"GRIDSENSE_DATA must be 'real' or 'fake', got {DATA_MODE!r}")
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = ROOT / "data"
 RAW_DIR = DATA_DIR / "raw"
 INTERIM_DIR = DATA_DIR / "interim"
-PROCESSED_DIR = DATA_DIR / "processed"
+PROCESSED_DIR = DATA_DIR / ("processed" if DATA_MODE == "real" else "fake")
 SYNTHETIC_DIR = DATA_DIR / "synthetic"
-MODELS_DIR = ROOT / "models"
-REPORTS_DIR = ROOT / "reports"
+MODELS_DIR = ROOT / "models" / DATA_MODE
+REPORTS_DIR = ROOT / "reports" / DATA_MODE
 
 BIDDING_ZONE = "10YRO-TEL------P"
 LOCAL_TZ = "Europe/Bucharest"

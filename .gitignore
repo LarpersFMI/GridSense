@@ -10,6 +10,8 @@ __pycache__/
 data/raw/*
 data/interim/*
 data/processed/*
+data/fake/
+reports/fake/
 !data/**/.gitkeep
 
 models/*

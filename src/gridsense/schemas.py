@@ -1,4 +1,4 @@
-"""Data contract between the data, ML and agent workstreams. All parquet files live in data/processed/."""
+"""Data contract between the data, ML and agent workstreams. Tables live in config.PROCESSED_DIR."""
 
 # prices_hourly.parquet: one row per delivery hour; 15-min MTUs aggregated to hourly.
 PRICES_HOURLY = {
@@ -37,6 +37,18 @@ CALENDAR = {
     "day_hours": "int64",
 }
 
+# training_table.parquet: one row per (issue date, target hour, horizon). Owned by ML.
+# Feature columns are free-form but must start with FEATURE_PREFIX; models use every such column.
+FEATURE_PREFIX = "f_"
+TRAINING_TABLE = {
+    "issue_ts": "datetime64[ns, UTC]",
+    "target_ts_utc": "datetime64[ns, UTC]",
+    "horizon_days": "int64",
+    "y_price": "float64",
+    "y_near_zero": "bool",
+    "y_cheap": "bool",
+}
+
 # predictions.parquet: ML output consumed by the agent.
 PREDICTIONS = {
     "issue_ts": "datetime64[ns, UTC]",
@@ -49,4 +61,15 @@ PREDICTIONS = {
     "price_p90": "float64",
     "data_quality": "string",
     "top_features": "string",
+    "model_name": "string",
+    "model_version": "string",
+}
+
+TABLES = {
+    "prices_hourly": PRICES_HOURLY,
+    "grid_hourly": GRID_HOURLY,
+    "weather_fc": WEATHER_FC,
+    "calendar": CALENDAR,
+    "training_table": TRAINING_TABLE,
+    "predictions": PREDICTIONS,
 }
