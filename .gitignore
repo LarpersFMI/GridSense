@@ -14,3 +14,6 @@ data/processed/*
 
 models/*
 !models/.gitkeep
+
+node_modules/
+dist/

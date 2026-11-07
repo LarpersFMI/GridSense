@@ -1,0 +1,16 @@
+{
+    "name": "gridsense",
+    "version": "0.0.1",
+    "private": true,
+    "workspaces": [
+        "packages/*"
+    ],
+    "scripts": {
+        "test": "npm run test --workspace=packages/shared",
+        "typecheck": "npm run typecheck --workspace=packages/shared"
+    },
+    "devDependencies": {
+        "@types/node": "^22.10.2",
+        "typescript": "^5.9.3"
+    }
+}
