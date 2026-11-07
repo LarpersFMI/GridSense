@@ -5,7 +5,7 @@ import pandas as pd
 from gridsense import config, io
 from gridsense.models import artifacts
 from gridsense.models.classify import LABELS, LowPriceClassifier
-from gridsense.models.metrics import classification_report, price_report
+from gridsense.models.metrics import by_horizon, classification_report, price_report
 from gridsense.models.price import PriceForecaster
 from gridsense.splits import assign_split
 
@@ -24,6 +24,13 @@ def classify_metrics(model: LowPriceClassifier, val: pd.DataFrame) -> dict:
         # k = number of positives, i.e. R-precision.
         for key, value in classification_report(y, pred[col], k=int(y.sum())).items():
             metrics[f"{col}_{key}"] = value
+
+        def pr_auc(g: pd.DataFrame, label: str = label) -> dict:
+            return {"pr_auc": classification_report(g[label], g["_p"], k=int(g[label].sum()))["pr_auc"]}
+
+        per_h = by_horizon(val.assign(_p=pred[col]), pr_auc)
+        for h, row in per_h.drop(index="all").iterrows():
+            metrics[f"{col}_pr_auc_h{h}"] = float(row["pr_auc"])
     return metrics
 
 

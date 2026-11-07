@@ -23,6 +23,13 @@ def test_classifier_outputs_probabilities(tiny_training_table):
     assert out["price_p50"].isna().all()
 
 
+def test_classifier_early_stops_on_pr_auc_only(tiny_training_table):
+    tr, val = _split(tiny_training_table)
+    model = LowPriceClassifier().fit(tr, val)
+    for m in model.models.values():
+        assert list(m.best_score_["valid_0"]) == ["average_precision"]
+
+
 def test_price_quantiles_never_cross(tiny_training_table):
     tr, val = _split(tiny_training_table)
     out = PriceForecaster().fit(tr, val).predict(val)
