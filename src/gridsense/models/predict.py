@@ -24,9 +24,9 @@ def build_predictions(
     out[list(PRICE_COLUMNS)] = price.predict(table)[list(PRICE_COLUMNS)]
     # Until data/quality.py feeds per-row flags into the training table.
     out["data_quality"] = table.get("data_quality", "ok")
-    # Explains p_cheap: the probability the agent's decision rule acts on.
-    model = classifier.models[EXPLAINED]
-    out["top_features"] = top_features(model, table[classifier.features]).to_numpy()
+    # Explains p_cheap (both chain steps): the probability the agent's decision rule acts on.
+    models = classifier.explain_models(EXPLAINED)
+    out["top_features"] = top_features(models, table[classifier.features]).to_numpy()
     out["model_name"] = f"{classifier.name}+{price.name}"
     out["model_version"] = model_version
     return out.reset_index(drop=True)

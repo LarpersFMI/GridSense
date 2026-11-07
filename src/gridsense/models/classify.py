@@ -1,4 +1,14 @@
-"""Low-price classification: P(price <= 20) and P(price <= 0) per hour. Owner: ML classification."""
+"""Low-price classification: P(price <= 20) and P(price <= 0) per hour. Owner: ML classification.
+
+The two probabilities are nested by construction (a chain):
+
+    p_near_zero = P(price <= 20)
+    p_cheap     = P(price <= 20) * P(price <= 0 | price <= 20)
+
+Two separately trained and calibrated models gave p_cheap > p_near_zero on ~15% of validation
+rows, which is impossible (every price <= 0 is also <= 20). A product of two probabilities can
+never exceed either factor, so the chain can't contradict itself, raw or calibrated.
+"""
 
 from dataclasses import dataclass, field
 from typing import ClassVar
@@ -10,9 +20,17 @@ from sklearn.isotonic import IsotonicRegression
 
 from gridsense import config
 from gridsense.models.base import OUTPUT_COLUMNS, feature_columns, recency_weights
-from gridsense.models.calibrate import PlattCalibrator, fit_calibrator
+from gridsense.models.calibrate import PlattCalibrator, cross_fit, fit_calibrator
 
+# Output probability column -> label it predicts (used by metrics, baselines and evaluation).
 LABELS = {"p_near_zero": "y_near_zero", "p_cheap": "y_cheap"}
+
+# The chain's steps: step name -> (label, label that must be true for a row to train/calibrate it).
+NEAR_ZERO, CHEAP_GIVEN_NEAR_ZERO = "p_near_zero", "p_cheap_given_near_zero"
+STEPS = {
+    NEAR_ZERO: ("y_near_zero", None),
+    CHEAP_GIVEN_NEAR_ZERO: ("y_cheap", "y_near_zero"),
+}
 
 DEFAULT_PARAMS = {
     # The only metric early stopping watches (= PR-AUC). Passing it as eval_metric instead would
@@ -31,14 +49,20 @@ DEFAULT_PARAMS = {
 }
 
 
+def _rows(table: pd.DataFrame | None, condition: str | None) -> pd.DataFrame | None:
+    if table is None or condition is None:
+        return table
+    return table[table[condition].astype(bool)]
+
+
 @dataclass
 class LowPriceClassifier:
     name: ClassVar[str] = "lgbm_classifier"
     params: dict = field(default_factory=lambda: dict(DEFAULT_PARAMS))
     half_life_days: float | None = 365.0
     early_stopping_rounds: int = 100
-    # Calibrator fitted per label on val so probabilities match observed rates: "platt", "isotonic"
-    # (see calibrate.py) or None for raw LightGBM probabilities.
+    # Calibrator fitted per chain step on val so probabilities match observed rates: "platt",
+    # "isotonic" (see calibrate.py) or None for raw LightGBM probabilities.
     calibration: str | None = "platt"
     features: list[str] = field(default_factory=list, init=False)
     models: dict[str, lgb.LGBMClassifier] = field(default_factory=dict, init=False)
@@ -48,39 +72,82 @@ class LowPriceClassifier:
 
     def fit(self, train: pd.DataFrame, val: pd.DataFrame | None = None) -> "LowPriceClassifier":
         self.features = feature_columns(train)
-        weights = recency_weights(train, self.half_life_days)
-        for out, label in LABELS.items():
-            y = train[label].astype(int)
+        for step, (label, condition) in STEPS.items():
+            # The conditional step only learns from hours that were <= 20 €/MWh.
+            tr, va = _rows(train, condition), _rows(val, condition)
+            y = tr[label].astype(int)
             if y.nunique() < 2:
-                raise ValueError(f"{label} has a single class in train; can't fit {out}")
+                raise ValueError(f"{label} has a single class in its train rows; can't fit {step}")
             model = lgb.LGBMClassifier(**self.params)
             fit_kwargs = {}
-            if val is not None:
+            if va is not None:
                 fit_kwargs = {
-                    "eval_X": (val[self.features],),
-                    "eval_y": (val[label].astype(int),),
+                    "eval_X": (va[self.features],),
+                    "eval_y": (va[label].astype(int),),
                     "callbacks": [lgb.early_stopping(self.early_stopping_rounds, verbose=False)],
                 }
-            model.fit(train[self.features], y, sample_weight=weights, **fit_kwargs)
-            self.models[out] = model
+            weights = recency_weights(tr, self.half_life_days)
+            model.fit(tr[self.features], y, sample_weight=weights, **fit_kwargs)
+            self.models[step] = model
 
-            y_val = None if val is None else val[label].astype(int)
+            y_val = None if va is None else va[label].astype(int)
             if self.calibration and y_val is not None and y_val.nunique() == 2:
-                raw = model.predict_proba(val[self.features])[:, 1]
-                self.calibrators[out] = fit_calibrator(raw, y_val, self.calibration)
+                raw = model.predict_proba(va[self.features])[:, 1]
+                self.calibrators[step] = fit_calibrator(raw, y_val, self.calibration)
         return self
 
-    def predict(self, table: pd.DataFrame, apply_calibration: bool = True) -> pd.DataFrame:
-        out = pd.DataFrame(np.nan, index=table.index, columns=list(OUTPUT_COLUMNS))
-        # getattr: models saved before calibration existed have no calibrators attribute.
-        calibrators = getattr(self, "calibrators", {}) if apply_calibration else {}
-        for col, model in self.models.items():
+    def _check_chain(self) -> None:
+        if CHEAP_GIVEN_NEAR_ZERO not in self.models:
+            raise ValueError(
+                "classifier artifact predates the nested chain; retrain with `make train TASK=classify`"
+            )
+
+    def step_probabilities(self, table: pd.DataFrame, apply_calibration: bool = True) -> dict:
+        """Each chain step's probability for every row of `table`."""
+        self._check_chain()
+        calibrators = self.calibrators if apply_calibration else {}
+        steps = {}
+        for step, model in self.models.items():
             p = model.predict_proba(table[self.features])[:, 1]
-            out[col] = calibrators[col].predict(p) if col in calibrators else p
+            steps[step] = calibrators[step].predict(p) if step in calibrators else p
+        return steps
+
+    def _combine(self, table: pd.DataFrame, steps: dict) -> pd.DataFrame:
+        out = pd.DataFrame(np.nan, index=table.index, columns=list(OUTPUT_COLUMNS))
+        out["p_near_zero"] = steps[NEAR_ZERO]
+        out["p_cheap"] = steps[NEAR_ZERO] * steps[CHEAP_GIVEN_NEAR_ZERO]
         return out
 
+    def predict(self, table: pd.DataFrame, apply_calibration: bool = True) -> pd.DataFrame:
+        return self._combine(table, self.step_probabilities(table, apply_calibration))
+
+    def predict_cross_fitted(self, table: pd.DataFrame, groups: np.ndarray) -> pd.DataFrame:
+        """Calibrated predictions where each group's calibrators were fitted on the other groups.
+
+        For honest scores on the rows the calibrators were fitted on (validation). Needs the labels
+        of `table`. Falls back to raw predictions when the model has no calibrators.
+        """
+        steps = self.step_probabilities(table, apply_calibration=False)
+        for step, (label, condition) in STEPS.items():
+            if step in self.calibrators:
+                mask = None if condition is None else table[condition].astype(bool).to_numpy()
+                y = table[label].astype(int).to_numpy()
+                steps[step] = cross_fit(steps[step], y, groups, self.calibration, fit_mask=mask)
+        return self._combine(table, steps)
+
+    def explain_models(self, col: str) -> list[lgb.LGBMClassifier]:
+        """The step models whose scores make up an output column (for SHAP)."""
+        self._check_chain()
+        if col == "p_near_zero":
+            return [self.models[NEAR_ZERO]]
+        return [self.models[NEAR_ZERO], self.models[CHEAP_GIVEN_NEAR_ZERO]]
+
     def metadata(self) -> dict:
-        return {"calibration": self.calibration, "calibrated": sorted(self.calibrators)}
+        return {
+            "structure": "chain: p_cheap = p_near_zero * P(cheap | near_zero)",
+            "calibration": self.calibration,
+            "calibrated": sorted(self.calibrators),
+        }
 
     def best_iterations(self) -> dict[str, int]:
-        return {col: int(m.best_iteration_ or m.n_estimators) for col, m in self.models.items()}
+        return {step: int(m.best_iteration_ or m.n_estimators) for step, m in self.models.items()}

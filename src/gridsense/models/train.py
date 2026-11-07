@@ -4,7 +4,6 @@ import pandas as pd
 
 from gridsense import config, io
 from gridsense.models import artifacts
-from gridsense.models.calibrate import cross_fit
 from gridsense.models.classify import LABELS, LowPriceClassifier
 from gridsense.models.metrics import by_horizon, classification_report, price_report
 from gridsense.models.price import PriceForecaster
@@ -23,15 +22,15 @@ def classify_metrics(model: LowPriceClassifier, val: pd.DataFrame) -> dict:
     # the other months) instead.
     pred = model.predict(val, apply_calibration=False)
     val_month = val["target_ts_utc"].dt.tz_convert(config.LOCAL_TZ).dt.month.to_numpy()
+    pred_cal = model.predict_cross_fitted(val, val_month) if model.calibrators else None
     metrics = {}
     for col, label in LABELS.items():
         y = val[label].astype(int)
         # k = number of positives, i.e. R-precision.
         for key, value in classification_report(y, pred[col], k=int(y.sum())).items():
             metrics[f"{col}_{key}"] = value
-        if col in model.calibrators:
-            p_cal = cross_fit(pred[col], y, val_month, model.calibration)
-            for key, value in classification_report(y, p_cal, k=int(y.sum())).items():
+        if pred_cal is not None:
+            for key, value in classification_report(y, pred_cal[col], k=int(y.sum())).items():
                 if key != "positives":
                     metrics[f"{col}_cal_{key}"] = value
 
