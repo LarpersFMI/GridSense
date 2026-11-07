@@ -98,6 +98,19 @@ Observed results for Romanian calendar dates 2023-01-01 through 2026-07-31:
 
 ## Weather and ML handoff
 
+Use `gridsense.config.WEATHER_POINTS` for the first model (Bucharest, Constanța, Craiova
+and Timișoara). For the expanded experiment, use
+`gridsense.locations.TOP_20_WEATHER_POINTS`. Both mappings use the `weather_fc.location`
+ID as the key and a WGS84 `(latitude, longitude)` pair as the value. Use those same IDs
+when selecting or pivoting weather features. The price target is one value per hour for
+the Romanian bidding zone.
+
+The expanded catalog follows resident population by municipality in the
+[2021 census, table 1.22](https://www.recensamantromania.ro/wp-content/uploads/2023/05/Tabel-1.22.xlsx).
+It reuses the four coordinates from `WEATHER_POINTS` and uses
+[Open-Meteo geocoding (GeoNames)](https://open-meteo.com/en/docs/geocoding-api) for the
+other 16 cities.
+
 Load the hourly table with `gridsense.io.read("prices_hourly")`. Join
 `weather_fc.target_ts_utc` to `prices_hourly.ts_utc` as a many-to-one join. For training
 targets, an inner join retains only complete labeled hours; for coverage analysis, use a
