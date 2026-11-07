@@ -1,7 +1,12 @@
 import json
+
 import pandas as pd
+
 from gridsense import io
-from gridsense.features.feature_augmentation import build_working_dataset, engineer_location_features
+from gridsense.features.feature_augmentation import (
+    build_working_dataset,
+    engineer_location_features,
+)
 from src.gridsense.config import LOCAL_TZ, REPORTS_DIR, WEATHER_POINTS
 
 
@@ -23,7 +28,7 @@ def load_ranked_features() -> list[str]:
 def create_augmented_dataset(nr_features: int = 30) -> pd.DataFrame:
     """Extracts top `nr_features` along with non-training metadata columns and saves to Parquet."""
     print("1. Loading full working dataset...")
-    train_df, val_df, test_df, working_df = build_working_dataset()
+    _train_df, _val_df, _test_df, working_df = build_working_dataset()
 
     ranked_features = load_ranked_features()
     selected_features = ranked_features[:nr_features]

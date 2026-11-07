@@ -216,6 +216,10 @@ labelled train/validation rows, verifies code/data checksums, keeps production a
 unchanged, and resumes verified completed jobs. Default candidates are current, weather
 extras, RO grid, RO/HU/BG grid, regional prices and regional load. `PROFILES="default recent
 regularized"` adds a bounded recency/regularization comparison when preparing a new queue.
+Add `chain_730_90` to `PROFILES` to test 730-day near-zero / 90-day conditional-cheap
+recency while keeping the price model at 365 days. Every chronological profile explicitly
+sets both classifier steps: default/regularized use 365/365 and recent uses 180/180,
+independent of the normal classifier's 730/90 defaults.
 See [the chronological protocol and limitations](docs/ml_handoff.md#chronological-validation-and-overnight-queue)
 before interpreting the June–September scoring blocks. No command in this queue evaluates
 test or promotes a feature/model automatically.

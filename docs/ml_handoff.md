@@ -11,6 +11,61 @@ been merged into ML. Earlier sections below are historical run records with thei
 inputs and model versions. Read the current checklist first, then [price_plan.md](price_plan.md),
 [ml_plan.md](ml_plan.md) and the README rules.
 
+## Per-step recency and weather calibration integration (2026-11-07)
+
+The incoming work through `9839df0`, including `a7c9ada`, is now merged as `46f2924`.
+The forecast-engineering adaptation was committed as `44bfa50` before that merge.
+Observed augmentation remains analysis-only and is not a forecast input. Both review points
+are addressed in local code; historical results below retain their original model settings.
+
+### Explicit chronological profiles
+
+| Profile | Price half-life | Near-zero step | Conditional-cheap step |
+|---|---:|---:|---:|
+| `default` | 365 days | 365 days | 365 days |
+| `recent` | 180 days | 180 days | 180 days |
+| `regularized` | 365 days | 365 days | 365 days |
+| `chain_730_90` | 365 days | 730 days | 90 days |
+
+Each [profile](../src/gridsense/models/chronological.py) explicitly supplies both
+`step_half_lives`; the runner removes that mapping from LightGBM parameters and copies it
+into the classifier. No profile inherits the newly merged conditional 90-day default.
+The 730/90 candidate keeps price settings equal to `default` so that contrast isolates
+classifier recency. Metadata records price recency and both effective classifier step
+half-lives. Profile regression tests verify the exact constructor settings and metadata,
+absence of the mapping from LightGBM parameters, and no mutation of the profile definitions.
+
+`a7c9ada` selected the normal classifier's 730/90 defaults using validation early stopping
+and month cross-fitting. Those remain development evidence, not a forward-only verdict.
+Include `chain_730_90` explicitly in a newly prepared queue to test the choice using separate
+earlier fit/stop/calibration/selection stages and later score blocks. No full comparison or
+feature promotion is implied by an eight-round smoke.
+
+### Remaining independent-calibration path fixed
+
+[weather_validation.cross_calibrated_predictions](../src/gridsense/models/weather_validation.py)
+now calls `classifier.predict_cross_fitted(rows, groups)` instead of calibrating the final
+`p_cheap` independently. The conditional step is calibrated only on near-zero-eligible rows;
+the output remains `p_near_zero * P(cheap | near_zero)`. Regressions cover Platt/isotonic
+nesting, exclusion of all held-month horizons, exclusion of non-near-zero cheap labels and
+prediction-index alignment. This helper is still month cross-fit, not forward-chained
+validation; old independent classifier artifacts still require retraining.
+
+The nesting and classification-evaluator integration tasks are **done**. Historical pending
+notes and Next steps item 4 below are marked accordingly. The normal evaluator already
+registers `make evaluate TASK=classify`; this review did not score the final test split.
+Both earlier prepared queues are now obsolete because of the merged/new Python checksums;
+their snapshots and reports remain untouched. A fresh post-integration queue is required.
+
+**Post-merge validation:** `make test` passed **246 tests**, `make lint` and
+`git diff --check` passed. Pylance reports no diagnostics in the two changed runners;
+all eight weather-helper call sites match its updated signature. All **29 tracked Parquets**
+open, the four incoming changed/new tables decode, and the default **235,704-row / 50-feature**
+table rebuilds exactly. Protected training-table/weather hashes are unchanged. No final-test
+evaluation was run. The incoming observed-augmentation modules received only the minimal
+import/unused-binding lint cleanup needed to restore the repository check; they remain
+excluded from forecast features and experiments.
+
 ## Forecast engineering from archived inputs (opt-in)
 
 The [new module](../src/gridsense/features/forecast_engineering.py) reuses the incoming
@@ -57,7 +112,7 @@ weather, nonlinear point means, units, price gaps, UTC/DST and explicit CLI opt-
 also has a regression proving that this extra candidate receives only development rows and
 does not enter the six default variants.
 
-**New queue prepared and verified:**
+**Earlier queue prepared and verified (now obsolete after profile integration):**
 [the plan](../reports/real/overnight/20261107-forecast-engineering/plan.json) has seven
 candidates (the original six plus `forecast_engineered`) × three profiles (`default`,
 `recent`, `regularized`) × four June–September scoring folds: **21 jobs / 84 folds**.
@@ -67,9 +122,9 @@ runtime/source checksums and production-model inventory all verify. The
 [completion marker](../reports/real/overnight/20261107-forecast-engineering/smoke/forecast_engineered__default/completed.json)
 is explicitly smoke-only, not quality evidence. **The full queue has not started** and no
 test-evaluation marker exists. Run/resume the new plan with
-`make overnight RUN_DIR=reports/real/overnight/20261107-forecast-engineering` only when ready
-to start the full experiments. Do not alter implementation, sources or production models
-underneath this prepared plan. Large queue artifacts remain ignored.
+`make overnight RUN_DIR=reports/real/overnight/20261107-forecast-engineering` was the launch
+command for that earlier code revision; **do not run this obsolete plan under the newer
+profile integration**. Large queue artifacts remain ignored.
 
 **Queue fingerprint boundary:** adding this module/configuration/integration changes Python
 checksums. The previous `20261107-validation` snapshots/reports remain untouched, but their
@@ -544,11 +599,11 @@ only be compared once valid archived forecasts cover the same train/validation r
 pulled class treats row-level NaN irradiance as a non-firing rule; report forecast coverage
 explicitly when evaluating it later.
 
-**Integration still pending:** [models/evaluate.py](../src/gridsense/models/evaluate.py)
-currently registers only the price task, so `make evaluate TASK=classify` is not supported.
-Flag this to ML-C: wire both baselines and the classifier into a common classification harness,
-skip SolarRule explicitly when weather is unavailable, and preserve identical scored rows.
-Isotonic calibration remains a stub; classifier probabilities are currently uncalibrated.
+**Historical integration task — now done:** at this run the evaluator registered only price
+and isotonic was a stub. [models/evaluate.py](../src/gridsense/models/evaluate.py) now registers
+`make evaluate TASK=classify`, with common classifier/baseline scoring and calibrated reports.
+The nested chain fixes probability ordering. The uncalibrated values above remain historical
+results, not scores of the newer implementation.
 
 ## Archived weather integrated (2026-11-07)
 
@@ -654,8 +709,9 @@ Artifacts: classifier `20261107T145655-3c7ab1c`, quantiles `20261107T145745-3c7a
 [classification + solar comparison](../reports/real/eval/classify_weather_val.csv),
 [coverage](../reports/real/eval/weather_feature_availability.csv), and
 [input hashes/provenance](../reports/real/eval/weather_validation.json).
-`make evaluate TASK=classify` remains unregistered; the dedicated weather validation runner
-provides the comparison without changing ML-C's evaluator/calibration code.
+**Historical evaluator gap — now done:** `make evaluate TASK=classify` is registered. The
+dedicated weather runner produced the historical comparison above; its remaining cross-fit
+helper now delegates to the nested classifier rather than calibrating the cheap product.
 
 ## Latest dev/main integration (2026-11-07)
 
@@ -1029,10 +1085,11 @@ design before further keep/drop decisions.
 	and solar elevation; HU/BG holiday flags (extend country calendars first); GFS run-to-run
 	revision as an uncertainty feature; weather-aware LEAR (per-hour GHI/residual load only) and
 	LightGBM `linear_tree`. Weather grid status is in the section below.
-4. **Flag to ML-C (their files):** `p_cheap ≤ p_near_zero` violations (9.1% calibrated); one
-	option is deriving both from the price quantiles or a conditional model, then revalidating
-	calibration rather than clipping. `make evaluate TASK=classify` is still unregistered. The
-	slot proxy in `error_analysis.py` can seed their `metrics.slot_hit_rate`.
+4. **Done (ML-C integration):** `p_cheap ≤ p_near_zero` is guaranteed by the nested conditional
+	chain, including per-step cross-fitted calibration; the historical 9.1% violations predate
+	that change. `make evaluate TASK=classify` is registered, and the weather helper now uses
+	`predict_cross_fitted`. Remaining work is chronological model/slot validation and retraining
+	old independent classifier artifacts, not clipping probabilities or registering the evaluator.
 5. **Data team:** publication-verifiable archived weather with full D+7; week-ahead original
 	publication times/revisions for an as-of join; why solar/wind actuals are masked across all
 	of train (do not bypass the update-time mask); sourced per-region PV/wind capacity if the

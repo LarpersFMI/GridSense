@@ -1,6 +1,6 @@
 import json
+
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 import seaborn as sns
 from lightgbm import LGBMRegressor
@@ -12,7 +12,7 @@ from src.gridsense.config import REPORTS_DIR
 
 def run_feature_importance():
     print("1. Loading augmented datasets...")
-    train_df, val_df, test_df, working_df = build_working_dataset()
+    train_df, val_df, _test_df, _working_df = build_working_dataset()
 
     target_col = "price_mean" if "price_mean" in train_df.columns else "price"
     if target_col not in train_df.columns:

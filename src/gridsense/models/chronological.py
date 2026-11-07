@@ -26,8 +26,14 @@ from gridsense.models.baselines import (
     SeasonalNaivePrice,
 )
 from gridsense.models.calibrate import conformal_offsets, fit_calibrator
+from gridsense.models.classify import (
+    CHEAP_GIVEN_NEAR_ZERO,
+    LABELS,
+    NEAR_ZERO,
+    STEPS,
+    LowPriceClassifier,
+)
 from gridsense.models.classify import DEFAULT_PARAMS as CLASS_PARAMS
-from gridsense.models.classify import LABELS, STEPS, LowPriceClassifier
 from gridsense.models.ensemble import PriceEnsemble
 from gridsense.models.error_analysis import (
     MAX_SLOT_HOURS,
@@ -46,9 +52,16 @@ from gridsense.splits import assign_split
 
 STAGES = ("fit", "early_stop", "calibration", "selection", "score")
 PROFILES = {
-    "default": {"half_life_days": 365.0},
-    "recent": {"half_life_days": 180.0},
-    "regularized": {"half_life_days": 365.0, "num_leaves": 15, "min_child_samples": 100},
+    "default": {"half_life_days": 365.0,
+                "step_half_lives": {NEAR_ZERO: 365.0, CHEAP_GIVEN_NEAR_ZERO: 365.0}},
+    "recent": {"half_life_days": 180.0,
+               "step_half_lives": {NEAR_ZERO: 180.0, CHEAP_GIVEN_NEAR_ZERO: 180.0}},
+    "regularized": {"half_life_days": 365.0,
+                    "step_half_lives": {NEAR_ZERO: 365.0, CHEAP_GIVEN_NEAR_ZERO: 365.0},
+                    "num_leaves": 15, "min_child_samples": 100},
+    # Isolate the classifier's 730/90 choice; keep price recency equal to the control.
+    "chain_730_90": {"half_life_days": 365.0,
+                     "step_half_lives": {NEAR_ZERO: 730.0, CHEAP_GIVEN_NEAR_ZERO: 90.0}},
 }
 TAUS = (0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 0.95)
 MAX_CANCELLATION = 0.10
@@ -202,13 +215,14 @@ def fit_fold(stages: dict, profile: str = "default", smoke: bool = False) -> dic
     fit, stop, calib, selection, score = (stages[name] for name in STAGES)
     options = dict(PROFILES[profile])
     half_life = options.pop("half_life_days")
+    step_half_lives = dict(options.pop("step_half_lives"))
     options["n_jobs"] = 4
     if smoke:
         options["n_estimators"] = 8
     price = PriceForecaster(params=PRICE_PARAMS | options, half_life_days=half_life, conformal=False,
                             quantiles=tuple(config.QUANTILES) if smoke else PriceForecaster().quantiles)
     classifier = LowPriceClassifier(params=CLASS_PARAMS | options, half_life_days=half_life,
-                                    calibration=None)
+                                    step_half_lives=step_half_lives, calibration=None)
     price.fit(fit, stop)
     classifier.fit(fit, stop)
     raw_calib = price.predict_quantiles(calib)
@@ -272,6 +286,9 @@ def fit_fold(stages: dict, profile: str = "default", smoke: bool = False) -> dic
         "selection": pd.DataFrame(candidates), "policy_score": pd.DataFrame(selected),
         "metadata": {"features": feature_columns(fit), "price_params": price.params,
                      "classifier_params": classifier.params, "half_life_days": half_life,
+                     "price_half_life_days": price.half_life_days,
+                     "classifier_step_half_lives": {
+                         step: classifier.half_life(step) for step in STEPS},
                      "classifier_structure": classifier.metadata().get("structure"),
                      "price_best_iterations": price.best_iterations(),
                      "classifier_best_iterations": classifier.best_iterations(),
