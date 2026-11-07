@@ -66,6 +66,21 @@ evaluation was run. The incoming observed-augmentation modules received only the
 import/unused-binding lint cleanup needed to restore the repository check; they remain
 excluded from forecast features and experiments.
 
+**Concurrent update integrated:** the initial push encountered teammate commit `d1f1865`;
+it was merged without force-pushing as `3e2d370`. The full **246-test** suite, lint and
+diff check passed again. All **29 tracked Parquets** still open and the default table and
+protected source hashes remain unchanged. The shared augmented schema changed upstream;
+this does not alter the archived forecast contract or our default training table.
+
+The new augmentation does anchor price memory to an issue date and now uses canonical
+`val` splits, but **it still reads observed `weather_hourly` and fabricates issue dates/lead
+days from target timestamps**. It has not become an archived-forecast pipeline. Its updated
+29,973-row / 37-column artifact has lead-day counts **0:17,486 / 1:12,483 / 2:4**, not the
+configured D+1…D+7 forecast keys. Iasi humidity exactly equals observed same-target truth on
+all **24,093** non-null development matches. Keep it and its refreshed feature ranking out
+of forecasting experiments. This source/schema concern is flagged here for the data owner;
+the archived-only `forecast_engineered` candidate remains the safe adaptation of the ideas.
+
 ## Forecast engineering from archived inputs (opt-in)
 
 The [new module](../src/gridsense/features/forecast_engineering.py) reuses the incoming
