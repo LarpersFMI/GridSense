@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { Name } from "../Dataset/Name"
 import { Foundations } from "../Foundations"
 import { Realtime } from "../Realtime/Realtime"
 import { Trigger } from "../Trigger"
@@ -23,12 +24,19 @@ export namespace Event {
 
     export namespace Check {
 
+        /** What was checked: a dataset's update, against every trigger on it, or one trigger's schedule. */
+        export const Source = z.discriminatedUnion("type", [
+            z.object({ type: z.literal("dataset"),  dataset:   Name }),
+            z.object({ type: z.literal("schedule"), triggerId: Trigger.Id, firedAt: z.coerce.date() }),
+        ])
+        export type Source = z.infer<typeof Source>
+
         /** A dataset update or a schedule was checked against the triggers on it. `cooledDown`: hits held back by a cooldown. */
         export namespace Completed {
 
             export const Schema = Base.extend({
                 type:            z.literal("watchdog:check:completed"),
-                cause:           Trigger.Check.Cause,
+                source:          Source,
                 triggersChecked: z.number().int().nonnegative(),
                 hits:            z.number().int().nonnegative(),
                 cooledDown:      z.number().int().nonnegative(),

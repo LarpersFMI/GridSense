@@ -76,34 +76,13 @@ export class RunRepository extends Repository<RunDB.Tables>() {
         return RunDB.toDomain(row);
     }
 
-    /** The run issued just before this one, or null for the first. */
+    /** The run whose rows have this issue_ts, or null. */
     @Transactional()
-    public async getPrevious(id: Forecaster.Run.Id): Promise<Forecaster.Run | null> {
-        const run = await this.get(id);
-
+    public async findByIssueTs(issueTs: Date): Promise<Forecaster.Run | null> {
         const row = await this.trx
             .selectFrom('gridsense.run')
             .selectAll()
-            .where('issue_ts', '<', run.issueTs)
-            .orderBy('issue_ts', 'desc')
-            .limit(1)
-            .executeTakeFirst();
-
-        if (!row)
-            return null;
-
-        return RunDB.toDomain(row);
-    }
-
-    /** The latest run issued before this instant, or null. */
-    @Transactional()
-    public async getLatestBefore(before: Date): Promise<Forecaster.Run | null> {
-        const row = await this.trx
-            .selectFrom('gridsense.run')
-            .selectAll()
-            .where('issue_ts', '<', before)
-            .orderBy('issue_ts', 'desc')
-            .limit(1)
+            .where('issue_ts', '=', issueTs)
             .executeTakeFirst();
 
         if (!row)

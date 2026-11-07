@@ -24,9 +24,13 @@ contracts are zod schemas in `packages/shared/domain/`, one namespace per concep
   `Dataset.Predictions.COMPUTED_COLUMNS` and `compute`.
 - **Run it:** `cp .env.example .env`, `npm run infra` (Postgres + Redis in Docker), then `npm run dev` (server on :4000,
   Watchdog on :4100). The server migrates on boot. Report a run like the Python pipeline will:
-  `curl -XPOST localhost:4000/internal/runs -H 'content-type: application/json' -d '{"issueTs":"2026-05-07T07:00:00Z","modelVersion":"dummy-0","rows":168,"predictionsPath":"<absolute path to predictions.parquet>","start":"2026-05-07T21:00:00Z","end":"2026-05-14T21:00:00Z"}'`
-  (`start`/`end`: the forecast's hours). Report a day's cleared prices like the ingestion will:
-  `curl -XPOST localhost:4000/internal/datasets/prices/updates -H 'content-type: application/json' -d '{"start":"2026-05-08T21:00:00Z","end":"2026-05-09T21:00:00Z"}'`.
+  `curl -XPOST localhost:4000/internal/runs -H 'content-type: application/json' -d '{"issueTs":"2026-05-07T07:00:00Z","modelVersion":"dummy-0","rows":168,"predictionsPath":"<absolute path to predictions.parquet>"}'`,
+  and appended prices with `curl -XPOST localhost:4000/internal/datasets/prices/updates` — or from Python,
+  `gridsense.report_dataset_updated`. Every run appends to the same predictions file in `DATASET_DIR`; each trigger
+  reads its rows past its watermark on its incremental column (`issue_ts`, `ts_utc`).
+- **The dummy week, live:** `DATASET_DIR=data/replay` in `.env`, then
+  `uv run python -m gridsense.replay --from 2026-05-13 --to 2026-05-15 --create-triggers` — appends each day's run and
+  the next day's prices, reporting each, with the demo triggers T1–T5 saved first.
 - **How it runs, flow by flow:** `packages/docs/` — a run reported, a dataset update checked, a hit raised, schedules,
   the trigger editor, the agent, realtime. Update the page when you change its flow.
 - Packages: `server` (owns Postgres, `/api` for the browser, `/internal` for workers and Python, `/socket` for live

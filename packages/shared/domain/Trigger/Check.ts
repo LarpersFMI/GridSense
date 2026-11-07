@@ -1,14 +1,23 @@
 import { z } from "zod"
 import type { Dataset } from "../Dataset"
-import { Update } from "../Dataset/Update"
+import { Name } from "../Dataset/Name"
 import type { RunId } from "../ids"
 
 /** One check of the triggers: why the Watchdog checked, on which run, and the hours it read. */
 export namespace Check {
 
-    /** A dataset's hours changed, or a trigger's schedule fired. */
+    /**
+     * New rows in the trigger's dataset — those whose incremental column is past `after` (the watermark; null the
+     * first time) up to `upTo`, the new watermark — or the trigger's schedule fired.
+     */
     export const Cause = z.discriminatedUnion("type", [
-        z.object({ type: z.literal("dataset"),  update:  Update.Schema }),
+        z.object({
+            type:              z.literal("dataset"),
+            dataset:           Name,
+            incrementalColumn: z.string(),
+            after:             z.coerce.date().nullable(),
+            upTo:              z.coerce.date(),
+        }),
         z.object({ type: z.literal("schedule"), firedAt: z.coerce.date() }),
     ])
     export type Cause = z.infer<typeof Cause>

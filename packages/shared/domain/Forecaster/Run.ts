@@ -12,17 +12,14 @@ export namespace Run {
         issueTs:         z.coerce.date(),           // the issue_ts of its rows in Dataset.Predictions
         modelVersion:    z.string().min(1),
         rows:            z.number().int().positive(),
-        predictionsPath: z.string().min(1),
+        predictionsPath: z.string().min(1),         // for the record: the Watchdog reads the dataset's file in DATASET_DIR
         reportedAt:      z.coerce.date(),
     })
 
     /** What the Python pipeline reports once the run's rows are fully written (POST /internal/runs). */
     export namespace Report {
 
-        export const Schema = Run.Schema.omit({ id: true, reportedAt: true }).extend({
-            start: z.coerce.date(),                 // the first target hour it forecast
-            end:   z.coerce.date(),                 // the hour after its last: the predictions update is [start, end)
-        })
+        export const Schema = Run.Schema.omit({ id: true, reportedAt: true })
     }
     export type Report = z.infer<typeof Report.Schema>
 }

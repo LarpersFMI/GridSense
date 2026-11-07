@@ -1,9 +1,9 @@
-import { Injectable, type OnModuleDestroy } from '@nestjs/common';
+import { existsSync } from 'node:fs';
+import { BadRequestException, Injectable, type OnModuleDestroy } from '@nestjs/common';
 import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
 import { Dataset, Watchdog } from '@gridsense/shared/domain';
-import { getDatasetPath, quoteSqlPath } from '@gridsense/shared/server/datasets';
+import { getDatasetPath, quoteSqlIdentifier, quoteSqlPath } from '@gridsense/shared/server/datasets';
 import { QueueProducer } from '@gridsense/shared/server/queue';
-import { ForecasterService } from '../Forecaster/forecaster.service';
 
 /** DuckDB's type names, by how a condition compares them. */
 const NUMBER_TYPES = /^(TINYINT|SMALLINT|INTEGER|BIGINT|HUGEINT|UTINYINT|USMALLINT|UINTEGER|UBIGINT|FLOAT|DOUBLE|DECIMAL)/;
@@ -20,38 +20,51 @@ export class DatasetService implements OnModuleDestroy {
 
     private connection: Promise<DuckDBConnection> | undefined;
 
-    constructor(
-        private readonly forecaster: ForecasterService,
-        private readonly queues: QueueProducer,
-    ) {}
+    constructor(private readonly queues: QueueProducer) {}
 
-    /** Hours of a dataset changed outside a run (the auction cleared a day): the Watchdog checks the triggers on it. */
-    public async reportUpdate(name: Dataset.Name, request: Dataset.API.Internal.ReportUpdate.Request): Promise<Dataset.Update> {
-        const update: Dataset.Update = {
-            dataset: name,
-            start:   request.start,
-            end:     request.end,
-            runId:   null,
-        };
+    /** Rows were appended to a dataset's file outside a run (a day's cleared prices): the Watchdog checks the triggers on it. */
+    public async reportUpdate(name: Dataset.Name): Promise<Dataset.Update> {
+        const update: Dataset.Update = { dataset: name };
 
-        await this.queues.add(Watchdog.Queue.DatasetUpdated.Definition, update, {
-            jobId: Dataset.Update.getKey(update),
-        });
+        await this.queues.add(Watchdog.Queue.DatasetUpdated.Definition, update);
 
         return update;
     }
 
-    /** The predictions are described from the latest run's file; the prices from DATASET_DIR. */
-    public async describe(name: Dataset.Name): Promise<Dataset.Description> {
-        let path = getDatasetPath(name);
+    /**
+     * The largest value of a timestamp column in a dataset's file now — a new trigger's watermark, so it reads only
+     * rows appended after it was saved. Null when there's no file yet. 400 when the column isn't a timestamp in it.
+     */
+    public async getLatest(name: Dataset.Name, column: string): Promise<Date | null> {
+        const path = getDatasetPath(name);
 
-        if (name === 'predictions') {
-            const [latest] = await this.forecaster.listRuns(1);
+        if (!existsSync(path))
+            return null;
 
-            if (latest)
-                path = latest.predictionsPath;
+        const connection = await this.connect();
+        let latest: unknown;
+
+        try {
+            const reader = await connection.runAndReadAll(`select max(${quoteSqlIdentifier(column)}) as latest from read_parquet(${quoteSqlPath(path)})`);
+
+            latest = reader.getRowObjectsJS()[0].latest;
+        }
+        catch {
+            throw new BadRequestException(`${column} isn't a column of ${name}`);
         }
 
+        if (latest === null)
+            return null;
+
+        if (!(latest instanceof Date))
+            throw new BadRequestException(`${column} isn't a timestamp: an incremental column must be one`);
+
+        return latest;
+    }
+
+    /** Described from its file in DATASET_DIR, as it is now. */
+    public async describe(name: Dataset.Name): Promise<Dataset.Description> {
+        const path = getDatasetPath(name);
         const connection = await this.connect();
         const reader = await connection.runAndReadAll(`describe select * from read_parquet(${quoteSqlPath(path)})`);
 

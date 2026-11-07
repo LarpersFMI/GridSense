@@ -9,13 +9,25 @@ export namespace Internal {
 
     const TriggersResponse = z.object({ triggers: z.record(TriggerId, Schema) })
 
-    /** Enabled triggers checked when this dataset updates. */
+    /** Enabled triggers checked when this dataset updates, with each one's watermark (null: it hasn't read any rows). */
     export namespace ListForDataset {
 
         export const Query = z.object({ dataset: Name })
         export type  Query = z.infer<typeof Query>
 
-        export const Response = TriggersResponse
+        export const Response = TriggersResponse.extend({
+            watermarks: z.record(TriggerId, z.coerce.date().nullable()),
+        })
+        export type Response = z.infer<typeof Response>
+    }
+
+    /** The Watchdog read a trigger's new rows up to here: the next check reads past it. */
+    export namespace SetWatermark {
+
+        export const Request = z.object({ watermark: z.coerce.date() })
+        export type  Request = z.infer<typeof Request>
+
+        export const Response = z.object({ watermark: z.coerce.date() })
         export type  Response = z.infer<typeof Response>
     }
 
@@ -36,6 +48,12 @@ export namespace Internal {
         const { data } = await api.get("/internal/triggers", { params: query })
 
         return ListForDataset.Response.parse(data)
+    }
+
+    export async function setWatermark(api: AxiosInstance, id: TriggerId, request: SetWatermark.Request): Promise<SetWatermark.Response> {
+        const { data } = await api.put(`/internal/triggers/${id}/watermark`, request)
+
+        return SetWatermark.Response.parse(data)
     }
 
     export async function listScheduled(api: AxiosInstance): Promise<ListScheduled.Response> {

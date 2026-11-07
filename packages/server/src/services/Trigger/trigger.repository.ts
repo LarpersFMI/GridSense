@@ -5,7 +5,7 @@ import { Dataset, Trigger } from '@gridsense/shared/domain';
 import { Repository, Transactional } from '../../db/repository';
 import { json, type Table } from '../../db/table';
 
-/** The `gridsense.trigger` table: a trigger's shapes stored as jsonb, as zod validated them. */
+/** The `gridsense.trigger` table: a trigger's shapes stored as jsonb, as zod validated them, and the Watchdog's watermark. */
 export namespace TriggerDB {
 
     export const Row = z.object({
@@ -18,6 +18,7 @@ export namespace TriggerDB {
         conditions:       Trigger.Condition.Schema.array(),
         hit_grouping:     Trigger.Grouping.Schema,
         cooldown_minutes: z.number().int(),
+        watermark:        z.date().nullable(),   // the Watchdog's: how far it has read the dataset's incremental column
         created_at:       z.date(),
         updated_at:       z.date(),
     });
@@ -48,7 +49,7 @@ export namespace TriggerDB {
     });
 
     export interface Tables {
-        'gridsense.trigger': Table<typeof Row, 'created_at' | 'updated_at'>;
+        'gridsense.trigger': Table<typeof Row, 'watermark' | 'created_at' | 'updated_at'>;
     }
 }
 
@@ -71,9 +72,9 @@ export class TriggerRepository extends Repository<TriggerDB.Tables>() {
         return triggers;
     }
 
-    /** Enabled triggers checked when this dataset updates. */
+    /** Enabled triggers checked when this dataset updates, and their watermarks. */
     @Transactional()
-    public async listForDataset(dataset: Dataset.Name): Promise<Record<Trigger.Id, Trigger>> {
+    public async listForDataset(dataset: Dataset.Name): Promise<{ triggers: Record<Trigger.Id, Trigger>; watermarks: Record<Trigger.Id, Date | null> }> {
         const rows = await this.trx
             .selectFrom('gridsense.trigger')
             .selectAll()
@@ -83,11 +84,14 @@ export class TriggerRepository extends Repository<TriggerDB.Tables>() {
             .execute();
 
         const triggers: Record<Trigger.Id, Trigger> = {};
+        const watermarks: Record<Trigger.Id, Date | null> = {};
 
-        for (const row of rows)
+        for (const row of rows) {
             triggers[row.id] = TriggerDB.toDomain(row);
+            watermarks[row.id] = row.watermark;
+        }
 
-        return triggers;
+        return { triggers, watermarks };
     }
 
     /** Enabled triggers on a schedule. */
@@ -122,14 +126,15 @@ export class TriggerRepository extends Repository<TriggerDB.Tables>() {
         return TriggerDB.toDomain(row);
     }
 
-    /** Inserts it under its own id; one that exists is a conflict. */
+    /** Inserts it under its own id, reading from `watermark` on; one that exists is a conflict. */
     @Transactional()
-    public async create(trigger: Trigger): Promise<Trigger> {
+    public async create(trigger: Trigger, watermark: Date | null): Promise<Trigger> {
         const row = await this.trx
             .insertInto('gridsense.trigger')
             .values({
                 id: trigger.id,
                 ...TriggerDB.fromDomain(trigger),
+                watermark,
             })
             .onConflict((conflict) => conflict.column('id').doNothing())
             .returningAll()
@@ -141,12 +146,14 @@ export class TriggerRepository extends Repository<TriggerDB.Tables>() {
         return TriggerDB.toDomain(row);
     }
 
+    /** Replaces it; its watermark too, unless `watermark` is undefined. */
     @Transactional()
-    public async update(trigger: Trigger): Promise<Trigger> {
+    public async update(trigger: Trigger, watermark: Date | null | undefined): Promise<Trigger> {
         const row = await this.trx
             .updateTable('gridsense.trigger')
             .set({
                 ...TriggerDB.fromDomain(trigger),
+                ...(watermark === undefined ? {} : { watermark }),
                 updated_at: new Date(),
             })
             .where('id', '=', trigger.id)
@@ -157,6 +164,22 @@ export class TriggerRepository extends Repository<TriggerDB.Tables>() {
             throw new NotFoundException(`No trigger ${trigger.id}`);
 
         return TriggerDB.toDomain(row);
+    }
+
+    /** The Watchdog read the trigger's rows up to here. */
+    @Transactional()
+    public async setWatermark(id: Trigger.Id, watermark: Date): Promise<Date> {
+        const row = await this.trx
+            .updateTable('gridsense.trigger')
+            .set({ watermark })
+            .where('id', '=', id)
+            .returning('watermark')
+            .executeTakeFirst();
+
+        if (!row)
+            throw new NotFoundException(`No trigger ${id}`);
+
+        return watermark;
     }
 
     @Transactional()

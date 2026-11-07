@@ -16,19 +16,13 @@ export class ForecasterInternalHttpController {
         return { run: await this.service.reportRun(request) };
     }
 
-    // Before ':id', which would take "latest" for an id.
-    @Get('latest')
-    public async getLatestRun(@Query(new ZodPipe(Internal.GetLatestRun.Query)) query: Internal.GetLatestRun.Query): Promise<Internal.GetLatestRun.Response> {
-        return { run: await this.service.getLatestRun(query.before) };
+    @Get()
+    public async findRun(@Query(new ZodPipe(Internal.FindRun.Query)) query: Internal.FindRun.Query): Promise<Internal.FindRun.Response> {
+        return { run: await this.service.findRun(query.issueTs) };
     }
 
     @Get(':id')
     public async getRun(@Param('id', new ZodPipe(Forecaster.Run.Id)) id: Forecaster.Run.Id): Promise<Internal.GetRun.Response> {
         return { run: await this.service.getRun(id) };
-    }
-
-    @Get(':id/previous')
-    public async getPreviousRun(@Param('id', new ZodPipe(Forecaster.Run.Id)) id: Forecaster.Run.Id): Promise<Internal.GetPreviousRun.Response> {
-        return { run: await this.service.getPreviousRun(id) };
     }
 }

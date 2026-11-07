@@ -7,7 +7,7 @@ The Python pipeline forecasts; the **Watchdog** checks the admin's **triggers** 
 | Page | What it covers |
 |---|---|
 | [reporting-a-run.md](reporting-a-run.md) | Python's `POST /internal/runs` → the run saved → the predictions update queued → live on `forecaster:runs` |
-| [checking-an-update.md](checking-an-update.md) | A dataset's hours changed (a run, an auction day) → those hours with every dataset's values → every trigger on that dataset evaluated |
+| [checking-an-update.md](checking-an-update.md) | A dataset's file changed → each trigger reads its rows past its watermark → the hours they're about → evaluated, watermark moved. Also: replaying the dummy week |
 | [raising-a-hit.md](raising-a-hit.md) | A trigger held → cooldown → the agent's job, its thread id → `watchdog:hit:raised` |
 | [scheduled-triggers.md](scheduled-triggers.md) | Triggers on the clock: reconciling BullMQ job schedulers, a schedule firing |
 | [editing-triggers.md](editing-triggers.md) | The admin's editor: describing a dataset's columns, create / update / delete, what the Watchdog does after |
@@ -77,7 +77,7 @@ The server owns Postgres. The Watchdog never touches it — it reads runs and tr
 
 | Queue | Job | Produced by | Consumed by | Job id |
 |---|---|---|---|---|
-| `watchdog.dataset-updated` | `Dataset.Update` | `ForecasterService.reportRun`, `DatasetService.reportUpdate` | `DatasetUpdatedProcessor` (concurrency 1) | `Dataset.Update.getKey`: `predictions_<runId>`, `prices_<window key>` |
+| `watchdog.dataset-updated` | `Dataset.Update` `{ dataset }` | `ForecasterService.reportRun`, `DatasetService.reportUpdate` | `DatasetUpdatedProcessor` (concurrency 1) | — (a repeated update finds no new rows) |
 | `watchdog.schedule` | `{ triggerId }` | BullMQ job schedulers, one per scheduled trigger | `ScheduleProcessor` (concurrency 1) | BullMQ's, per firing |
 | `watchdog.reconcile-schedules` | `{}` | `TriggerService` on every write; the Watchdog on boot | `ReconcileProcessor` (concurrency 1) | — |
 | `agent.handle-hit` | `Trigger.Hit` | `HitService.raise` | central-agent (planned) | the hit's thread id |
@@ -92,4 +92,4 @@ npm run infra        # postgres:16 + redis:7 (docker compose)
 npm run dev          # server :4000 + watchdog, nodemon
 ```
 
-`.env` (from `.env.example`): `DATABASE_URL`, `REDIS_URL`, `GRIDSENSE_SERVER_URL` (the Watchdog's way to the server), `DATASET_DIR` (relative to the repository root; `data/synthetic` for the dummy week).
+`.env` (from `.env.example`): `DATABASE_URL`, `REDIS_URL`, `GRIDSENSE_SERVER_URL` (the Watchdog's way to the server), `DATASET_DIR` (relative to the repository root; `data/replay` for the dummy week: `uv run python -m gridsense.replay --from 2026-05-13 --to 2026-05-15 --create-triggers`).

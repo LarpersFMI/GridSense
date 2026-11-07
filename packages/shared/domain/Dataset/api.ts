@@ -27,26 +27,20 @@ export namespace API {
     export namespace Internal {
 
         /**
-         * Hours of a dataset changed outside a run — the auction cleared a day: [local midnight, next local midnight).
-         * A run's predictions are reported with `Forecaster.API.Internal.reportRun`, which updates them itself.
+         * Rows were appended to a dataset's file outside a run — the auction's prices for a day. Call it once they're
+         * fully written. A run's predictions are reported with `Forecaster.API.Internal.reportRun`, which updates them itself.
          */
         export namespace ReportUpdate {
 
             export const Params = z.object({ name: Name })
             export type  Params = z.infer<typeof Params>
 
-            export const Request = z.object({
-                start: z.coerce.date(),
-                end:   z.coerce.date(),
-            }).refine((request) => request.start < request.end, { path: ["end"], message: "end must come after start" })
-            export type Request = z.infer<typeof Request>
-
             export const Response = z.object({ update: Update.Schema })
             export type  Response = z.infer<typeof Response>
         }
 
-        export async function reportUpdate(api: AxiosInstance, name: Name, request: z.input<typeof ReportUpdate.Request>): Promise<ReportUpdate.Response> {
-            const { data } = await api.post(`/internal/datasets/${name}/updates`, request)
+        export async function reportUpdate(api: AxiosInstance, name: Name): Promise<ReportUpdate.Response> {
+            const { data } = await api.post(`/internal/datasets/${name}/updates`)
 
             return ReportUpdate.Response.parse(data)
         }

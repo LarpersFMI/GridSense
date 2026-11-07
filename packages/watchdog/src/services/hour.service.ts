@@ -1,80 +1,153 @@
 import { Injectable } from '@nestjs/common';
-import { Dataset, Forecaster, Trigger } from '@gridsense/shared/domain';
+import { Dataset, Forecaster, Time, Trigger } from '@gridsense/shared/domain';
 import { getServerApi } from '@gridsense/shared/server/internal-api';
 import { DatasetService } from './dataset.service';
 
 import Hour = Trigger.Check.Hour;
 
-/** The hours a dataset update brings to check, each with every dataset's values that exist for it. */
+const HOUR_MS = 60 * 60_000;
+
+/** A trigger's new rows, as the hours they're about. */
+export interface NewRows {
+    upTo:  Date                          // the new watermark
+    runId: Forecaster.Run.Id | null      // the run the hours' forecast came from, if it was reported
+    hours: Hour[]
+}
+
+/** The hours a trigger's new rows are about, each with every dataset's values that exist for it. */
 @Injectable()
 export class HourService {
 
     constructor(private readonly datasets: DatasetService) {}
 
     /**
-     * The update's hours, [start, end): each with its cleared prices where they exist, and the forecast — the update's
-     * run if it has one, else the latest run issued before the hours begin (what was known when they started). The run's
-     * id comes back with them, or null if there was none.
+     * The rows past the watermark on the trigger's incremental column, as hours, or null when there are none.
+     * - predictions: each hour's latest forecast among the new rows, with the cleared prices of hours already delivered;
+     * - prices: the cleared hours, with the forecast each day had — the latest run issued before the day began.
      */
-    public async forUpdate(update: Dataset.Update): Promise<{ runId: Forecaster.Run.Id | null; hours: Hour[] }> {
-        const api = getServerApi();
-        let run: Forecaster.Run | null;
+    public async forNewRows(on: Extract<Trigger.On, { type: 'dataset' }>, after: Date | null): Promise<NewRows | null> {
+        const { rows, upTo } = await this.datasets.readNewRows(on.dataset, on.incrementalColumn, after);
 
-        if (update.runId !== null)
-            ({ run } = await Forecaster.API.Internal.getRun(api, update.runId));
-        else
-            ({ run } = await Forecaster.API.Internal.getLatestRun(api, { before: update.start }));
+        if (upTo === null)
+            return null;
 
         let hours: Record<string, Hour> = {};
-        let runId: Forecaster.Run.Id | null = null;
+        let issueTs: Date | null = null;
 
-        if (run !== null) {
-            hours = await this.readForecast(run, update);
-            runId = run.id;
+        if (on.dataset === 'predictions') {
+            const latest: Record<string, Dataset.Predictions.Row> = {};
+
+            for (const raw of rows) {
+                const row = Dataset.Predictions.Row.Schema.parse(raw);
+                const time = row.target_ts_utc.toISOString();
+
+                if (!(time in latest) || latest[time].issue_ts < row.issue_ts)
+                    latest[time] = row;
+
+                if (issueTs === null || row.issue_ts > issueTs)
+                    issueTs = row.issue_ts;
+            }
+
+            hours = await this.readForecast(Object.values(latest));
+
+            let from = Infinity;
+            let to = -Infinity;
+
+            for (const hour of Object.values(hours)) {
+                from = Math.min(from, hour.at.getTime());
+                to = Math.max(to, hour.at.getTime() + HOUR_MS);
+            }
+
+            for (const price of await this.datasets.readPrices(new Date(from), new Date(to)))
+                hours[price.ts_utc.toISOString()].values.prices = Trigger.Check.toValues(price, Dataset.PricesHourly.compute(price));
+        }
+        else {
+            const days: Record<string, string[]> = {};
+
+            for (const raw of rows) {
+                const price = Dataset.PricesHourly.Row.Schema.parse(raw);
+                const time = price.ts_utc.toISOString();
+                const day = Time.Local.of(price.ts_utc).day;
+
+                hours[time] = {
+                    at:     price.ts_utc,
+                    values: { prices: Trigger.Check.toValues(price, Dataset.PricesHourly.compute(price)) },
+                };
+
+                if (!(day in days))
+                    days[day] = [];
+
+                days[day].push(time);
+            }
+
+            for (const [day, times] of Object.entries(days)) {
+                const dayIssueTs = await this.datasets.getLatestIssueTs(Time.Local.startOfDay(day));
+
+                if (dayIssueTs === null)
+                    continue;
+
+                const forecast: Dataset.Predictions.Row[] = [];
+
+                for (const row of await this.datasets.readPredictions(dayIssueTs))
+                    if (times.includes(row.target_ts_utc.toISOString()))
+                        forecast.push(row);
+
+                for (const [time, hour] of Object.entries(await this.readForecast(forecast)))
+                    hours[time].values.predictions = hour.values.predictions;
+
+                if (issueTs === null || dayIssueTs > issueTs)
+                    issueTs = dayIssueTs;
+            }
         }
 
-        for (const price of await this.datasets.readPrices(update.start, update.end)) {
-            const time = price.ts_utc.toISOString();
+        let runId: Forecaster.Run.Id | null = null;
 
-            if (!(time in hours))
-                hours[time] = { at: price.ts_utc, values: {} };
+        if (issueTs !== null) {
+            const { run } = await Forecaster.API.Internal.findRun(getServerApi(), { issueTs });
 
-            hours[time].values.prices = Trigger.Check.toValues(price, Dataset.PricesHourly.compute(price));
+            if (run !== null)
+                runId = run.id;
         }
 
         const sorted = Object.values(hours);
 
         sorted.sort((a, b) => a.at.getTime() - b.at.getTime());
 
-        return { runId, hours: sorted };
+        return { upTo, runId, hours: sorted };
     }
 
-    /** A run's forecast hours in [start, end), by time (UTC ISO), computed against the run before. */
-    public async readForecast(run: Forecaster.Run, range: { start: Date; end: Date }): Promise<Record<string, Hour>> {
-        const { run: previous } = await Forecaster.API.Internal.getPreviousRun(getServerApi(), run.id);
-        const previousByTime: Record<string, Dataset.Predictions.Row> = {};
+    /** Forecast rows, one per hour, as hours by time (UTC ISO): computed against the same hour in the run issued before each. */
+    public async readForecast(rows: Dataset.Predictions.Row[]): Promise<Record<string, Hour>> {
+        const previousByIssue: Record<string, Record<string, Dataset.Predictions.Row>> = {};
 
-        if (previous !== null)
-            for (const prediction of await this.datasets.readPredictions(previous.predictionsPath, previous.issueTs))
-                previousByTime[prediction.target_ts_utc.toISOString()] = prediction;
+        for (const row of rows) {
+            const issue = row.issue_ts.toISOString();
+
+            if (issue in previousByIssue)
+                continue;
+
+            previousByIssue[issue] = {};
+
+            const previousIssueTs = await this.datasets.getLatestIssueTs(row.issue_ts);
+
+            if (previousIssueTs !== null)
+                for (const previous of await this.datasets.readPredictions(previousIssueTs))
+                    previousByIssue[issue][previous.target_ts_utc.toISOString()] = previous;
+        }
 
         const hours: Record<string, Hour> = {};
 
-        for (const prediction of await this.datasets.readPredictions(run.predictionsPath, run.issueTs)) {
-            const at = prediction.target_ts_utc;
-            const time = at.toISOString();
+        for (const row of rows) {
+            const time = row.target_ts_utc.toISOString();
+            const previousRows = previousByIssue[row.issue_ts.toISOString()];
+            let previous: Dataset.Predictions.Row | null = null;
 
-            if (at < range.start || at >= range.end)
-                continue;
-
-            let previousPrediction: Dataset.Predictions.Row | null = null;
-
-            if (time in previousByTime)
-                previousPrediction = previousByTime[time];
+            if (time in previousRows)
+                previous = previousRows[time];
 
             hours[time] = {
-                at,
-                values: { predictions: Trigger.Check.toValues(prediction, Dataset.Predictions.compute(prediction, previousPrediction)) },
+                at:     row.target_ts_utc,
+                values: { predictions: Trigger.Check.toValues(row, Dataset.Predictions.compute(row, previous)) },
             };
         }
 

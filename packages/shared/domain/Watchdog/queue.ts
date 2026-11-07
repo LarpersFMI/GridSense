@@ -10,7 +10,7 @@ export namespace Queue {
     export const CheckResult = z.object({ hits: z.number().int().nonnegative() })
     export type  CheckResult = z.infer<typeof CheckResult>
 
-    /** Check every enabled trigger on this dataset against the hours that changed. Job id: `Dataset.Update.getKey`. */
+    /** Check every enabled trigger on this dataset against its new rows. A repeated update finds none: no job id needed. */
     export namespace DatasetUpdated {
 
         export const Definition = Foundations.Queue.define({

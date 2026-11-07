@@ -1,5 +1,4 @@
 import { z } from "zod"
-import { Update } from "../Dataset/Update"
 import { RunId, TriggerId, type ThreadId } from "../ids"
 import { Window } from "../Time/Window"
 import { Check } from "./Check"
@@ -77,14 +76,14 @@ export namespace Hit {
     }
 
     /**
-     * The hit's thread: one per trigger, window and occasion — the dataset update (`Dataset.Update.getKey`) or the
+     * The hit's thread: one per trigger, window and occasion — the new rows it read (`<dataset>-<upTo ms>`) or the
      * schedule's firing — so the same hit reported twice is handled once.
      */
     export function getThreadId(hit: Hit): ThreadId {
         let occasion: string
 
         if (hit.cause.type === "dataset")
-            occasion = Update.getKey(hit.cause.update)
+            occasion = `${hit.cause.dataset}-${hit.cause.upTo.getTime()}`
         else
             occasion = `schedule-${hit.cause.firedAt.getTime()}`
 

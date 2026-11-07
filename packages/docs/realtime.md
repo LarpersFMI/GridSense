@@ -19,7 +19,7 @@ Each domain declares its own (`<Domain>/Event.ts`): a branded channel type, its 
 | Channel | Event | Published by | Who listens |
 |---|---|---|---|
 | `forecaster:runs` | `forecaster:run:reported { run }` | `ForecasterService.reportRun` | the runs list |
-| `watchdog:activity` | `watchdog:check:completed { cause, triggersChecked, hits, cooledDown, checkedAt }` | `DatasetUpdatedProcessor`, `ScheduleProcessor` | the activity feed |
+| `watchdog:activity` | `watchdog:check:completed { source, triggersChecked, hits, cooledDown, checkedAt }` — `source`: `{ dataset }` or `{ triggerId, firedAt }` | `DatasetUpdatedProcessor`, `ScheduleProcessor` | the activity feed |
 | `watchdog:trigger:<triggerId>` | `watchdog:hit:raised { hit, threadId }` | `HitService.raise` | a trigger's page |
 | `agent:thread:<threadId>` | `agent:thread:updated { threadId, triggerId, status, step, updatedAt }` | the agent (planned) | a thread's page |
 | `agent:inbox` | `agent:review:requested { threadId, hit, proposal, reason }` · `agent:review:resolved { threadId, decision }` | the agent · the review endpoint (planned) | the admin's inbox |

@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Put, Query } from '@nestjs/common';
 import { Trigger } from '@gridsense/shared/domain';
 import { ZodPipe } from '../../../http/zod.pipe';
 import { TriggerService } from '../trigger.service';
@@ -13,7 +13,7 @@ export class TriggerInternalHttpController {
 
     @Get()
     public async listForDataset(@Query(new ZodPipe(Internal.ListForDataset.Query)) query: Internal.ListForDataset.Query): Promise<Internal.ListForDataset.Response> {
-        return { triggers: await this.service.triggers.listForDataset(query.dataset) };
+        return await this.service.triggers.listForDataset(query.dataset);
     }
 
     @Get('scheduled')
@@ -24,5 +24,13 @@ export class TriggerInternalHttpController {
     @Get(':id')
     public async get(@Param('id', new ZodPipe(Trigger.Id)) id: Trigger.Id): Promise<Internal.Get.Response> {
         return { trigger: await this.service.triggers.get(id) };
+    }
+
+    @Put(':id/watermark')
+    public async setWatermark(
+        @Param('id', new ZodPipe(Trigger.Id)) id: Trigger.Id,
+        @Body(new ZodPipe(Internal.SetWatermark.Request)) request: Internal.SetWatermark.Request,
+    ): Promise<Internal.SetWatermark.Response> {
+        return { watermark: await this.service.triggers.setWatermark(id, request.watermark) };
     }
 }

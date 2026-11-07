@@ -10,8 +10,11 @@ const FILES: Record<Dataset.Name, string> = {
     prices:      Dataset.PricesHourly.FILE,
 }
 
-/** Where a dataset's file is: DATASET_DIR and its FILE. A run's predictions are wherever the run says (Run.predictionsPath). */
+/** Where a dataset's file is: DATASET_DIR and its FILE. Every run appends its predictions to the same file. */
 export const getDatasetPath = (name: Dataset.Name) => resolve(REPOSITORY_ROOT, requireEnv("DATASET_DIR"), FILES[name])
+
+/** A column name as a SQL identifier: a trigger's incremental column comes from the admin. */
+export const quoteSqlIdentifier = (name: string) => `"${name.replaceAll('"', '""')}"`
 
 /** A path as a SQL string literal: DuckDB's read_parquet takes no bound parameter. */
 export const quoteSqlPath = (path: string) => `'${path.replaceAll("'", "''")}'`

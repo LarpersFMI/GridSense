@@ -24,11 +24,12 @@ export class ScheduleProcessor extends JobProcessor<typeof Watchdog.Queue.Schedu
 
     protected async handle(job: Watchdog.Queue.Schedule.Job, raw: Job): Promise<Watchdog.Queue.CheckResult> {
         const { trigger } = await Trigger.API.Internal.get(getServerApi(), job.triggerId);
+        const firedAt = new Date(raw.timestamp);
 
         const check: Trigger.Check = {
             cause: {
-                type:    'schedule',
-                firedAt: new Date(raw.timestamp),
+                type: 'schedule',
+                firedAt,
             },
             runId: null,
             hours: [],
@@ -46,7 +47,7 @@ export class ScheduleProcessor extends JobProcessor<typeof Watchdog.Queue.Schedu
 
         this.realtime.emitEvent({
             ...Watchdog.Event.create('watchdog:check:completed', {
-                cause:           check.cause,
+                source:          { type: 'schedule', triggerId: trigger.id, firedAt },
                 triggersChecked: 1,
                 hits:            raised,
                 cooledDown,

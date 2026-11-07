@@ -24,16 +24,9 @@ export class ForecasterService {
         if (!created)
             return run;
 
-        const update: Dataset.Update = {
-            dataset: 'predictions',
-            start:   report.start,
-            end:     report.end,
-            runId:   run.id,
-        };
+        const update: Dataset.Update = { dataset: 'predictions' };
 
-        await this.queues.add(Watchdog.Queue.DatasetUpdated.Definition, update, {
-            jobId: Dataset.Update.getKey(update),
-        });
+        await this.queues.add(Watchdog.Queue.DatasetUpdated.Definition, update);
 
         this.realtime.emitEvent({
             ...Forecaster.Event.create('forecaster:run:reported', { run }),
@@ -58,13 +51,8 @@ export class ForecasterService {
         return this.runs.get(id);
     }
 
-    /** The run issued just before this one, or null for the first. */
-    public getPreviousRun(id: Forecaster.Run.Id): Promise<Forecaster.Run | null> {
-        return this.runs.getPrevious(id);
-    }
-
-    /** The latest run issued before this instant, or null. */
-    public getLatestRun(before: Date): Promise<Forecaster.Run | null> {
-        return this.runs.getLatestBefore(before);
+    /** The run whose rows have this issue_ts, or null if it was never reported. */
+    public findRun(issueTs: Date): Promise<Forecaster.Run | null> {
+        return this.runs.findByIssueTs(issueTs);
     }
 }

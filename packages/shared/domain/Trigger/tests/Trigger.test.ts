@@ -30,16 +30,8 @@ const forecastHour = (row: Dataset.Predictions.Row): Trigger.Check.Hour => ({
     values: { predictions: Trigger.Check.toValues(row, Dataset.Predictions.compute(row, null)) },
 })
 
-/** The run's update: the Saturday's hours. */
-const update: Dataset.Update = {
-    dataset: "predictions",
-    start:   at(0),
-    end:     at(24),
-    runId,
-}
-
 const checkOf = (hours: Trigger.Check.Hour[]): Trigger.Check => ({
-    cause: { type: "dataset", update },
+    cause: { type: "dataset", dataset: "predictions", incrementalColumn: "issue_ts", after: null, upTo: issueTs },
     runId,
     hours,
 })
@@ -49,7 +41,7 @@ const zeroCostWindow = Trigger.Schema.parse({
     name:            "Zero-cost window",
     description:     "Midday hours likely to clear near zero: candidate free hours.",
     enabled:         true,
-    on:              { type: "dataset", dataset: "predictions" },
+    on:              { type: "dataset", dataset: "predictions", incrementalColumn: "issue_ts" },
     match:           "all",
     conditions: [
         { dataset: "predictions", column: "p_near_zero",  operator: ">=",      value: 0.75 },
@@ -132,7 +124,7 @@ describe("Trigger.evaluate", () => {
         const forecastMiss = Trigger.Schema.parse({
             ...zeroCostWindow,
             name:       "Forecast miss",
-            on:         { type: "dataset", dataset: "prices" },
+            on:         { type: "dataset", dataset: "prices", incrementalColumn: "ts_utc" },
             conditions: [
                 { dataset: "predictions", column: "p_near_zero", operator: ">=", value: 0.75 },
                 { dataset: "prices",      column: "price_mean",  operator: ">",  value: 20 },
@@ -158,14 +150,14 @@ describe("Trigger.evaluate", () => {
         }
 
         const hits = Trigger.evaluate(forecastMiss, {
-            cause: { type: "dataset", update: { dataset: "prices", start: at(0), end: at(24), runId: null } },
+            cause: { type: "dataset", dataset: "prices", incrementalColumn: "ts_utc", after: at(-1), upTo: at(23) },
             runId,
             hours: [hour(11, 0.9, 60), hour(12, 0.9, 10), hour(13, 0.9, null), hour(14, 0.3, 80)],
         })
 
         expect(hits).toHaveLength(1)
         expect(hits[0].evidence["prices.price_mean.max"]).toBe(60)
-        expect(Trigger.Hit.getThreadId(hits[0])).toBe(`${forecastMiss.id}_${hits[0].window?.key}_prices_20260508T2100Z-20260509T2100Z`)
+        expect(Trigger.Hit.getThreadId(hits[0])).toBe(`${forecastMiss.id}_${hits[0].window?.key}_prices-${at(23).getTime()}`)
     })
 
     it("fires a scheduled trigger once, without hours", () => {
