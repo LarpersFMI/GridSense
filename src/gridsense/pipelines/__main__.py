@@ -29,7 +29,7 @@ def main() -> None:
 
     try:
         REGISTRY[args.name].run(Run())
-    except Exception:
+    except Exception:  # noqa: BLE001 - CLI boundary reports arbitrary pipeline failures and exits.
         traceback.print_exc()
         sys.exit(1)
 

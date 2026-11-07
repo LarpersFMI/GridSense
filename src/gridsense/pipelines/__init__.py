@@ -18,7 +18,7 @@ from dataclasses import dataclass
 
 from gridsense.pipelines.store import Run
 
-__all__ = ["Pipeline", "REGISTRY", "Run", "pipeline"]
+__all__ = ["REGISTRY", "Pipeline", "Run", "pipeline"]
 
 
 @dataclass(frozen=True)

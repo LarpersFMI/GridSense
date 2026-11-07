@@ -8,8 +8,7 @@ import re
 import pandas as pd
 import pytest
 
-import gridsense.pipelines.demo as demo
-from gridsense.pipelines import REGISTRY, Run, pipeline, store
+from gridsense.pipelines import REGISTRY, Run, demo, pipeline, store
 from gridsense.pipelines.__main__ import main
 
 NAME = re.compile(r"^[a-z][a-z0-9-]*$")      # Pipeline.Name
