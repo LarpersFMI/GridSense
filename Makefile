@@ -1,4 +1,4 @@
-.PHONY: setup data fake-data features train predict evaluate agent app test lint
+.PHONY: setup data fake-data fake-predictions features train predict evaluate agent app test lint
 
 setup:
 	uv sync
@@ -10,11 +10,16 @@ data:
 fake-data:
 	GRIDSENSE_DATA=fake uv run python -m gridsense.synthetic.market
 
+# Fake predictions for the agent/demo teams (test period by default).
+fake-predictions:
+	GRIDSENSE_DATA=fake uv run python -m gridsense.synthetic.predictions
+
 features:
 	uv run python -m gridsense.features.build
 
+# TASK=classify or TASK=price trains one model only.
 train:
-	uv run python -m gridsense.models.train
+	uv run python -m gridsense.models.train $(if $(TASK),--task $(TASK),)
 
 predict:
 	uv run python -m gridsense.models.predict

@@ -33,51 +33,63 @@ The agent and demo teams are decoupled the same way: ML ships a fake `prediction
 ## 3. ML architecture
 
 ```
-features/build.py   tables from data layer  ->  training_table.parquet   (ML-A)
-models/base.py      Forecaster interface: fit(train, val) / predict(table) -> OUTPUT_COLUMNS
-models/baselines.py seasonal naive, climatology, solar rule, LEAR       (ML-A)
-models/train.py     LightGBM classifier + quantile regressor            (ML-B)
-models/calibrate.py isotonic calibration, conformal intervals           (ML-B)
-models/predict.py   trained model -> predictions.parquet                (ML-B)
-models/explain.py   SHAP top features, similar days                     (B: SHAP, A: similar days)
-models/metrics.py   all metrics                                         (ML-A)
-models/evaluate.py  runs every Forecaster through the same harness      (ML-A)
-splits.py           assign_split(target_ts) -> train / val / test / None
+features/build.py      data-layer tables -> training_table.parquet               (ML-P, ML-C adds features)
+models/base.py         Forecaster interface, feature_columns, recency_weights    (shared)
+models/artifacts.py    save / load_latest models, experiments.csv log            (shared)
+models/price.py        PriceForecaster: LightGBM quantile P10/P50/P90            (ML-P)
+models/classify.py     LowPriceClassifier: LightGBM p_near_zero, p_cheap         (ML-C)
+models/baselines.py    price: seasonal naive, LEAR (ML-P); classification:
+                       climatology, solar rule (ML-C)
+models/calibrate.py    conformal intervals (ML-P); isotonic calibration (ML-C)
+models/metrics.py      quantile/price metrics (ML-P); classification + slot metrics (ML-C)
+models/train.py        `--task price|classify|all`; each person owns their TASKS entry
+models/predict.py      latest PriceForecaster + LowPriceClassifier -> predictions  (ML-C)
+models/evaluate.py     runs every Forecaster through the same harness            (ML-C)
+models/explain.py      SHAP top features (ML-C), similar days (ML-P)
+synthetic/market.py    fake market/weather/calendar tables                       (ML-P)
+synthetic/predictions.py  fake predictions for the agent team                    (done)
+splits.py              assign_split(target_ts) -> train / val / test / NaN
 ```
 
 Rules that keep two people from blocking each other:
 
-1. **Training table contract** (`schemas.TRAINING_TABLE`): key columns `issue_ts`, `target_ts_utc`, `horizon_days`, labels `y_price`, `y_near_zero`, `y_cheap`. Every feature column starts with `f_`. Models use every `f_*` column automatically (`models.base.feature_columns`), so ML-A can add features without breaking ML-B's code.
+1. **Training table contract** (`schemas.TRAINING_TABLE`): key columns `issue_ts`, `target_ts_utc`, `horizon_days`, labels `y_price`, `y_near_zero`, `y_cheap`. Every feature column starts with `f_`. Models use every `f_*` column automatically (`models.base.feature_columns`), so either person can add features without breaking the other's model.
 2. **Every model implements `Forecaster`.** `evaluate.py` doesn't know which model it's scoring, so baselines and new models plug in without changes to the harness.
 3. **Splits come only from `splits.assign_split`**, applied to `target_ts_utc`. Rows between validation and test (2025-10 → 2026-02) have no split label; they're only used in the final refit.
-4. **Artifacts:** `models/<mode>/<model_name>/<version>/` with the model file and `metadata.json` (feature list, train range, params, git commit, validation metrics). `version` = short git SHA + timestamp.
+4. **Artifacts:** `models/<mode>/<model_name>/<version>/` with `model.joblib` and `metadata.json` (feature list, params, best iterations, train/val ranges, git commit, validation metrics). `version` = UTC timestamp + short git SHA, so the newest sorts last. `predict.py` loads the latest version of each model.
 5. **Experiment log:** each training run appends one row to `reports/<mode>/experiments.csv` (model, version, params, validation metrics). No MLflow; a CSV is enough for 24 hours.
 6. **Test-set guard:** `make evaluate` scores validation by default. `make evaluate FINAL=1` scores the test set and writes `reports/real/TEST_EVALUATED`; the script refuses to run the test set again unless that marker is deleted on purpose.
 
 ## 4. Splitting ML between two people
 
-Split by pipeline stage, with the training table and the `Forecaster` interface as the boundary.
+Split by **task**: one person forecasts the price, the other classifies low-price hours. Each owns a model file and trains it independently with `make train TASK=price` or `make train TASK=classify`; `predict.py` combines the latest version of both.
 
-| | **ML-A: features and evaluation** | **ML-B: models** (suggested for you, since you train on this machine) |
+| | **ML-P: price forecasting** | **ML-C: low-price classification** |
 |---|---|---|
-| Owns | `synthetic/market.py`, `features/`, `models/metrics.py`, `models/evaluate.py`, `models/baselines.py`, similar days, error analysis | `models/train.py`, `models/calibrate.py`, `models/predict.py`, SHAP, stretch models |
-| Delivers | `training_table.parquet`, baseline scores, evaluation reports, plots | Trained models, `predictions.parquet` |
-| Depends on | Data team's parquet files (fake until real) | ML-A's training table (fake until real) |
+| Model | `models/price.py` (`PriceForecaster`): P10/P50/P90 | `models/classify.py` (`LowPriceClassifier`): `p_near_zero`, `p_cheap` |
+| Also owns | `features/build.py` (training table), `synthetic/market.py`, seasonal naive + LEAR baselines, conformal intervals, pinball/coverage/MAE metrics, similar days (kNN) | Climatology + solar-rule baselines, isotonic calibration, classification + slot metrics, `evaluate.py` harness, `predict.py`, SHAP `top_features`, drift metric |
+| Main metrics | Pinball loss, P10–P90 coverage, MAE vs LEAR | PR-AUC, precision@k, Brier score, reliability curve, slot hit rate |
+| Used by the agent for | Expected value of a slot, evening scarcity alerts, uncertainty width | Which slots to announce and their confidence label |
+| Stretch | Small neural net (Lago DNN), day-type clustering | Two-stage day-level model, ensemble with LEAR-derived probabilities |
+
+Shared files (`models/base.py`, `models/artifacts.py`, `models/train.py`, `schemas.TRAINING_TABLE`): change them only after telling the other person. In `train.py`, each person edits only their own entry in `TASKS` and their metrics function.
+
+The two models must agree: a slot with high `p_near_zero` should have a low `price_p50`. ML-C checks this on validation (share of rows where `p_near_zero > 0.5` but `price_p50 > 40`, say) and raises it if it's large.
 
 ### Timeline
 
-| Time | ML-A | ML-B |
+| Time | ML-P (price) | ML-C (classification) |
 |---|---|---|
-| **H0–H1** | Agree on `TRAINING_TABLE` with ML-B. Write the fake generator. | Agree on `TRAINING_TABLE`. Write artifact layout and experiment log helpers. |
-| **H1–H3** | Training table v0 on fake data: calendar, price lags as of issue time, weather by lead time. | Write a fake `predictions.parquet` (e.g. climatology + noise) and **hand it to the agent team**. |
-| **H3–H6** | Metrics and evaluation harness. Three simple baselines through `Forecaster`. | LightGBM classifier end to end on the fake table: train → predict → `predictions.parquet` → evaluate. |
-| **H4–H8** (real data lands) | Swap to real data. EDA: **count positives per split for both labels**, check gaps, DST days and the 15-minute switch. LEAR. | First real LightGBM classifier for `y_near_zero` and `y_cheap`. Recency weights. Compare with baselines on validation. |
-| **H8–H12** | Features v2: regime features, neighbours (optional). Similar days (kNN). Error-analysis slices. | Quantile regressor. Isotonic calibration. Conformal intervals. Small Optuna search. Real `predictions.parquet` v1 to the agent team. |
-| **H12–H16** | Sleep in shifts. | Sleep in shifts (start a longer tuning run first if useful). |
-| **H16–H19** | Final test evaluation **together, once**. Error analysis. | Refit on all data up to 2026-02-28. SHAP `top_features`. Drift metric. Final `predictions.parquet`. |
-| **H19–H22** | Results tables, figures for the slides. | Stretch model if everything above is done. Help with the demo. |
+| **H0–H1** | Agree on `TRAINING_TABLE` and the first feature list. | Agree on `TRAINING_TABLE`. Run `make fake-predictions` and **hand the file to the agent team** (done in code). |
+| **H1–H3** | Fake market generator. Training table v0 on fake data: calendar, price lags as of issue time, weather by lead time. | Classification baselines (climatology, solar rule) through `Forecaster`. Evaluation harness skeleton. |
+| **H3–H6** | `GRIDSENSE_DATA=fake make features train TASK=price`. Seasonal-naive price baseline. | `GRIDSENSE_DATA=fake make train TASK=classify predict`; evaluate against the baselines. |
+| **H4–H8** (real data lands) | Swap to real data; EDA (gaps, DST, 15-minute switch). First real `PriceForecaster`. LEAR. | **Count positives per split for both labels.** First real `LowPriceClassifier`; tune the recency half-life. |
+| **H8–H12** | Conformal intervals. Regime features. Similar days (kNN). Small Optuna search. | Isotonic calibration and reliability curve. Small Optuna search. Real `predictions` v1 to the agent team. |
+| **H12–H16** | Sleep in shifts. | Sleep in shifts. |
+| **H16–H19** | Refit on all data up to 2026-02-28. Final test evaluation **together, once**. | Refit. SHAP `top_features`. Drift metric. Final `predictions`. Final test evaluation together. |
+| **H19–H22** | Price results and figures for the slides. Stretch item if time allows. | Classification results, error analysis slide. Help with the demo. |
 
-**Hand-offs:** training table v0 (fake) by H3; v1 (real) by about H6. Predictions v0 (fake) to the agent team by H3, v1 (real) by H12, final by H19.
+**Hand-offs:** fake predictions to the agent team at H0–H1; training table v0 (fake) by H3, v1 (real) by about H6; real predictions v1 by H12, final by H19.
 
 ## 5. Model options
 

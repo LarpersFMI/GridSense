@@ -51,16 +51,16 @@ flowchart LR
 | Area | Owner | Code | Delivers |
 |---|---|---|---|
 | Data engineering | Data engineers | `src/gridsense/data/`, `src/gridsense/synthetic/customers.py` | `prices_hourly`, `grid_hourly`, `weather_fc`, `calendar` tables |
-| ML-A: features and evaluation | ML engineer | `src/gridsense/features/`, `models/{baselines,metrics,evaluate}.py`, `synthetic/market.py` | `training_table`, baseline scores, evaluation reports |
-| ML-B: models | ML engineer | `models/{train,calibrate,predict,explain}.py` | Trained models, `predictions` table |
+| ML-P: price forecasting | ML engineer | `models/price.py`, `features/`, `synthetic/market.py`, price baselines (seasonal naive, LEAR), conformal intervals | `training_table`, P10/P50/P90 model |
+| ML-C: low-price classification | ML engineer | `models/classify.py`, classification baselines, calibration, `models/{evaluate,predict}.py`, SHAP | `p_near_zero` / `p_cheap` model, `predictions` table, evaluation reports |
 | Agent | TBD | `src/gridsense/agent/`, `src/gridsense/llm/` | Alerts, plan, actions, decision trace |
 | Demo | TBD | `app/` | Streamlit dashboard, slides |
 
-Shared files (`config.py`, `schemas.py`, `io.py`, `splits.py`, `models/base.py`): change them only after telling the people who depend on them.
+Shared files (`config.py`, `schemas.py`, `io.py`, `splits.py`, `models/base.py`, `models/artifacts.py`, `models/train.py`): change them only after telling the people who depend on them.
 
 ### Working before the real data exists
 
-Set `GRIDSENSE_DATA=fake` to read and write `data/fake/`, `models/fake/` and `reports/fake/` instead of the real folders (all gitignored). `make fake-data` writes synthetic market, weather and calendar tables that follow the schemas. ML ships a fake `predictions` table early so the agent and demo teams can build against it. Switching to real data means running `make data`; no code changes.
+Set `GRIDSENSE_DATA=fake` to read and write `data/fake/`, `models/fake/` and `reports/fake/` instead of the real folders (all gitignored). `make fake-data` writes synthetic market, weather and calendar tables that follow the schemas. `make fake-predictions` writes a realistic fake `predictions` table (test period, consistent probabilities and quantiles, a few `missing_weather` rows) so the agent and demo teams can build now. Switching to real data means running `make data`; no code changes.
 
 ## Repository layout
 
@@ -72,12 +72,13 @@ src/gridsense/
   splits.py        train / val / test assignment
   data/            entsoe.py, weather.py, calendar.py, quality.py (input validation), build.py
   features/        build.py: training table, as-of-issue-time features
-  models/          base.py (Forecaster interface), baselines.py (seasonal naive, climatology,
-                   solar rule, LEAR), train.py, calibrate.py, predict.py, metrics.py,
-                   evaluate.py, explain.py (SHAP, similar days)
+  models/          base.py (Forecaster interface), artifacts.py (save/load, experiment log),
+                   price.py (P10/P50/P90), classify.py (p_near_zero, p_cheap), baselines.py,
+                   train.py, calibrate.py, predict.py, metrics.py, evaluate.py, explain.py
   agent/           decision_rule.py, planner.py, actions.py, run.py
   llm/             wording.py
-  synthetic/       market.py (fake market data), customers.py (synthetic customer portfolio)
+  synthetic/       market.py (fake market data), predictions.py (fake predictions),
+                   customers.py (synthetic customer portfolio)
 app/               Streamlit demo
 tests/             pytest
 data/              raw/, interim/, processed/, synthetic/, fake/ (gitignored, recreated by scripts)
@@ -108,7 +109,7 @@ cp .env.example .env   # add your ENTSO-E API token
 ```bash
 make data       # download + clean raw data into data/processed/
 make features   # build the (issue_date, target_ts, horizon) training table
-make train      # train classifier + quantile regressor on train split
+make train      # train both models on train, early-stop on val (TASK=price or TASK=classify for one)
 make predict    # write the predictions table for the agent
 make evaluate   # metrics vs baselines on validation
 make evaluate FINAL=1   # test set, run once at the end
