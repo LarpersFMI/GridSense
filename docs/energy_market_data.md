@@ -199,12 +199,49 @@ compare model variants on the same validation hours.
   interval stays null. Load lags beyond the pinned consumption coverage also stay
   null. Historical exports do not establish which revisions were visible at issue time.
 
-**Team handoff.** Version the build code, release pins and this contract. Raw
-inputs, Parquet outputs and their generated manifest stay in Git-ignored directories.
-ML can rebuild from the same commit. For offline handoff, share the three outputs
-with their manifest through an agreed team storage location after checking source
-redistribution terms. Public download availability alone does not establish
-redistribution rights.
+**Team handoff.** The repository includes the processed regional tables, the
+Romanian price and grid tables, and their quality reports. Raw inputs and synthetic
+fixtures stay in ignored directories. ML can read the processed Parquet files directly
+or rebuild them with the pinned sources and commands above. The source dataset card
+uses `license: other` and refers users to the applicable ENTSO-E terms. The ENTSO-E
+website's disclaimer also restricts redistribution of website content without
+written permission, so the team needs to establish the applicable rights for these
+derived datasets before any further redistribution.
+[Dataset card](https://huggingface.co/datasets/hsilvosa/entsoe-day-ahead)
+[ENTSO-E disclaimer](https://www.entsoe.eu/about/legal-and-regulatory/disclaimer/)
+
+### Romanian grid table and regional join
+
+After building the regional tables, run:
+
+```bash
+uv run python -m gridsense.data.build_grid
+uv run python -m gridsense.data.check_regional_ml_join
+```
+
+`build_grid` uses Romanian rows from `regional_load_hourly.parquet` and writes the
+shared `grid_hourly.parquet` contract through `gridsense.io.write`. The file has
+UTC hourly timestamps and real load in MW. `solar_actual_mw` and `wind_actual_mw`
+are null until corresponding measurements are collected. Missing load hours remain
+absent. The command accepts an existing identical output and stops if the existing
+file differs, so later generation data is preserved for reconciliation.
+
+The join check calls the existing ML `build_training_table` with real prices and
+load plus a synthetic weather and calendar fixture. It validates a D+1 forecast
+for 2025-03-30, checks all 23 UTC hours and price labels, joins the regional table
+on `issue_ts`, `target_ts_utc` and `horizon_days`, and verifies the RO load
+features against D−1 measurements. Its output is the ignored
+`data/interim/weather_join_2025-03-30/ml_regional_join.synthetic.parquet`.
+Weather and calendar in that output are synthetic, and the file is an integration
+fixture. The reusable `join_regional_features` helper checks key uniqueness and
+returns both the left-joined table and the number of unmatched forecast keys.
+The normal ML build does not yet call this helper.
+
+Load hours are retained only when the original ENTSO-E coverage ratio is 100%.
+The current ML daily mean groups the available hours; verify that each D−1 day is
+complete before treating the mean as a complete-day statistic. Historical load
+exports can contain later revisions, and their exact availability at a past issue
+time has not been established.
 
 ## Optional grid signals
 
