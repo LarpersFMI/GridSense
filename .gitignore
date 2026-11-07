@@ -24,3 +24,5 @@ reports/fake/
 
 models/*
 !models/.gitkeep
+
+.idea/
