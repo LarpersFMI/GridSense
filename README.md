@@ -81,7 +81,7 @@ src/gridsense/
                    customers.py (synthetic customer portfolio)
 app/               Streamlit demo
 tests/             pytest
-data/              raw/, interim/, processed/, synthetic/, fake/ (gitignored, recreated by scripts)
+data/              raw/, interim/, processed/, synthetic/, fake/ (selected processed tables are tracked)
 models/            real/ and fake/ trained models (gitignored)
 reports/           real/ results (committed) and fake/ (gitignored)
 notebooks/         EDA and error analysis
