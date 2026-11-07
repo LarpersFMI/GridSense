@@ -22,20 +22,32 @@ WEATHER_FC = {
     "target_ts_utc": "datetime64[ns, UTC]",
     "lead_days": "int64",
     "location": "string",
-    "ghi_wm2": "float64",
-    "cloud_cover_pct": "float64",
-    "wind100_ms": "float64",
+    "country": "string",
+    "latitude": "float64",
+    "longitude": "float64",
     "temp_c": "float64",
+    "relative_humidity_pct": "float64",
+    "precip_mm": "float64",
+    "rain_mm": "float64",
+    "snowfall_cm": "float64",
+    "pressure_hpa": "float64",
+    "cloud_cover_pct": "float64",
+    "wind10_ms": "float64",
+    "wind_dir_deg": "float64",
+    "split": "string",
 }
 
 # calendar.parquet: one row per local hour. Defines the target hours of the training table, so it
 # must extend 7 days past the latest price date for the newest issue date to get all horizons.
 CALENDAR = {
     "ts_utc": "datetime64[ns, UTC]",
+    "country": "string",
     "is_holiday": "bool",
+    "is_working_holiday": "bool",
     "is_bridge_day": "bool",
     "is_dst": "bool",
     "day_hours": "int64",
+    "split": "string",
 }
 
 # training_table.parquet: one row per (issue date, target hour, horizon). Owned by ML.
