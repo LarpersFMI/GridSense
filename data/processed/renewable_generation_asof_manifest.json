@@ -1,0 +1,27 @@
+{
+  "inputs_sha256": {
+    "training_table.parquet": "e1b8a8345afe81e65b34129ad500187dc4e491a150777f36ca6073cc619b5108",
+    "entsoe_file_library/generation.parquet": "74f46e57502b8116590702e2afbfd6cdc5f7e8427a9b6f6ec4905c815453e7e4"
+  },
+  "output_sha256": "34adcff76990dfab3ad926271f4c2ddcb4888b1a8184d854cea72f943487383c",
+  "rows": 235704,
+  "key": [
+    "issue_ts",
+    "target_ts_utc",
+    "horizon_days"
+  ],
+  "train_validation_coverage": {
+    "train": {
+      "rows": 132048,
+      "solar_available": 0,
+      "wind_available": 0
+    },
+    "val": {
+      "rows": 35945,
+      "solar_available": 0,
+      "wind_available": 0
+    }
+  },
+  "selection": "Complete D-1 Romanian local day; every quarter-hour latest update <= issue",
+  "limitation": "Latest recorded values only; historical revision and publication history incomplete."
+}
