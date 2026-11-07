@@ -1,6 +1,30 @@
 # ML handoff (price forecasting, ML-P)
 
-## Current D+1 integration status (2026-11-07)
+## D+1 teammate comparison completed (2026-11-08)
+
+The 24 GB Mac completed `current__default` and `regional_prices__default`
+sequentially at `f22a644b778721a1de5aa9a51808deb39b7cceef` with Python 3.11.15.
+The [handoff archive](../handoffs/README.md), input snapshots, smoke, full-run and
+policy report hashes verified. All three candidates used 365-day recency and
+matched forecast keys, eligibility and June–September 2025 development folds.
+
+| Candidate | Two-hour offers | Cancellations | Mean hours per month | June / July / August / September hours |
+| --- | ---: | ---: | ---: | --- |
+| `weather_extra__default` (reference) | 37 | 1 of 37 (2.70%) | 18.5 | 0 / 12 / 36 / 26 |
+| `current__default` | 0 | — | 0 | 0 / 0 / 0 / 0 |
+| `regional_prices__default` | 13 | 1 of 13 (7.69%) | 6.5 | 0 / 0 / 0 / 26 |
+
+These are the fixed D+1 hourly risk-first policy results. Keep the extra-weather
+candidate as the development reference. It had more offer hours and a lower
+cancellation rate than the regional-price candidate, but missed the provisional
+20-hour monthly benchmark in June and July. June abstained because no tested
+threshold reached 20 hours per month on its preceding selection window. July's
+selected 0.925 threshold reached 20 hours per month on its selection window and
+offered 12 hours when scored. The current-feature candidate abstained in every
+scoring month. The comparison did not promote a model or run another final-test
+evaluation. Full predictions, logs and reports are local.
+
+## D+1 integration snapshot (2026-11-07)
 
 The original queue has now **completed all 28 jobs / 112 folds**. Both Mac48 D+1
 follow-ups and their policy-only comparisons are also complete. D+1 implementation
@@ -18,11 +42,9 @@ policy has 37 scored slots / one failure (**2.70% cancellation**) and mean
 (7.69% cancellation). This is not useful volume every month or certified future
 safety; no production model is promoted and no final-test evaluation was performed.
 
-Use the [updated two-Mac plan](overnight_training_two_macs.md) on published `dev`.
-The remaining teammate comparisons are `current__default` and
-`regional_prices__default`, matched to the 365-day reference. Prepare fresh local
-reference contexts; preserve completed scores as source-pinned historical evidence.
-The earlier dated sections below retain their original implementation/run states.
+The [two-Mac plan](overnight_training_two_macs.md) assigned
+`current__default` and `regional_prices__default` as the 365-day teammate
+comparisons. Their verified results appear above.
 
 The new `reference-context-dev365` locally records integrated code/runtime/source
 checks for `current__default`, `weather_extra__default` and
