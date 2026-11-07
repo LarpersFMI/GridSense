@@ -253,6 +253,23 @@ def updated_by_next_issue(hourly: pd.DataFrame) -> pd.Series:
     return hourly["updated_at_utc"].le(cutoff)
 
 
+def file_library_load(actual: pd.DataFrame) -> pd.DataFrame:
+    """Return complete load hours with their latest contributing source update."""
+    load_frames = []
+    for country, zone in BIDDING_ZONES.items():
+        rows = actual.loc[actual["area_code"].eq(zone)]
+        if country != "RO" and rows.empty:
+            continue
+        resolution = "PT60M" if country == "BG" else "PT15M"
+        hourly = complete_hours(rows, "load_mw", resolution=resolution).rename(
+            columns={"load_mw": "load_actual_mw"}
+        )
+        if hourly["load_actual_mw"].lt(0).any():
+            raise ValueError(f"{country}: expected nonnegative load")
+        load_frames.append(hourly.assign(country_code=country, bidding_zone=zone, source=SOURCE))
+    return pd.concat(load_frames, ignore_index=True)
+
+
 def build_tables(
     selection: Path, destination: Path, start: pd.Timestamp, end: pd.Timestamp
 ) -> tuple[dict, dict, dict, dict]:
@@ -290,20 +307,7 @@ def build_tables(
     )
     tables["regional_prices_hourly"] = (prices, REGIONAL_KEY)
 
-    actual = tables[f"{SOURCE}/actual_load"][0]
-    load_frames = []
-    for country, zone in BIDDING_ZONES.items():
-        rows = actual.loc[actual["area_code"].eq(zone)]
-        if country != "RO" and rows.empty:
-            continue
-        resolution = "PT60M" if country == "BG" else "PT15M"
-        hourly = complete_hours(rows, "load_mw", resolution=resolution).rename(
-            columns={"load_mw": "load_actual_mw"}
-        )
-        if hourly["load_actual_mw"].lt(0).any():
-            raise ValueError(f"{country}: expected nonnegative load")
-        load_frames.append(hourly.assign(country_code=country, bidding_zone=zone, source=SOURCE))
-    new_load = pd.concat(load_frames, ignore_index=True)
+    new_load = file_library_load(tables[f"{SOURCE}/actual_load"][0])
     old_load = pd.read_parquet(destination / "regional_load_hourly.parquet")
     unique_key(old_load, REGIONAL_KEY, "existing regional_load_hourly")
     # Keep pinned Power Statistics history on overlap and use File Library for missing hours.
@@ -402,6 +406,8 @@ def install_staged(
 
 
 def build(selection: Path, destination: Path, *, replace_existing: bool = False) -> None:
+    from gridsense.data.refresh_checks import check_market_refresh
+
     start = local_midnight(config.TRAIN_START.date())
     end = local_midnight(config.TEST_END.date() + pd.Timedelta(days=1))
     tables, inputs, price_reports, integration = build_tables(selection, destination, start, end)
@@ -461,6 +467,7 @@ def build(selection: Path, destination: Path, *, replace_existing: bool = False)
         }
         for name, report in reports.items():
             (staged / name).write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+        print(json.dumps(check_market_refresh(staged, start, end), indent=2), flush=True)
         install_staged(staged, destination, [*outputs, *reports], replace_existing=replace_existing)
     print(
         f"Wrote {len(outputs)} unique-key Parquet tables. See {destination / SOURCE / 'manifest.json'}"

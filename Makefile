@@ -1,10 +1,13 @@
-.PHONY: setup data weather fake-data fake-predictions features train predict evaluate agent app test lint overnight-prepare overnight-smoke overnight
+.PHONY: setup data check-data weather fake-data fake-predictions features train predict evaluate agent app test lint overnight-prepare overnight-smoke overnight
 
 setup:
 	uv sync
 
 data:
 	uv run python -m gridsense.data.build
+
+check-data:
+	uv run python -m gridsense.data.refresh_checks $(if $(DATA_DIR),--directory "$(DATA_DIR)",)
 
 # Archived forecast offsets; defaults to train + validation, not the test period.
 weather:

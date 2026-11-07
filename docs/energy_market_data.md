@@ -198,6 +198,20 @@ the build depends on that regional load input as well as the selected extracts.
 An isolated rebuild with the recorded inputs reproduced all 16 tracked Parquet
 outputs byte for byte.
 
+Every File Library refresh also runs the market checks on the staged Parquets
+before installation. The checks reject missing or duplicate price intervals and
+recompute the model-facing grid and regional features from eligible source
+hours. An actual from the File Library must have all contributing intervals
+updated by 10:00 Bucharest time the following day. Known gaps in optional
+measurements are reported without filling them. Pinned Power Statistics load
+keeps its documented availability assumption.
+
+Run the same market checks and inspect the forecast files present in a complete
+handoff directory with `make check-data`. Use
+`make check-data DATA_DIR=/tmp/gridsense-data-review` for a candidate directory.
+This command only reads files. It checks calendar coverage, forecast keys,
+available weather metadata, and timestamps carried by optional as-of tables.
+
 The normalized source tables live under `data/processed/entsoe_file_library/`.
 They retain separate forecast updates, outage versions and segments, border
 directions, and Germany–Luxembourg price sequences. Equal prices within the same
