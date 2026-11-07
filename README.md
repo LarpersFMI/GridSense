@@ -91,7 +91,7 @@ docs/              hackathon brief, project plan, agent design, ML plan
 ## Modelling summary
 
 - **Forecast setup:** issued daily at 10:00 for horizons D+1…D+7. D+1 is forecast before the day-ahead auction closes at 13:00.
-- **Models:** LightGBM classifier (`y_near_zero`, `y_cheap`) with isotonic calibration on validation, plus LightGBM quantile regression (P10/P50/P90) with conformal adjustment. Horizon is a feature, so one model covers all horizons.
+- **Models:** LightGBM classifier (`y_near_zero`, `y_cheap`) with Platt calibration by default (isotonic optional), plus LightGBM quantile regression (P10/P50/P90) with conformal adjustment. Calibration validation scores are cross-fitted by target month. Horizon is a feature, so one model covers all horizons.
 - **Baselines:** same hour last week, climatology (month × weekday × hour), solar-irradiance rule, and LEAR (Lasso autoregressive model per hour, the standard day-ahead benchmark).
 - **Metrics (all by horizon):** PR-AUC, precision@k, Brier score, calibration curve, pinball loss, P10–P90 coverage, slot hit rate and cancellation rate.
 
@@ -108,6 +108,7 @@ cp .env.example .env   # add your ENTSO-E API token
 
 ```bash
 make data       # build real day-ahead prices with ENTSOE_API_TOKEN
+make weather    # cached archived GFS weather for train + validation (partial history/horizons)
 make features   # build the (issue_date, target_ts, horizon) training table
 make train      # train both models on train, early-stop on val (TASK=price or TASK=classify for one)
 make predict    # write the predictions table for the agent
@@ -140,8 +141,20 @@ covers spring and summer on purpose, because winter has almost no negative-price
 ## Status
 
 The [Romanian day-ahead price pipeline](docs/energy_market_data.md) writes native and hourly
-Parquet files from ENTSO-E, with a pinned snapshot option that needs no token. See that guide
-for date ranges, coverage checks and the weather join. Other real data stages are still stubs.
+Parquet files from ENTSO-E, with a pinned snapshot option that needs no token. The latest
+validated File Library price tables cover RO/HU/BG through October 2026; the grid includes
+release-masked load/solar/wind, and week-ahead load inputs are also available. `make weather` builds cached
+GFS archived forecast offsets for four Romanian locations, retaining provenance and missing
+history rather than filling with observed weather. Its conservative 12-hour availability buffer
+is an assumption, not verified historical publication timing; D+7 is unavailable and late D+6
+hours are partial. The download defaults to the train/validation window. See the
+[ML handoff](docs/ml_handoff.md) for coverage, validation results, and final-test limitations.
+Missing/partial weather rows propagate `missing_weather` to prediction consumers.
+Observed weather and the new country calendars have separate contracts: the observed
+weather table is for analysis or carefully lagged inputs, never target-hour forecast features.
+Country calendars supplement rather than replace the continuous Romanian ML target calendar.
+The latest classifier calibration and the separate `main` watchdog integration requirements
+are recorded in the [ML handoff](docs/ml_handoff.md).
 
 ## Data sources
 

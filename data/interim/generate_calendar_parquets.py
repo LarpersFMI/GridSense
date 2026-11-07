@@ -1,9 +1,6 @@
-from zoneinfo import ZoneInfo
 import pandas as pd
-import pyarrow as pa
-import pyarrow.parquet as pq
 
-from GridSense.src.gridsense.config import (
+from gridsense.config import (
     PROCESSED_DIR,
     RAW_DIR,
     TEST_END,
@@ -14,10 +11,8 @@ from GridSense.src.gridsense.config import (
     VAL_START,
     WEATHER_POINTS,
 )
-from GridSense.src.gridsense.schemas import (
-    WEATHER_FC,
-    CALENDAR
-)
+from gridsense.schemas import COUNTRY_CALENDAR
+
 COUNTRY_TIMEZONES = {
     "Romania": "Europe/Bucharest",
     "Hungary": "Europe/Budapest",
@@ -77,8 +72,6 @@ def build_country_calendar(
 
     date_series = pd.to_datetime(unique_dates)
     is_nw = pd.Series(date_series.strftime("%Y-%m-%d").isin(non_working_dates))
-    is_wknd = date_series.dayofweek >= 5
-
     bridge_monday = (
         (date_series.dayofweek == 0)
         & (~is_nw)
@@ -107,10 +100,10 @@ def build_country_calendar(
 
     df["country"] = country_name
 
-    for col, dtype in CALENDAR.items():
+    for col, dtype in COUNTRY_CALENDAR.items():
         df[col] = df[col].astype(dtype)
 
-    return df[list(CALENDAR.keys())]
+    return df[list(COUNTRY_CALENDAR)]
 
 
 def process_calendar_to_parquet() -> None:
@@ -125,7 +118,7 @@ def process_calendar_to_parquet() -> None:
 
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
-    countries = set(country for _, _, country in WEATHER_POINTS.values())
+    countries = {country for _, _, country in WEATHER_POINTS.values()}
 
     for country in countries:
         tz_name = COUNTRY_TIMEZONES.get(country)

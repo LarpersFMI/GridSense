@@ -6,7 +6,7 @@ from gridsense.data.calendar import build_calendar
 from gridsense.data.price_snapshot import expand_a03
 from gridsense.models.base import OUTPUT_COLUMNS
 from gridsense.models.ensemble import PriceEnsemble
-from gridsense.schemas import CALENDAR
+from gridsense.schemas import CALENDAR, COUNTRY_CALENDAR
 
 
 def test_expand_a03_fills_repeated_prices_within_delivery_day():
@@ -30,7 +30,10 @@ def test_expand_a03_fills_repeated_prices_within_delivery_day():
 
 def test_calendar_has_dst_days_and_holidays():
     cal = build_calendar(pd.Timestamp("2025-03-30").date(), pd.Timestamp("2025-12-25").date())
-    assert cal.dtypes.astype(str).to_dict() == CALENDAR
+    # The builder retains the upstream country metadata while satisfying the core ML contract.
+    assert cal[list(CALENDAR)].dtypes.astype(str).to_dict() == CALENDAR
+    assert cal.dtypes.astype(str).to_dict() == COUNTRY_CALENDAR
+    assert cal["country"].eq("Romania").all()
     local = cal["ts_utc"].dt.tz_convert(config.LOCAL_TZ)
     assert cal.loc[local.dt.date.astype(str) == "2025-03-30", "day_hours"].iloc[0] == 23
     assert cal.loc[local.dt.date.astype(str) == "2025-10-26", "day_hours"].iloc[0] == 25

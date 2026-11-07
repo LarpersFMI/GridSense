@@ -22,11 +22,16 @@ def calendar_for_hours(ts: pd.DatetimeIndex) -> pd.DataFrame:
     bridge = days[(~off & off.shift(1, fill_value=False) & off.shift(-1, fill_value=False)).to_numpy()]
 
     hours_per_day = pd.Series(day).value_counts()
-    holiday_records = pd.read_csv(config.RAW_DIR / "holidays.csv")
-    working = holiday_records.loc[
-        holiday_records["country"].eq("Romania") & holiday_records["category"].eq("Working"),
-        "date_utc",
-    ]
+    # Country-export metadata is optional; the core calendar must work on a clean clone
+    # without an ignored raw holiday file. Public holidays still come from holidays above.
+    holiday_file = config.RAW_DIR / "holidays.csv"
+    working = pd.Series(dtype="string")
+    if holiday_file.is_file():
+        holiday_records = pd.read_csv(holiday_file)
+        working = holiday_records.loc[
+            holiday_records["country"].eq("Romania") & holiday_records["category"].eq("Working"),
+            "date_utc",
+        ]
     utc = ts.tz_convert("UTC").as_unit("ns")
     split = assign_split(pd.Series(utc)).map(
         {"train": "Train", "val": "Validation", "test": "Test"}

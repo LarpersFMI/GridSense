@@ -244,11 +244,15 @@ derived datasets before any further redistribution.
 [Dataset card](https://huggingface.co/datasets/hsilvosa/entsoe-day-ahead)
 [ENTSO-E disclaimer](https://www.entsoe.eu/about/legal-and-regulatory/disclaimer/)
 
-The team's `weather_hourly.parquet` follows `WEATHER_FC` for historical
-observations. The model's `weather_fc.parquet` follows
-`WEATHER_ARCHIVED_FC` and requires forecast issue dates, irradiance and
-100 m wind. The Romanian calendar now includes country, working-holiday and
-split columns. Working-holiday flags come from the tracked holiday CSV.
+The team's `weather_hourly.parquet` follows `WEATHER_HOURLY` for historical
+observations. The model's `weather_fc.parquet` follows `WEATHER_FC`
+(`WEATHER_ARCHIVED_FC` is a compatibility alias) and requires forecast issue dates,
+irradiance and 100 m wind. Observed weather is never substituted for future target
+forecasts. The Romanian calendar can include country, working-holiday and split
+metadata, while its core ML contract remains compatible with the original continuous
+calendar. Working-holiday metadata uses the raw holiday CSV when present; the
+core calendar also works without that ignored file. See the
+[ML handoff](ml_handoff.md) for the archived-weather implementation and availability limits.
 
 ### Romanian grid table and regional join
 

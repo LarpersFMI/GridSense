@@ -1,10 +1,14 @@
-.PHONY: setup data fake-data fake-predictions features train predict evaluate agent app test lint
+.PHONY: setup data weather fake-data fake-predictions features train predict evaluate agent app test lint
 
 setup:
 	uv sync
 
 data:
 	uv run python -m gridsense.data.build
+
+# Archived forecast offsets; defaults to train + validation, not the test period.
+weather:
+	uv run python -m gridsense.data.weather
 
 # Use the fake tables for any later step with: GRIDSENSE_DATA=fake make features train ...
 fake-data:

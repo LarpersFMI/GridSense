@@ -1,18 +1,12 @@
+"""Normalize observed/reanalysis weather for analysis, not archived forecast training."""
+
 import pandas as pd
-import pyarrow as pa
-import pyarrow.parquet as pq
 
-from GridSense.src.gridsense.config import (
-    ISSUE_HOUR,
-    LOCAL_TZ,
-    PROCESSED_DIR,
-    RAW_DIR,
-)
+from gridsense import io
+from gridsense.config import RAW_DIR
+from gridsense.schemas import WEATHER_HOURLY
 
-from GridSense.src.gridsense.schemas import (
-    WEATHER_FC,
-    CALENDAR
-)
+
 def process_raw_weather_to_parquet() -> None:
     raw_path = RAW_DIR / "weather_hourly.csv"
     if not raw_path.exists():
@@ -38,36 +32,20 @@ def process_raw_weather_to_parquet() -> None:
     df = df.rename(columns=column_mapping)
 
     df["target_ts_utc"] = pd.to_datetime(df["target_ts_utc"], utc=True)
-
-    target_local = df["target_ts_utc"].dt.tz_convert(LOCAL_TZ)
-
-    issue_date_local = target_local.apply(
-        lambda ts: ts.date()
-        if ts.hour >= ISSUE_HOUR
-        else (ts - pd.Timedelta(days=1)).date()
-    )
-
-    df["issue_date"] = pd.to_datetime(issue_date_local)
-
-    target_date_local = pd.to_datetime(target_local.dt.date)
-    df["lead_days"] = (target_date_local - df["issue_date"]).dt.days
-
-    for col, dtype in WEATHER_FC.items():
+    # The raw fetch uses Open-Meteo's archive API. A clock-based fabricated issue date
+    # cannot turn observations into a forecast that existed before a delivery hour.
+    for col, dtype in WEATHER_HOURLY.items():
         if col in df.columns:
             df[col] = df[col].astype(dtype)
 
-
-    df_out = df[list(WEATHER_FC.keys())].copy()
-
-    PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
-    output_path = PROCESSED_DIR / "weather_hourly.parquet"
-
-    df_out.to_parquet(output_path, engine="pyarrow", compression="snappy", index=False)
+    df_out = df[list(WEATHER_HOURLY)].copy()
+    df_out["source"] = "open_meteo_archive_observed"
+    io.write(df_out, "weather_hourly")
 
     print("\n--- Transformation Summary ---")
     print(f"Total Rows: {len(df_out):,}")
     print(f"Schema:\n{df_out.dtypes}")
-    print(f"\nParquet file successfully generated at: {output_path}")
+    print("\nObserved weather_hourly saved separately; not used as forecast features.")
 
 
 if __name__ == "__main__":
