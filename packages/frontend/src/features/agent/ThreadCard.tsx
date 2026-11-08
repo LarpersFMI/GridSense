@@ -20,6 +20,7 @@ export function ThreadCard({ thread }: { thread: Agent.Thread | null }) {
         return <NonIdealState icon='chat' title='Pick a thread' description='What the agent decided, why, and what it did.' />
 
     const waiting = thread.status === 'awaiting-review'
+    const hours = windowOf(thread)
 
     return (
         <div className='flex flex-col gap-3'>
@@ -27,7 +28,7 @@ export function ThreadCard({ thread }: { thread: Agent.Thread | null }) {
             <section className={`flex flex-col gap-4 rounded-sm border bg-white p-4 shadow-sm ${waiting ? 'border-amber-300' : 'border-gray-200'}`}>
                 <div className='flex flex-wrap items-center gap-2'>
                     {thread.decision && <DecisionTag label={thread.decision.label} />}
-                    <span className='text-base font-semibold'>{thread.hit.window ? formatWindow(thread.hit.window) : 'No window'}</span>
+                    <span className='text-base font-semibold'>{hours ? formatWindow(hours) : 'No window'}</span>
                     <span className='text-sm text-gray-500'>· {trigger?.name ?? 'trigger'}</span>
                     <div className='ml-auto'>
                         <StatusTag status={thread.status} />
@@ -95,6 +96,11 @@ export function ThreadCard({ thread }: { thread: Agent.Thread | null }) {
             <Conversation thread={thread} />
         </div>
     )
+}
+
+/** The hours a thread is about: the ones its decision kept (a surer stretch of the hit's), or the hit's. */
+export function windowOf(thread: Agent.Thread) {
+    return thread.decision?.window ?? thread.hit.window
 }
 
 /** Decided, but its impact analysis not written yet: the agent's `analyze` node is at work (Claude, a few seconds). */

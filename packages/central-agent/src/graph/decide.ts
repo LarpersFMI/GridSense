@@ -1,17 +1,31 @@
-import type { Agent, Trigger } from '@gridsense/shared/domain';
+import { Time, type Agent, type Trigger } from '@gridsense/shared/domain';
 import { AGENT_CONFIG } from '../config';
+
+const { Window } = Time;
+type Window = Time.Window;
+
+const HOUR_MS = 60 * 60_000;
+
+/** One hour of the hit's window in the latest forecast: its p_near_zero, how many days ahead, data quality and P50. */
+export interface Hourly {
+    at:      Date
+    p:       number
+    horizon: number
+    quality: string | null
+    p50:     number | null
+}
 
 /**
  * The decision, per playbook — deterministic, on the model's numbers the hit carries (its evidence: each condition's
  * column, min / mean / max over the matched hours). The LLM never decides.
  */
-export function decide(trigger: Trigger, hit: Trigger.Hit, slots: Agent.Slot[]): Agent.Decision {
+export function decide(trigger: Trigger, hit: Trigger.Hit, slots: Agent.Slot[], hours: Hourly[]): Agent.Decision {
     const evidence = hit.evidence;
     const live = slots.filter((slot) => slot.status !== 'cancelled');
 
     switch (trigger.playbook) {
         case 'announce-slot':
-            return decideAnnounce(hit, evidence, live);
+            return decideAnnounce(hit, evidence, live, hours);
         case 'confirm-slot':
             return decideConfirm(hit, evidence, live);
         case 'cancel-slot':
@@ -21,7 +35,7 @@ export function decide(trigger: Trigger, hit: Trigger.Hit, slots: Agent.Slot[]):
     }
 }
 
-function decideAnnounce(hit: Trigger.Hit, evidence: Record<string, number>, live: Agent.Slot[]): Agent.Decision {
+function decideAnnounce(hit: Trigger.Hit, evidence: Record<string, number>, live: Agent.Slot[], hours: Hourly[]): Agent.Decision {
     const minP = evidence['predictions.p_near_zero.min'];
     const meanP = evidence['predictions.p_near_zero.mean'];
     const inputs: Record<string, number> = { matchedHours: hit.matchedHours };
@@ -32,44 +46,113 @@ function decideAnnounce(hit: Trigger.Hit, evidence: Record<string, number>, live
     inputs.minP = minP;
     inputs.meanP = meanP;
 
-    if (live.length > 0)
+    // The hours no live slot covers yet. Without the hourly forecast, any live slot over the window counts as all of it.
+    const open = hours.filter((hour) => !live.some((slot) => slot.start <= hour.at && hour.at < slot.end));
+
+    if (live.length > 0 && open.length === 0)
         return none('announce.already', `Already announced over these hours (${live.map((slot) => slot.label).join(', ')}).`, inputs);
+
+    // Too far out: an outlook. A later run brings these hours within reach, and that one decides.
+    const horizon = hours.length === 0 ? null : Math.min(...hours.map((hour) => hour.horizon));
+
+    if (horizon !== null) {
+        inputs.horizonDays = horizon;
+
+        if (horizon > AGENT_CONFIG.decideWithinDays)
+            return none('announce.outlook', `D+${horizon}: an outlook for now. Slots are decided at D+${AGENT_CONFIG.decideWithinDays} or closer, on a later forecast.`, inputs);
+    }
+
+    // Partly announced: the hours still open are decided on their own.
+    if (live.length > 0)
+        return {
+            ...none('announce.partly', `Part of these hours is already announced (${live.map((slot) => slot.label).join(', ')}); the ${open.length} hour(s) still open are decided on their own.`, inputs),
+            followUps: stretches(open),
+        };
 
     // Not every matched hour had data_quality = ok: the forecast is less sure.
     const okHours = evidence['predictions.data_quality=ok'];
     const isDegraded = okHours !== undefined && okHours < hit.matchedHours;
     const slotP50 = evidence['predictions.price_p50.mean'];
-    const slotPrice = slotP50 ?? 0;
-    const expectedValueEur = Math.round(hit.window.hours * AGENT_CONFIG.shiftedMwhPerHour * (AGENT_CONFIG.eveningPriceEur - slotPrice) * meanP);
 
     if (slotP50 !== undefined)
         inputs.slotPriceP50 = slotP50;
 
-    if (minP >= AGENT_CONFIG.likelyMinP && !isDegraded)
+    // The surest stretch: the longest run of hours all at or above likelyMinP (the whole window when every hour is).
+    // Degraded inputs are never announced on their own.
+    const core = isDegraded ? null : likelyCore(hit.window, minP, meanP, hours);
+
+    if (core !== null) {
+        const trimmed = core.window.key !== hit.window.key;
+        const edges = stretches(hours.filter((hour) => hour.at < core.window.start || hour.at >= core.window.end));
+
+        inputs.coreHours = core.window.hours;
+        inputs.coreMinP = core.minP;
+
         return {
             label:            'likely',
-            confidence:       meanP,
-            expectedValueEur,
+            confidence:       core.meanP,
             needsReview:      false,
-            rule:             'announce.likely',
-            reason:           `Every hour has p_near_zero ≥ ${AGENT_CONFIG.likelyMinP} (lowest ${minP.toFixed(2)}): announced as Likely.`,
+            rule:             trimmed ? 'announce.likely-core' : 'announce.likely',
+            reason:           trimmed
+                ? `${core.window.hours} of the ${hit.window.hours} hours have p_near_zero ≥ ${AGENT_CONFIG.likelyMinP} (lowest ${core.minP.toFixed(2)}): those are announced as Likely; the less sure hours around them go to an operator on their own.`
+                : `Every hour has p_near_zero ≥ ${AGENT_CONFIG.likelyMinP} (lowest ${minP.toFixed(2)}): announced as Likely.`,
             inputs,
+            window:           trimmed ? core.window : null,
+            followUps:        edges,
         };
+    }
 
     if (minP >= AGENT_CONFIG.possibleMinP)
         return {
             label:            'possible',
             confidence:       meanP,
-            expectedValueEur,
             needsReview:      true,
             rule:             isDegraded ? 'announce.degraded' : 'announce.possible',
             reason:           isDegraded
                 ? `Inputs were degraded for some hours: an operator decides (lowest p ${minP.toFixed(2)}).`
-                : `Every hour has p_near_zero ≥ ${AGENT_CONFIG.possibleMinP} but not all reach ${AGENT_CONFIG.likelyMinP} (lowest ${minP.toFixed(2)}): Possible, an operator decides.`,
+                : `Every hour has p_near_zero ≥ ${AGENT_CONFIG.possibleMinP}, and fewer than ${AGENT_CONFIG.likelyMinHours} hours in a row reach ${AGENT_CONFIG.likelyMinP} (lowest ${minP.toFixed(2)}): Possible, an operator decides.`,
             inputs,
+            window:           null,
+            followUps:        [],
         };
 
     return none('announce.too-unsure', `The lowest hour has p_near_zero ${minP.toFixed(2)}, under ${AGENT_CONFIG.possibleMinP}: not worth announcing.`, inputs);
+}
+
+/** Hours as the windows of consecutive ones they make up. */
+const stretches = (hours: Hourly[]): Window[] => Window.group(hours, { minHours: 1, maxHours: 24 }).map((stretch) => Window.of(stretch));
+
+/**
+ * The longest run of consecutive hours, all at or above likelyMinP and at least likelyMinHours long; the earlier one on
+ * a tie. Without the hourly forecast, the whole window when its lowest hour reaches likelyMinP.
+ */
+function likelyCore(window: Window, minP: number, meanP: number, hours: Hourly[]): { window: Window; minP: number; meanP: number } | null {
+    if (hours.length === 0)
+        return minP >= AGENT_CONFIG.likelyMinP ? { window, minP, meanP } : null;
+
+    let best: Hourly[] = [];
+    let run: Hourly[] = [];
+
+    for (const hour of hours) {
+        const follows = run.length > 0 && hour.at.getTime() - run[run.length - 1].at.getTime() === HOUR_MS;
+
+        if (hour.p < AGENT_CONFIG.likelyMinP)
+            run = [];
+        else
+            run = follows ? [...run, hour] : [hour];
+
+        if (run.length > best.length)
+            best = run;
+    }
+
+    if (best.length < AGENT_CONFIG.likelyMinHours)
+        return null;
+
+    return {
+        window: Window.of(best),
+        minP:   Math.min(...best.map((hour) => hour.p)),
+        meanP:  best.reduce((sum, hour) => sum + hour.p, 0) / best.length,
+    };
 }
 
 function decideConfirm(hit: Trigger.Hit, evidence: Record<string, number>, live: Agent.Slot[]): Agent.Decision {
@@ -85,13 +168,14 @@ function decideConfirm(hit: Trigger.Hit, evidence: Record<string, number>, live:
     return {
         label:            'confirmed',
         confidence:       1,
-        expectedValueEur: Math.round(hit.window.hours * AGENT_CONFIG.shiftedMwhPerHour * (AGENT_CONFIG.eveningPriceEur - (price ?? 0))),
         needsReview:      false,
         rule:             live.length > 0 ? 'confirm.announced' : 'confirm.surprise',
         reason:           live.length > 0
             ? `The auction cleared these hours at ${formatPrice(price)}: the announced slot is confirmed.`
             : `The auction cleared these hours at ${formatPrice(price)} and nothing was announced: a surprise free slot.`,
         inputs,
+        window:           null,
+        followUps:        [],
     };
 }
 
@@ -108,11 +192,12 @@ function decideCancel(hit: Trigger.Hit, evidence: Record<string, number>, live: 
     return {
         label:            'cancel',
         confidence:       null,
-        expectedValueEur: null,
         needsReview:      true,
         rule:             'cancel.announced',
         reason:           `${live.length} announced slot(s) overlap hours that no longer hold: cancelling reaches customers, so an admin approves.`,
         inputs,
+        window:           null,
+        followUps:        [],
     };
 }
 
@@ -120,11 +205,12 @@ function decideAlert(hit: Trigger.Hit, evidence: Record<string, number>): Agent.
     return {
         label:            'alert',
         confidence:       null,
-        expectedValueEur: null,
         needsReview:      false,
         rule:             'alert.inform',
         reason:           `${hit.matchedHours} hour(s) matched: the team is told; no customer is affected.`,
         inputs:           { matchedHours: hit.matchedHours, ...evidence },
+        window:           null,
+        followUps:        [],
     };
 }
 
@@ -132,11 +218,12 @@ function none(rule: string, reason: string, inputs: Record<string, number>): Age
     return {
         label:            'none',
         confidence:       null,
-        expectedValueEur: null,
         needsReview:      false,
         rule,
         reason,
         inputs,
+        window:           null,
+        followUps:        [],
     };
 }
 

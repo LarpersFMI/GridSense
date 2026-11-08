@@ -37,9 +37,9 @@ export function AnalysisView({ analysis }: { analysis: Agent.Analysis }) {
             {impact.customers !== null && (
                 <div className='flex flex-col gap-1.5'>
                     <div className='grid grid-cols-3 gap-2'>
-                        <Stat label='Customers reached' value={formatCount(impact.customers)} />
+                        <Stat label='Customers reached (pilot)' value={formatCount(impact.customers)} />
                         <Stat label='Consumption moved' value={impact.shiftedMwh === null ? '—' : `${impact.shiftedMwh} MWh`} />
-                        <Stat label='Value for PPC' value={impact.valueEur === null ? '—' : EUR.format(impact.valueEur)} />
+                        <Stat label='Purchase cost avoided' value={impact.valueEur === null ? '—' : EUR.format(impact.valueEur)} />
                     </div>
                     <div className='flex items-center gap-2 text-xs text-gray-500'>
                         <div className='shrink-0'>

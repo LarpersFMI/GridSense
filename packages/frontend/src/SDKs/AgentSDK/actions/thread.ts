@@ -60,11 +60,22 @@ export class AgentThreadActions extends ActionGroup<AgentSDKImpl> {
         }
     }
 
-    /** Keeps the threads live, until the returned function is called. */
+    /**
+     * Keeps the threads live, until the returned function is called — and, while the agent answers a question, the
+     * tool calls it has made so far (gone once the answer is on the thread).
+     */
     public watch(): () => void {
-        return RealtimeSDK.subscribeToChannel(Agent.Event.THREADS_CHANNEL, Agent.Event.Thread.Updated.Schema, event => {
+        return RealtimeSDK.subscribeToChannel(Agent.Event.THREADS_CHANNEL, Agent.Event.Schema, event => {
             this.sdk.setState(state => {
-                state.threads[event.thread.id] = event.thread
+                if (event.type === 'agent:thread:updated') {
+                    state.threads[event.thread.id] = event.thread
+
+                    if (event.thread.messages.at(-1)?.role === 'agent')
+                        delete state.answering[event.thread.id]
+                }
+
+                if (event.type === 'agent:thread:answering')
+                    state.answering[event.threadId] = event.calls
             })
         })
     }

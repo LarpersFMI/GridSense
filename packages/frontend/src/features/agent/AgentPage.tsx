@@ -4,7 +4,7 @@ import type { Foundations } from '@gridsense/shared/domain'
 import { Choice } from '@/components/Choice'
 import { ErrorNotice } from '@/components/ErrorNotice'
 import { AgentSDK } from '@/SDKs/AgentSDK/sdk'
-import { SlotsView } from './SlotsView'
+import { CalendarView } from './CalendarView'
 import { ThreadCard } from './ThreadCard'
 import { ThreadList } from './ThreadList'
 
@@ -62,7 +62,14 @@ export function AgentPage() {
                 </div>
             )}
 
-            {view === 'slots' && <SlotsView />}
+            {view === 'slots' && (
+                <CalendarView
+                    onOpen={id => {
+                        setPicked(id)
+                        setView('threads')
+                    }}
+                />
+            )}
         </div>
     )
 }

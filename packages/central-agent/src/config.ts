@@ -13,14 +13,30 @@ export const AGENT_CONFIG = {
     /** Every hour at or above this, but not all above likelyMinP: Possible — an operator decides. */
     possibleMinP: 0.7,
 
-    /** MWh a segment shifts into each free hour (pilot assumption). */
-    shiftedMwhPerHour: 12,
+    /**
+     * The shortest stretch of hours, all at or above likelyMinP, announced on its own out of a wider window: the
+     * window's surer core, its uncertain edges left out. Shorter than this, the whole window is Possible.
+     */
+    likelyMinHours: 3,
+
+    /**
+     * How many days ahead a slot is decided: D+1 and D+2. Further out the forecast is an outlook — the agent waits for
+     * the run that brings it within reach, and decides on that one.
+     */
+    decideWithinDays: 2,
 
     /** Customers a slot is announced to: PPC Energie's 2026 "Energie Electrică Activă Zero" pilot (assumption). */
     pilotCustomers: 5_000,
 
     /** MWh those customers moved into one free-hours slot: the pilot's ~71 MWh over 6 intervals (assumption). */
     shiftedMwhPerSlot: 11.8,
+
+    /**
+     * How long one of the pilot's intervals is taken to be, in hours (assumption: the pilot doesn't say). A slot this
+     * long or longer moves the whole shiftedMwhPerSlot — a household moves its washing once, however long the slot;
+     * a shorter one moves its share of it.
+     */
+    pilotIntervalHours: 4,
 
     /** What that energy would cost in the evening peak, EUR/MWh, without a forecast's P50 to go by. */
     eveningPriceEur: 140,

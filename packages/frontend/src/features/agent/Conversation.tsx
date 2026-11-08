@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, InputGroup, Spinner } from '@blueprintjs/core'
+import { Button, Collapse, Icon, InputGroup, Spinner } from '@blueprintjs/core'
 import type { Agent } from '@gridsense/shared/domain'
 import { AgentSDK } from '@/SDKs/AgentSDK/sdk'
 import { formatClock } from '@/utils/format'
@@ -20,8 +20,9 @@ export function Conversation({ thread }: { thread: Agent.Thread }) {
     const [question, setQuestion] = useState('')
     const [sending, setSending] = useState(false)
 
-    // The last word is the operator's: the agent is looking it up.
+    // The last word is the operator's: the agent is looking it up, and these are the calls it made so far.
     const thinking = thread.messages.length > 0 && thread.messages[thread.messages.length - 1].role === 'operator'
+    const calls = AgentSDK.useStore(state => state.answering[thread.id] ?? NO_CALLS)
 
     async function send(text: string) {
         if (text.trim() === '')
@@ -44,9 +45,12 @@ export function Conversation({ thread }: { thread: Agent.Thread }) {
             {thread.messages.map(message => <Bubble key={`${message.role}-${message.at.toISOString()}`} message={message} />)}
 
             {thinking && (
-                <div className='flex items-center gap-2 self-start rounded-md bg-violet-50 px-3 py-2 text-sm text-violet-900 shadow-sm ring-1 ring-violet-200'>
-                    <Spinner size={14} />
-                    The agent is looking it up…
+                <div className='flex max-w-[92%] flex-col gap-1 self-start'>
+                    {calls.length > 0 && <ToolsUsed calls={calls} />}
+                    <div className='flex items-center gap-2 rounded-md bg-violet-50 px-3 py-2 text-sm text-violet-900 shadow-sm ring-1 ring-violet-200'>
+                        <Spinner size={14} />
+                        {calls.length === 0 ? 'The agent is deciding what to look up…' : 'Looking further, then answering…'}
+                    </div>
                 </div>
             )}
 
@@ -89,15 +93,62 @@ function Bubble({ message }: { message: Agent.Message }) {
     const byAi = message.writtenBy === 'llm'
 
     return (
-        <div className={`max-w-[92%] self-start rounded-md px-3 py-2 text-sm shadow-sm ${byAi ? 'bg-violet-50 ring-1 ring-violet-200' : 'bg-white ring-1 ring-gray-200'}`}>
-            <div className='mb-1 flex flex-wrap items-center gap-2'>
-                {byAi && <AiBadge text='Claude' />}
-                {message.tools.length > 0 && <span className='text-xs text-gray-500'>consulted: {message.tools.join(', ')}</span>}
+        <div className='flex max-w-[92%] flex-col gap-1 self-start'>
+            {message.calls.length > 0 && <ToolsUsed calls={message.calls} />}
+            <div className={`rounded-md px-3 py-2 text-sm shadow-sm ${byAi ? 'bg-violet-50 ring-1 ring-violet-200' : 'bg-white ring-1 ring-gray-200'}`}>
+                {byAi && <div className='mb-1'><AiBadge text='Claude' /></div>}
+                <div className='whitespace-pre-wrap'>{withBold(message.text)}</div>
             </div>
-            <div className='whitespace-pre-wrap'>{withBold(message.text)}</div>
         </div>
     )
 }
+
+const NO_CALLS: Agent.Message.ToolCall[] = []
+
+/**
+ * The tool calls behind an answer, outside its bubble: "2 tools used", and the calls themselves — the tool, what it
+ * asked for, what came back — on a click. Not purple: these are lookups in the data, not text Claude wrote.
+ */
+function ToolsUsed({ calls }: { calls: Agent.Message.ToolCall[] }) {
+    const [open, setOpen] = useState(false)
+
+    return (
+        <div className='self-start'>
+            <Button
+                variant='minimal'
+                size='small'
+                icon='wrench'
+                endIcon={open ? 'chevron-down' : 'chevron-right'}
+                text={calls.length === 1 ? '1 tool used' : `${calls.length} tools used`}
+                onClick={() => setOpen(!open)}
+            />
+            <Collapse isOpen={open}>
+                <div className='mt-1'>
+                    <ToolCalls calls={calls} />
+                </div>
+            </Collapse>
+        </div>
+    )
+}
+
+function ToolCalls({ calls }: { calls: Agent.Message.ToolCall[] }) {
+    return (
+        <div className='flex flex-col gap-1'>
+            {calls.map(call => (
+                <div key={`${call.name}-${call.at.toISOString()}`} className='flex items-center gap-1.5 rounded bg-white px-2 py-1 font-mono text-[11px] text-gray-700 ring-1 ring-gray-200'>
+                    <Icon icon='wrench' size={11} className='text-gray-500' />
+                    <span className='font-semibold'>{call.name}</span>
+                    <span className='text-gray-500'>({formatInput(call.input)})</span>
+                    <span className='text-gray-400'>→</span>
+                    <span className='truncate'>{call.summary}</span>
+                </div>
+            ))}
+        </div>
+    )
+}
+
+/** `{ from: "2025-04-27", to: "2025-05-03" }` → `from: 2025-04-27, to: 2025-05-03` */
+const formatInput = (input: Record<string, unknown>) => Object.entries(input).map(([key, value]) => `${key}: ${String(value)}`).join(', ')
 
 /** `**words**` as bold: the one bit of markdown an answer may still carry; the rest stays plain text. */
 function withBold(text: string) {

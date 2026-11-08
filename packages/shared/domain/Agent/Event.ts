@@ -1,5 +1,6 @@
 import { z } from "zod"
 import { Realtime } from "../Realtime/Realtime"
+import { Message } from "./Message"
 import { Slot as SlotD } from "./Slot"
 import { Thread as ThreadD } from "./Thread"
 
@@ -30,6 +31,17 @@ export namespace Event {
             })
         }
         export type Updated = z.infer<typeof Updated.Schema>
+
+        /** The agent is answering the operator's question: the tool calls it has made so far, live, before the answer. */
+        export namespace Answering {
+
+            export const Schema = Base.extend({
+                type:     z.literal("agent:thread:answering"),
+                threadId: ThreadD.Id,
+                calls:    Message.ToolCall.array(),
+            })
+        }
+        export type Answering = z.infer<typeof Answering.Schema>
     }
 
     export namespace Slot {
@@ -46,6 +58,7 @@ export namespace Event {
 
     export const Schema = z.discriminatedUnion("type", [
         Thread.Updated.Schema,
+        Thread.Answering.Schema,
         Slot.Updated.Schema,
     ])
 

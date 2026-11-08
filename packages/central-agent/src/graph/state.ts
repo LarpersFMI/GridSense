@@ -12,6 +12,9 @@ export const State = Annotation.Root({
     trigger:   Annotation<Trigger | null>({ reducer: (_, next) => next, default: () => null }),
     slots:     Annotation<Agent.Slot[]>({ reducer: (_, next) => next, default: () => [] }),
     decision:  Annotation<Agent.Decision | null>({ reducer: (_, next) => next, default: () => null }),
+
+    // The decision's follow-ups as hits of their own, handed back to the agent once this thread has run.
+    followUps: Annotation<Trigger.Hit[]>({ reducer: (_, next) => next, default: () => [] }),
     analysis:  Annotation<Agent.Analysis | null>({ reducer: (_, next) => next, default: () => null }),
     review:    Annotation<Agent.Thread.Review | null>({ reducer: (_, next) => next, default: () => null }),
     actions:   Annotation<Agent.Action[]>({ reducer: (current, next) => [...current, ...next], default: () => [] }),

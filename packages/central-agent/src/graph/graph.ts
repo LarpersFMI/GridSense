@@ -1,8 +1,8 @@
 import { Command, END, interrupt, START, StateGraph, type BaseCheckpointSaver } from '@langchain/langgraph';
-import { Agent, Trigger } from '@gridsense/shared/domain';
+import { Agent, Trigger, type Time } from '@gridsense/shared/domain';
 import { getServerApi } from '@gridsense/shared/server/internal-api';
-import { gatherContext } from './context';
-import { decide } from './decide';
+import { gatherContext, read } from './context';
+import { decide, type Hourly } from './decide';
 import { analyze } from './impact';
 import { State, type Update } from './state';
 import { formatWindow, word, type Draft } from './words';
@@ -77,7 +77,8 @@ async function decideNode(state: State): Promise<Update> {
     const hit = Trigger.Hit.Schema.parse(state.hit);
     const slots = state.slots.map((slot) => Agent.Slot.Schema.parse(slot));
     const trigger = requireTrigger(state);
-    const decision = decide(trigger, hit, slots);
+    const hourly = trigger.playbook === 'announce-slot' ? await readHourly(hit) : [];
+    const decision = decide(trigger, hit, slots, hourly);
     const superseded = await supersede(state.threadId, trigger, hit);
 
     let next = 'act on it';
@@ -92,16 +93,70 @@ async function decideNode(state: State): Promise<Update> {
     if (superseded.length > 0)
         summary += `. Closed ${superseded.length} older request(s) for the operator over these hours.`;
 
+    if (decision.followUps.length > 0)
+        summary += `. Sent on, to be decided on their own: ${decision.followUps.map((window) => formatWindow(window.start, window.end)).join('; ')}.`;
+
     return {
         decision,
+        followUps: decision.followUps.map((window) => followUpHit(hit, window, hourly)),
         steps: [step('decide', summary, {
             rule:             decision.rule,
             confidence:       decision.confidence,
-            expectedValueEur: decision.expectedValueEur,
             inputs:           decision.inputs,
             superseded,
         })],
     };
+}
+
+/** The hit's hours in the latest forecast of each, as the Watchdog read them: what the announce rule decides on hour by hour. */
+async function readHourly(hit: Trigger.Hit): Promise<Hourly[]> {
+    if (hit.window === null)
+        return [];
+
+    const latest = new Map<number, Record<string, unknown>>();
+    const time = (value: unknown) => (value instanceof Date ? value.getTime() : Date.parse(String(value)));
+
+    for (const row of await read('predictions', 'target_ts_utc', hit.window.start, hit.window.end)) {
+        const at = time(row.target_ts_utc);
+        const seen = latest.get(at);
+
+        if (seen === undefined || time(seen.issue_ts) < time(row.issue_ts))
+            latest.set(at, row);
+    }
+
+    return [...latest.entries()]
+        .filter(([, row]) => typeof row.p_near_zero === 'number' && typeof row.horizon_days === 'number')
+        .sort(([a], [b]) => a - b)
+        .map(([at, row]) => ({
+            at:      new Date(at),
+            p:       row.p_near_zero as number,
+            horizon: row.horizon_days as number,
+            quality: typeof row.data_quality === 'string' ? row.data_quality : null,
+            p50:     typeof row.price_p50 === 'number' ? row.price_p50 : null,
+        }));
+}
+
+/**
+ * A follow-up as a hit of its own: the parent's, over the follow-up's hours, its evidence summarized again over
+ * them — the same keys the parent's had, so the same rule reads it.
+ */
+function followUpHit(hit: Trigger.Hit, window: Time.Window, hourly: Hourly[]): Trigger.Hit {
+    const hours = hourly.filter((hour) => hour.at >= window.start && hour.at < window.end);
+    const ps = hours.map((hour) => hour.p);
+    const p50s = hours.map((hour) => hour.p50).filter((p50) => p50 !== null);
+    const evidence: Record<string, number> = {
+        'predictions.p_near_zero.min':  Math.min(...ps),
+        'predictions.p_near_zero.mean': ps.reduce((sum, p) => sum + p, 0) / ps.length,
+        'predictions.p_near_zero.max':  Math.max(...ps),
+    };
+
+    if ('predictions.data_quality=ok' in hit.evidence)
+        evidence['predictions.data_quality=ok'] = hours.filter((hour) => hour.quality === 'ok').length;
+
+    if ('predictions.price_p50.mean' in hit.evidence && p50s.length === hours.length)
+        evidence['predictions.price_p50.mean'] = p50s.reduce((sum, p50) => sum + p50, 0) / p50s.length;
+
+    return { ...hit, window, matchedHours: hours.length, evidence };
 }
 
 /**
@@ -152,8 +207,11 @@ function afterDecide(state: State): 'analyze' | 'act' | 'dismiss' {
 async function analyzeNode(state: State): Promise<Update> {
     const hit = Trigger.Hit.Schema.parse(state.hit);
     const decision = state.decision!;
-    const context = await gatherContext(hit);
-    const analysis = await analyze(requireTrigger(state), hit, decision, context);
+
+    // The hours decided: the hit's, or the surer stretch of them the rule kept.
+    const decided = { ...hit, window: decision.window ?? hit.window };
+    const context = await gatherContext(decided);
+    const analysis = await analyze(requireTrigger(state), decided, decision, context);
 
     const tools = [
         `forecast ${context.forecast === null ? 'none' : `of ${context.forecast.issuedAt}`}`,
@@ -214,12 +272,14 @@ async function act(state: State): Promise<Update> {
     };
 
     if (trigger.playbook === 'announce-slot' && hit.window !== null) {
-        const when = formatWindow(hit.window.start, hit.window.end);
+        // The hours the rule kept: the whole window, or its surer stretch.
+        const window = decision.window ?? hit.window;
+        const when = formatWindow(window.start, window.end);
 
         await saveSlot({
-            key:       hit.window.key,
-            start:     hit.window.start,
-            end:       hit.window.end,
+            key:       window.key,
+            start:     window.start,
+            end:       window.end,
             label:     decision.label === 'likely' ? 'likely' : 'possible',
             status:    'announced',
             threadIds: [state.threadId],
@@ -236,19 +296,23 @@ async function act(state: State): Promise<Update> {
     }
 
     if (trigger.playbook === 'confirm-slot' && hit.window !== null) {
-        const when = formatWindow(hit.window.start, hit.window.end);
-        const announced = slots[0] ?? null;
-
-        await saveSlot({
-            key:       announced?.key ?? hit.window.key,
-            start:     announced?.start ?? hit.window.start,
-            end:       announced?.end ?? hit.window.end,
+        // What customers were promised is the announced slots' hours, whatever the auction cleared around them — each
+        // slot over these hours confirmed. Nothing announced (a surprise): the cleared hours, as one new slot.
+        const confirmed: Agent.Slot[] = slots.length > 0 ? slots : [{
+            key:       hit.window.key,
+            start:     hit.window.start,
+            end:       hit.window.end,
             label:     'confirmed',
             status:    'confirmed',
-            threadIds: [...(announced?.threadIds ?? []), state.threadId],
+            threadIds: [],
             reason:    decision.reason,
             updatedAt: new Date(),
-        });
+        }];
+
+        for (const slot of confirmed)
+            await saveSlot({ ...slot, label: 'confirmed', status: 'confirmed', threadIds: [...slot.threadIds, state.threadId], reason: decision.reason, updatedAt: new Date() });
+
+        const when = joinWindows(confirmed);
 
         drafts.push({
             type:     'confirm',
@@ -304,6 +368,22 @@ async function act(state: State): Promise<Update> {
             wordedBy: actions.map((action) => action.wordedBy),
         })],
     };
+}
+
+/** Slots' hours in words, back-to-back ones as one span: `Saturday 26 April, 12:00–17:00`. */
+function joinWindows(slots: Agent.Slot[]): string {
+    const spans: { start: Date; end: Date }[] = [];
+
+    for (const slot of [...slots].sort((a, b) => a.start.getTime() - b.start.getTime())) {
+        const last = spans[spans.length - 1];
+
+        if (last !== undefined && last.end.getTime() === slot.start.getTime())
+            last.end = slot.end;
+        else
+            spans.push({ start: slot.start, end: slot.end });
+    }
+
+    return spans.map((span) => formatWindow(span.start, span.end)).join(' and ');
 }
 
 async function dismiss(state: State): Promise<Update> {

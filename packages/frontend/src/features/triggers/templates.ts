@@ -25,7 +25,10 @@ export const TRIGGER_TEMPLATES: TriggerTemplate[] = [
                 { dataset: 'predictions', column: 'data_quality', operator: '==', value: 'ok' },
             ],
             grouping:        { type: 'window', minHours: 2, maxHours: 6 },
-            cooldownMinutes: 1440,
+
+            // Every run's hit reaches the agent: it re-decides as the day comes within reach (an outlook at D+3 and
+            // further), and skips hours already announced itself.
+            cooldownMinutes: 0,
         },
     },
     {

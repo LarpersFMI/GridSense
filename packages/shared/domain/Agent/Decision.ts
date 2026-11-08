@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { Window } from "../Time/Window"
 
 /**
  * What the agent's `decide` node made of a hit: deterministic, from the model's numbers in the hit's evidence —
@@ -16,11 +17,18 @@ export namespace Decision {
     export const Schema = z.object({
         label:            Label,
         confidence:       z.number().min(0).max(1).nullable(),
-        expectedValueEur: z.number().nullable(),
         needsReview:      z.boolean(),
         rule:             z.string(),
         reason:           z.string(),
         inputs:           z.record(z.string(), z.number()),
+
+        // The hours the decision is about when they're narrower than the hit's: an announcement keeps only the stretch
+        // sure enough to announce on its own. null: the hit's window.
+        window:           Window.Schema.nullable().default(null),
+
+        // Hours of the hit this decision leaves to their own threads, each decided on its own: the less sure hours
+        // around an announced stretch, the hours a partly announced window still lacks.
+        followUps:        Window.Schema.array().default([]),
     })
 }
 export type Decision = z.infer<typeof Decision.Schema>

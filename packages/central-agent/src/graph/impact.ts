@@ -37,27 +37,35 @@ Rules:
 - why: 2–4 short points, each naming its figure and where it comes from (forecast, what the model read, the week before).
 - risks: 1–3 short points — what would make this wrong (the price range, how the forecast has moved, missing inputs).
 - unverified: what the facts don't cover and the operator may want to check; [] if nothing.
+- impact.valueEur is the purchase cost avoided (the energy bought at the slot's price instead of the evening's), not a
+  profit: call it that. impact.customers and impact.shiftedMwh are the pilot's assumptions, not measurements.
 - Plain English, no greetings, no markdown.`;
 
 /**
  * The impact numbers: how many customers the slot reaches and how much consumption moves into it (the pilot's figures,
- * stated as assumptions), and what that's worth — the evening's P50 against the slot's.
+ * stated as assumptions, the consumption scaled down for a slot shorter than the pilot's intervals), and the purchase
+ * cost that avoids: that energy bought at the slot's price instead of the evening's P50. Not a profit — the energy
+ * given free in the slot isn't counted.
  */
-export function computeImpact(context: Context, decision: Agent.Decision): Agent.Analysis.Impact {
+export function computeImpact(context: Context, decision: Agent.Decision, hours: number | null): Agent.Analysis.Impact {
     const touchesCustomers = ['likely', 'possible', 'confirmed', 'cancel'].includes(decision.label);
     const forecast = context.forecast;
     const evening = forecast?.eveningP50 ?? AGENT_CONFIG.eveningPriceEur;
     const slotPrice = context.cleared?.mean ?? forecast?.p50 ?? null;
 
-    if (!touchesCustomers)
+    if (!touchesCustomers || hours === null)
         return { customers: null, shiftedMwh: null, valueEur: null, basis: 'No customer-facing action.' };
+
+    const share = Math.min(1, hours / AGENT_CONFIG.pilotIntervalHours);
+    const shiftedMwh = Number((AGENT_CONFIG.shiftedMwhPerSlot * share).toFixed(1));
+    const scaled = share < 1 ? ` × ${hours}/${AGENT_CONFIG.pilotIntervalHours} h (shorter than a pilot interval)` : '';
 
     return {
         customers:  AGENT_CONFIG.pilotCustomers,
-        shiftedMwh: AGENT_CONFIG.shiftedMwhPerSlot,
-        valueEur:   slotPrice === null ? null : Math.round(AGENT_CONFIG.shiftedMwhPerSlot * (evening - slotPrice)),
-        basis:      `Pilot assumptions: ${AGENT_CONFIG.pilotCustomers.toLocaleString('en-GB')} customers, ${AGENT_CONFIG.shiftedMwhPerSlot} MWh shifted per slot; `
-            + `value = MWh × (evening ${forecast?.eveningP50 !== null && forecast?.eveningP50 !== undefined ? 'P50' : 'reference price'} ${evening.toFixed(0)} − slot ${context.cleared ? 'cleared price' : 'P50'} ${slotPrice?.toFixed(0) ?? '?'} EUR/MWh).`,
+        shiftedMwh,
+        valueEur:   slotPrice === null ? null : Math.round(shiftedMwh * (evening - slotPrice)),
+        basis:      `Pilot assumptions: ${AGENT_CONFIG.pilotCustomers.toLocaleString('en-GB')} customers, ${AGENT_CONFIG.shiftedMwhPerSlot} MWh moved per slot of ${AGENT_CONFIG.pilotIntervalHours} h or more${scaled}; `
+            + `cost avoided = MWh × (evening ${forecast?.eveningP50 !== null && forecast?.eveningP50 !== undefined ? 'P50' : 'reference price'} ${evening.toFixed(0)} − slot ${context.cleared ? 'cleared price' : 'P50'} ${slotPrice?.toFixed(0) ?? '?'} EUR/MWh). The energy given free isn't counted.`,
     };
 }
 
@@ -128,7 +136,7 @@ export function templateAnalysis(hit: Trigger.Hit, decision: Agent.Decision, con
  * timeout. The decision is the rule's; the analysis only explains it.
  */
 export async function analyze(trigger: Trigger, hit: Trigger.Hit, decision: Agent.Decision, context: Context): Promise<Agent.Analysis> {
-    const impact = computeImpact(context, decision);
+    const impact = computeImpact(context, decision, hit.window?.hours ?? null);
     const template = templateAnalysis(hit, decision, context, impact);
 
     if (!process.env.ANTHROPIC_API_KEY)

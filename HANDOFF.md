@@ -77,7 +77,7 @@ The user already ran `npm install` on the Mac, so `@langchain/langgraph` 1.7.2, 
 ### Done (all typecheck OK: shared, server, central-agent)
 - **`shared/domain/Trigger/Playbook.ts`**: `Trigger.Playbook` = `announce-slot | confirm-slot | cancel-slot | alert`, with `DESCRIPTIONS`. `Trigger.Schema.playbook` defaults to `"alert"`. The server trigger repository maps the `playbook` column.
 - **`shared/domain/Agent/`**:
-  - `Decision` (label `confirmed | likely | possible | cancel | alert | none`, confidence, expectedValueEur, needsReview, rule, reason, inputs);
+  - `Decision` (label `confirmed | likely | possible | cancel | alert | none`, confidence, needsReview, rule, reason, inputs, window — the hours it kept —, followUps — the hours it sent on to their own threads);
   - `Action` (type, audience, title, text, wordedBy `llm | template`, at);
   - `Slot` (key = window key, start, end, label, status `announced | confirmed | cancelled`, threadIds, reason);
   - `Thread` (id = hit thread id, triggerId, playbook, status, hit, decision, actions, steps[{node, at, summary, data}], review, timestamps);
@@ -91,7 +91,7 @@ The user already ran `npm install` on the Mac, so `@langchain/langgraph` 1.7.2, 
   - `AgentModule` is registered in `server.module.ts`.
 - **`packages/central-agent`:**
   - `package.json`, `tsconfig.json`, `src/load-env.ts`, `main.ts` (port `AGENT_PORT` 4300);
-  - `config.ts`: likelyMinP 0.85, possibleMeanP 0.7, shiftedMwhPerHour 12, eveningPriceEur 140;
+  - `config.ts`: likelyMinP 0.8, possibleMinP 0.7, likelyMinHours 3, decideWithinDays 2, pilotCustomers 5000, shiftedMwhPerSlot 11.8, pilotIntervalHours 4, eveningPriceEur 140;
   - `graph/state.ts`: LangGraph `Annotation` state; actions and steps append;
   - `graph/decide.ts`: deterministic rules per playbook, reading `hit.evidence` keys like `predictions.p_near_zero.min/mean`, `prices.price_mean.mean`, `predictions.data_quality=ok`;
   - `graph/words.ts`: the template text, reworded by ChatAnthropic if `ANTHROPIC_API_KEY` is set, with fallback to the template;

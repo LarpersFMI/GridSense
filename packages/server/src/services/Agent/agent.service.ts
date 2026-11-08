@@ -57,7 +57,7 @@ export class AgentService {
 
     /** The operator's question goes on the thread at once (live); the agent answers it from its tools (`agent.ask`). */
     public async ask(id: Foundations.Thread.Id, question: string): Promise<void> {
-        await this.addMessage(id, { role: 'operator', text: question, at: new Date(), tools: [], writtenBy: null });
+        await this.addMessage(id, { role: 'operator', text: question, at: new Date(), tools: [], calls: [], writtenBy: null });
 
         await this.queues.add(Agent.Queue.Ask.Definition, { threadId: id, question });
     }

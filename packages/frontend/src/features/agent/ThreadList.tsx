@@ -4,7 +4,7 @@ import type { Agent, Foundations } from '@gridsense/shared/domain'
 import { AgentSDK } from '@/SDKs/AgentSDK/sdk'
 import { TriggerSDK } from '@/SDKs/TriggerSDK/sdk'
 import { formatClock, formatWindow } from '@/utils/format'
-import { isAnalyzing } from './ThreadCard'
+import { isAnalyzing, windowOf } from './ThreadCard'
 import { DecisionTag } from './tags'
 
 interface ThreadListProps {
@@ -59,6 +59,7 @@ function Row({ thread, selected, onSelect }: { thread: Agent.Thread; selected: b
     const trigger = TriggerSDK.useStore(state => state.triggers[thread.triggerId] ?? null)
     const waiting = thread.status === 'awaiting-review'
     const closed = thread.status === 'dismissed'
+    const hours = windowOf(thread)
 
     return (
         <div
@@ -72,7 +73,7 @@ function Row({ thread, selected, onSelect }: { thread: Agent.Thread; selected: b
                 ? <div className='mt-0.5'><Spinner size={16} /></div>
                 : <Icon icon='chat' className={`mt-0.5 ${waiting ? 'text-amber-600' : 'text-gray-400'}`} />}
             <div className='min-w-0 flex-1'>
-                <div className='truncate text-sm font-semibold'>{thread.hit.window ? formatWindow(thread.hit.window) : 'No window'}</div>
+                <div className='truncate text-sm font-semibold'>{hours ? formatWindow(hours) : 'No window'}</div>
                 <div className='flex items-center gap-1.5 text-xs text-gray-500'>
                     <span className='truncate'>{trigger?.name}</span>
                     {thread.decision && <DecisionTag label={thread.decision.label} />}

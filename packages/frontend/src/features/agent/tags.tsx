@@ -38,16 +38,6 @@ export function StatusTag({ status }: { status: Agent.Thread.Status }) {
     return <Tag minimal round intent={intent} icon={icon}>{text}</Tag>
 }
 
-const SLOT_INTENT: Record<Agent.Slot.Status, Intent> = {
-    announced: 'primary',
-    confirmed: 'success',
-    cancelled: 'danger',
-}
-
-export function SlotStatusTag({ status }: { status: Agent.Slot.Status }) {
-    return <Tag minimal round intent={SLOT_INTENT[status]}>{status[0].toUpperCase() + status.slice(1)}</Tag>
-}
-
 // Purple: the one color for text an LLM wrote, everywhere in the app. Inline: Blueprint's Tag styles beat Tailwind's.
 const AI_STYLE = { background: '#ede9fe', color: '#5b21b6' }
 

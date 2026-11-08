@@ -3,6 +3,7 @@ import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
 import { Agent, Trigger } from '@gridsense/shared/domain';
 import { requireEnv } from '@gridsense/shared/server/env';
 import { getServerApi } from '@gridsense/shared/server/internal-api';
+import { QueueProducer } from '@gridsense/shared/server/queue';
 import { System } from '@gridsense/shared/server/system';
 import { buildGraph, Command, toThread, type AgentGraph, type ReviewAnswer } from './graph';
 import type { State } from './state';
@@ -19,6 +20,8 @@ export class AgentGraphService implements OnModuleInit, OnModuleDestroy {
     private readonly checkpointer = PostgresSaver.fromConnString(requireEnv('DATABASE_URL'), { schema: 'langgraph' });
 
     private graph: AgentGraph | null = null;
+
+    constructor(private readonly queues: QueueProducer) {}
 
     public async onModuleInit(): Promise<void> {
         await this.checkpointer.setup();
@@ -43,12 +46,20 @@ export class AgentGraphService implements OnModuleInit, OnModuleDestroy {
         const createdAt = new Date().toISOString();
 
         await Agent.API.Internal.saveThread(getServerApi(), {
-            thread: toThread({ threadId, hit, createdAt, trigger: null, slots: [], decision: null, analysis: null, review: null, actions: [], steps: [] }, 'running'),
+            thread: toThread({ threadId, hit, createdAt, trigger: null, slots: [], decision: null, followUps: [], analysis: null, review: null, actions: [], steps: [] }, 'running'),
         });
 
-        await this.require().invoke({ threadId, hit, createdAt }, this.config(threadId));
+        const state = await this.require().invoke({ threadId, hit, createdAt }, this.config(threadId)) as State;
+        const outcome = await this.settle(threadId);
 
-        return this.settle(threadId);
+        // Hours the decision left to their own threads: each a hit of its own, handled like the Watchdog's.
+        for (const followUp of state.followUps ?? [])
+            await this.queues.add(Agent.Queue.HandleHit.Definition, followUp, { jobId: Trigger.Hit.getThreadId(followUp) });
+
+        if ((state.followUps ?? []).length > 0)
+            this.log.info('Follow-ups', { threadId, windows: state.followUps.map((followUp) => followUp.window?.key) });
+
+        return outcome;
     }
 
     /** A paused thread, resumed with an admin's answer: `interrupt` returns it inside the review node. */

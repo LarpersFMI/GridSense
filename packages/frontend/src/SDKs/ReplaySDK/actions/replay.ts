@@ -97,6 +97,7 @@ function forgetBeforeReset(): void {
     AgentSDK.setState(state => {
         state.threads = {}
         state.slots = {}
+        state.answering = {}
     })
 
     void QuerySDK.client.invalidateQueries()

@@ -16,8 +16,9 @@ export class AgentSDKImpl extends BaseSDK<AgentSDK.State> {
 
     public readonly useStore: BaseSDK.Store<AgentSDK.State> = createWithEqualityFn(
         immer<AgentSDK.State>(() => ({
-            threads: {},
-            slots:   {},
+            threads:   {},
+            slots:     {},
+            answering: {},
         })),
         shallow,
     )
@@ -39,7 +40,7 @@ export class AgentSDKImpl extends BaseSDK<AgentSDK.State> {
     }
 
     public override cleanup(): void {
-        this.setState({ threads: {}, slots: {} })
+        this.setState({ threads: {}, slots: {}, answering: {} })
     }
 }
 
@@ -48,8 +49,9 @@ export const AgentSDK = SDK.get<AgentSDKImpl>('Agent')
 export namespace AgentSDK {
 
     export type State = {
-        threads: Record<Foundations.Thread.Id, Agent.Thread>
-        slots:   Record<string, Agent.Slot>
+        threads:   Record<Foundations.Thread.Id, Agent.Thread>
+        slots:     Record<string, Agent.Slot>
+        answering: Record<Foundations.Thread.Id, Agent.Message.ToolCall[]>     // live, while the agent answers a question
     }
 
     export type Actions = AgentActions

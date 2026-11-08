@@ -2,6 +2,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { Controller, Get, Module } from '@nestjs/common';
 import { Agent } from '@gridsense/shared/domain';
 import { QueueModule } from '@gridsense/shared/server/queue';
+import { RealtimeModule } from '@gridsense/shared/server/realtime';
 import { QUEUE_PREFIX, redisConnection } from '@gridsense/shared/server/redis';
 import { AgentGraphService } from './graph/agent-graph.service';
 import { AskProcessor } from './processors/ask.processor';
@@ -30,6 +31,7 @@ export class HealthController {
             { name: Agent.Queue.Ask.Definition.name },
         ),
         QueueModule,
+        RealtimeModule,
     ],
     controllers: [HealthController],
     providers: [

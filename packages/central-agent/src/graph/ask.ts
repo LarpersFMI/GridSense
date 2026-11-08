@@ -56,7 +56,7 @@ function dayRange(day: string): [Date, Date] {
  * Watchdog and the analysis do; none of them writes anything.
  */
 function tools(thread: Agent.Thread, consulted: string[]) {
-    const window = thread.hit.window;
+    const window = thread.decision?.window ?? thread.hit.window;
     const used = (name: string) => {
         if (!consulted.includes(name))
             consulted.push(name);
@@ -200,6 +200,7 @@ function tools(thread: Agent.Thread, consulted: string[]) {
 function facts(thread: Agent.Thread): string {
     return JSON.stringify({
         hours:    thread.hit.window === null ? null : formatWindow(thread.hit.window.start, thread.hit.window.end),
+        decided:  thread.decision?.window ? formatWindow(thread.decision.window.start, thread.decision.window.end) : null,
         status:   thread.status,
         decision: thread.decision === null ? null : {
             label:       thread.decision.label,
@@ -221,12 +222,29 @@ function facts(thread: Agent.Thread): string {
  * up, the tools read the data, it answers from what they returned. The conversation so far is replayed; the answer
  * records the tools it consulted. Without an API key, or if it fails, a short note says so.
  */
-export async function answer(thread: Agent.Thread): Promise<Agent.Message> {
+export async function answer(thread: Agent.Thread, onCalls: (calls: Agent.Message.ToolCall[]) => void): Promise<Agent.Message> {
     const consulted: string[] = [];
+    const calls: Agent.Message.ToolCall[] = [];
     const at = () => new Date();
 
     if (!process.env.ANTHROPIC_API_KEY)
-        return { role: 'agent', text: "Claude isn't set up here (no ANTHROPIC_API_KEY), so I can't look this up. The analysis above has what the agent's tools found.", at: at(), tools: [], writtenBy: 'template' };
+        return { role: 'agent', text: "Claude isn't set up here (no ANTHROPIC_API_KEY), so I can't look this up. The analysis above has what the agent's tools found.", at: at(), tools: [], calls: [], writtenBy: 'template' };
+
+    // Every call recorded as it returns, and told live: the operator sees the agent look things up.
+    const runnable = tools(thread, consulted).map((tool) => {
+        const run = tool.run.bind(tool);
+
+        tool.run = (async (input: Record<string, unknown>, ...rest: unknown[]) => {
+            const result = await (run as (...args: unknown[]) => Promise<unknown>)(input, ...rest);
+
+            calls.push({ name: tool.name, input, summary: summarize(result), at: at() });
+            onCalls([...calls]);
+
+            return result;
+        }) as typeof tool.run;
+
+        return tool;
+    });
 
     // The conversation as turns; the decision's facts open it.
     const messages: Anthropic.Beta.BetaMessageParam[] = [];
@@ -249,7 +267,7 @@ export async function answer(thread: Agent.Thread): Promise<Agent.Message> {
             max_iterations: MAX_ITERATIONS,
             system:         SYSTEM,
             output_config:  { effort: 'low' },
-            tools:          tools(thread, consulted),
+            tools:          runnable,
             messages,
         });
 
@@ -261,13 +279,31 @@ export async function answer(thread: Agent.Thread): Promise<Agent.Message> {
                     text += block.text;
 
         if (text.trim() === '')
-            return { role: 'agent', text: "I couldn't put an answer together for that. Try asking it another way.", at: at(), tools: consulted, writtenBy: 'template' };
+            return { role: 'agent', text: "I couldn't put an answer together for that. Try asking it another way.", at: at(), tools: consulted, calls, writtenBy: 'template' };
 
-        return { role: 'agent', text: text.trim(), at: at(), tools: consulted, writtenBy: 'llm' };
+        return { role: 'agent', text: text.trim(), at: at(), tools: consulted, calls, writtenBy: 'llm' };
     }
     catch (error) {
         log.warning('No answer from the LLM', { error });
 
-        return { role: 'agent', text: "I couldn't reach Claude just now, so I can't look this up. Try again in a moment.", at: at(), tools: consulted, writtenBy: 'template' };
+        return { role: 'agent', text: "I couldn't reach Claude just now, so I can't look this up. Try again in a moment.", at: at(), tools: consulted, calls, writtenBy: 'template' };
     }
+}
+
+/** What a tool returned, in a few words: how many rows for a list, the text itself when it's short. */
+function summarize(result: unknown): string {
+    if (typeof result !== 'string')
+        return 'done';
+
+    try {
+        const parsed: unknown = JSON.parse(result);
+
+        if (Array.isArray(parsed))
+            return parsed.length === 1 ? '1 row' : `${parsed.length} rows`;
+    }
+    catch {
+        // Not JSON: a sentence, shown as it is.
+    }
+
+    return result.length > 90 ? `${result.slice(0, 90)}…` : result;
 }
