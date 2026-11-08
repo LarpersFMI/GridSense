@@ -6,6 +6,7 @@ import { TriggerSDK } from '@/SDKs/TriggerSDK/sdk'
 import { WatchdogSDK } from '@/SDKs/WatchdogSDK/sdk'
 import { TriggerEditor } from '../triggers/TriggerEditor'
 import { TemplatePicker } from '../triggers/TemplatePicker'
+import { PlaybookTag } from '../triggers/playbooks'
 import { formatCondition, formatCooldown, formatGrouping } from '../triggers/format'
 
 /** What the panel shows: the dataset's triggers, or the editor on a new or a saved one. */
@@ -127,9 +128,12 @@ function TriggerCard({ trigger, hits, onEdit }: TriggerCardProps) {
             </div>
 
             <div className='flex items-center justify-between'>
-                <span className='text-xs text-gray-500'>
-                    {formatGrouping(trigger.grouping)} · cooldown {formatCooldown(trigger.cooldownMinutes)}
-                </span>
+                <div className='flex items-center gap-2'>
+                    <PlaybookTag playbook={trigger.playbook} />
+                    <span className='text-xs text-gray-500'>
+                        {formatGrouping(trigger.grouping)} · cooldown {formatCooldown(trigger.cooldownMinutes)}
+                    </span>
+                </div>
                 <Button icon='edit' text='Edit' variant='minimal' size='small' onClick={onEdit} />
             </div>
         </Card>

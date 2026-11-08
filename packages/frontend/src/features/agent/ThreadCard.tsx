@@ -4,6 +4,7 @@ import type { Agent } from '@gridsense/shared/domain'
 import { AgentSDK } from '@/SDKs/AgentSDK/sdk'
 import { TriggerSDK } from '@/SDKs/TriggerSDK/sdk'
 import { formatClock, formatWindow } from '@/utils/format'
+import { PlaybookTag } from '../triggers/playbooks'
 import { AnalysisView } from './AnalysisView'
 import { Conversation } from './Conversation'
 import { AiBadge, DecisionTag, StatusTag } from './tags'
@@ -30,6 +31,7 @@ export function ThreadCard({ thread }: { thread: Agent.Thread | null }) {
                     {thread.decision && <DecisionTag label={thread.decision.label} />}
                     <span className='text-base font-semibold'>{hours ? formatWindow(hours) : 'No window'}</span>
                     <span className='text-sm text-gray-500'>· {trigger?.name ?? 'trigger'}</span>
+                    <PlaybookTag playbook={thread.playbook} />
                     <div className='ml-auto'>
                         <StatusTag status={thread.status} />
                     </div>

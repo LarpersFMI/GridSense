@@ -7,7 +7,7 @@ export interface TriggerTemplate {
     key:         string
     icon:        IconName
     dataset:     Dataset.Triggerable      // the dataset it watches: the sidebar offers the templates on its own
-    trigger:     Pick<Trigger, 'name' | 'description' | 'match' | 'conditions' | 'grouping' | 'cooldownMinutes'>
+    trigger:     Pick<Trigger, 'name' | 'description' | 'match' | 'conditions' | 'grouping' | 'cooldownMinutes' | 'playbook'>
 }
 
 export const TRIGGER_TEMPLATES: TriggerTemplate[] = [
@@ -29,6 +29,7 @@ export const TRIGGER_TEMPLATES: TriggerTemplate[] = [
             // Every run's hit reaches the agent: it re-decides as the day comes within reach (an outlook at D+3 and
             // further), and skips hours already announced itself.
             cooldownMinutes: 0,
+            playbook:        'announce-slot',
         },
     },
     {
@@ -45,6 +46,7 @@ export const TRIGGER_TEMPLATES: TriggerTemplate[] = [
             ],
             grouping:        { type: 'window', minHours: 1, maxHours: 6 },
             cooldownMinutes: 360,
+            playbook:        'cancel-slot',
         },
     },
     {
@@ -60,6 +62,7 @@ export const TRIGGER_TEMPLATES: TriggerTemplate[] = [
             ],
             grouping:        { type: 'run' },
             cooldownMinutes: 720,
+            playbook:        'alert',
         },
     },
     {
@@ -76,6 +79,7 @@ export const TRIGGER_TEMPLATES: TriggerTemplate[] = [
             ],
             grouping:        { type: 'window', minHours: 1, maxHours: 5 },
             cooldownMinutes: 720,
+            playbook:        'alert',
         },
     },
     {
@@ -92,6 +96,7 @@ export const TRIGGER_TEMPLATES: TriggerTemplate[] = [
             ],
             grouping:        { type: 'hour' },
             cooldownMinutes: 0,
+            playbook:        'cancel-slot',
         },
     },
     {
@@ -108,6 +113,7 @@ export const TRIGGER_TEMPLATES: TriggerTemplate[] = [
             ],
             grouping:        { type: 'window', minHours: 1, maxHours: 8 },
             cooldownMinutes: 0,
+            playbook:        'confirm-slot',
         },
     },
 ]

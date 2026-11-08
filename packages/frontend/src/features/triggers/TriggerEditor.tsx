@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, FormGroup, InputGroup, NumericInput, TextArea } from '@blueprintjs/core'
+import { Button, Card, FormGroup, Icon, InputGroup, NumericInput, TextArea } from '@blueprintjs/core'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from '@tanstack/react-router'
 import { Controller, useFieldArray, useForm, type FieldErrors } from 'react-hook-form'
@@ -11,6 +11,7 @@ import { Steps, type Step } from '@/components/Steps'
 import { DatasetSDK } from '@/SDKs/DatasetSDK/sdk'
 import { TriggerSDK } from '@/SDKs/TriggerSDK/sdk'
 import { ConditionRow } from './ConditionRow'
+import { PLAYBOOK_ICONS } from './playbooks'
 import { DEFAULT_CRON, INCREMENTAL_COLUMNS } from './draft'
 
 type TriggerInput = z.input<typeof Trigger.Schema>
@@ -35,13 +36,14 @@ const GROUPING_OPTIONS: DropdownOption<Trigger.Grouping['type']>[] = [
     { value: 'run', label: 'one hit per check' },
 ]
 
-type StepKey = 'details' | 'when' | 'conditions' | 'hits'
+type StepKey = 'details' | 'when' | 'conditions' | 'hits' | 'agent'
 
 const STEPS: Step<StepKey>[] = [
-    { key: 'details', title: 'Name & description' },
+    { key: 'details', title: 'Name' },
     { key: 'when', title: 'When it runs' },
     { key: 'conditions', title: 'Conditions' },
     { key: 'hits', title: 'Hits' },
+    { key: 'agent', title: 'Agent' },
 ]
 
 // What each step writes: checked before moving on, and where a failed save sends you back to.
@@ -50,6 +52,7 @@ const STEP_FIELDS: Record<StepKey, (keyof TriggerInput)[]> = {
     when:       ['on'],
     conditions: ['match', 'conditions'],
     hits:       ['grouping', 'cooldownMinutes'],
+    agent:      ['playbook'],
 }
 
 interface TriggerEditorProps {
@@ -402,6 +405,37 @@ export function TriggerEditor({ trigger, isNew, onDone }: TriggerEditorProps) {
                                 />
                             </FormGroup>
                         </div>
+                    </div>
+                )}
+
+                {step === 'agent' && (
+                    <div className='flex flex-col gap-2'>
+                        <span className='text-gray-500'>What the agent does with this trigger's hits</span>
+                        <Controller
+                            control={form.control}
+                            name='playbook'
+                            render={({ field }) => (
+                                <div className='flex flex-col gap-2'>
+                                    {Trigger.Playbook.Schema.options.map(playbook => (
+                                        <Card
+                                            key={playbook}
+                                            compact
+                                            interactive
+                                            selected={field.value === playbook}
+                                            onClick={() => field.onChange(playbook)}
+                                        >
+                                            <div className='flex items-start gap-3'>
+                                                <Icon icon={PLAYBOOK_ICONS[playbook]} intent={field.value === playbook ? 'primary' : 'none'} className='mt-0.5' />
+                                                <div>
+                                                    <div className='font-semibold'>{Trigger.Playbook.DESCRIPTIONS[playbook].label}</div>
+                                                    <div className='text-xs text-gray-500'>{Trigger.Playbook.DESCRIPTIONS[playbook].description}</div>
+                                                </div>
+                                            </div>
+                                        </Card>
+                                    ))}
+                                </div>
+                            )}
+                        />
                     </div>
                 )}
 
