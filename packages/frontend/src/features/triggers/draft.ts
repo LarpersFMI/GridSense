@@ -28,5 +28,6 @@ export function createDraft(dataset: Dataset.Triggerable): Trigger {
             maxHours: 6,
         },
         cooldownMinutes: 0,
+        playbook:        'alert',
     }
 }

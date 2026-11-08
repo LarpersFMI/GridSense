@@ -43,4 +43,21 @@ export namespace Queue {
             options: { removeOnComplete: 1000, removeOnFail: 1000 },
         })
     }
+
+    /** The operator asked about a thread: the agent answers from its read-only tools (the question is on the thread). */
+    export namespace Ask {
+
+        export const Job = z.object({
+            threadId: Foundations.Thread.Id,
+            question: z.string(),
+        })
+        export type Job = z.infer<typeof Job>
+
+        export const Definition = Foundations.Queue.define({
+            name:    "agent.ask",
+            job:     Job,
+            result:  z.object({ answered: z.boolean() }),
+            options: { removeOnComplete: 1000, removeOnFail: 1000 },
+        })
+    }
 }

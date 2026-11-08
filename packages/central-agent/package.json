@@ -1,0 +1,17 @@
+{
+    "name": "@gridsense/central-agent",
+    "version": "0.0.1",
+    "private": true,
+    "description": "The agent: one LangGraph thread per trigger hit — load, decide on the model's numbers (rules), analyze the impact with its tools (Claude writes it up), pause for an operator when unsure, act (slots, notifications, alerts). Checkpoints in Postgres; its records go through the server's /internal API.",
+    "scripts": {
+        "dev": "nodemon -w src -w ../shared -e ts,json --exec ts-node src/main.ts",
+        "typecheck": "tsc --noEmit -p tsconfig.json"
+    },
+    "dependencies": {
+        "@anthropic-ai/sdk": "^1.6.0",
+        "@gridsense/shared": "*",
+        "@langchain/core": "^1.3.5",
+        "@langchain/langgraph": "^1.7.2",
+        "@langchain/langgraph-checkpoint-postgres": "^1.1.2"
+    }
+}

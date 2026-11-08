@@ -6,6 +6,7 @@ import { DatasetSDK } from '@/SDKs/DatasetSDK/sdk'
 import { ForecasterSDK } from '@/SDKs/ForecasterSDK/sdk'
 import { PipelineSDK } from '@/SDKs/PipelineSDK/sdk'
 import { ReplaySDK } from '@/SDKs/ReplaySDK/sdk'
+import { AgentSDK } from '@/SDKs/AgentSDK/sdk'
 import { ReplayCard } from '@/features/replay/ReplayCard'
 import { RealtimeSDK } from '@/SDKs/RealtimeSDK/sdk'
 import { TriggerSDK } from '@/SDKs/TriggerSDK/sdk'
@@ -16,6 +17,7 @@ const SECTIONS = [
     { to: '/pipelines', icon: 'data-lineage', label: 'Pipelines' },
     { to: '/datasets', icon: 'database', label: 'Datasets' },
     { to: '/triggers', icon: 'antenna', label: 'Triggers' },
+    { to: '/agent', icon: 'predictive-analysis', label: 'Agent' },
     { to: '/activity', icon: 'pulse', label: 'Activity' },
 ] as const
 
@@ -51,6 +53,16 @@ function Shell() {
     }, [])
 
     useEffect(() => {
+        const stopThreads = AgentSDK.actions.thread.watch()
+        const stopSlots = AgentSDK.actions.slot.watch()
+
+        return () => {
+            stopThreads()
+            stopSlots()
+        }
+    }, [])
+
+    useEffect(() => {
         return WatchdogSDK.actions.live.watch(TriggerSDK.selectors.list(TriggerSDK.state).map(trigger => trigger.id))
     }, [triggerIds])
 
@@ -70,7 +82,8 @@ function Shell() {
                     <ConnectionTag />
                 </Navbar.Group>
             </Navbar>
-            <main className='min-h-0 flex-1 overflow-auto'>
+            {/* Room at the bottom for the floating replay card, so it never covers the end of a page. */}
+            <main className='min-h-0 flex-1 overflow-auto pb-20'>
                 <Outlet />
             </main>
             <ReplayCard />
@@ -89,6 +102,9 @@ function SectionTabs() {
         if (pathname.startsWith(section.to))
             selected = section.to
 
+    // Loaded here too: the count of threads waiting for the operator shows on the Agent tab from any page.
+    const [waiting] = AgentSDK.useWith(state => AgentSDK.selectors.inbox(state).length, query => [query.threads])
+
     function handleChange(next: Section) {
         void navigate({ to: next })
     }
@@ -96,9 +112,23 @@ function SectionTabs() {
     return (
         <Tabs id='sections' selectedTabId={selected} onChange={handleChange} large>
             {SECTIONS.map(section => (
-                <Tab key={section.to} id={section.to} icon={section.icon} title={section.label} />
+                <Tab
+                    key={section.to}
+                    id={section.to}
+                    icon={section.icon}
+                    title={section.to === '/agent' && waiting > 0 ? <>{section.label}<NotificationDot count={waiting} /></> : section.label}
+                />
             ))}
         </Tabs>
+    )
+}
+
+/** A small notification bubble, raised beside a tab's label: how many things wait there. */
+function NotificationDot({ count }: { count: number }) {
+    return (
+        <span className='relative -top-2 ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold leading-none text-white'>
+            {count}
+        </span>
     )
 }
 

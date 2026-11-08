@@ -60,6 +60,23 @@ export class ReplayRepository extends Repository<ReplayDB.Tables>() {
     }
 
     /**
+     * What the agent kept: its threads and slots, and LangGraph's checkpoints (schema `langgraph`, made when the agent
+     * first starts — absent before).
+     */
+    @Transactional()
+    public async clearAgent(): Promise<void> {
+        await sql`delete from gridsense.agent_thread`.execute(this.trx);
+        await sql`delete from gridsense.agent_slot`.execute(this.trx);
+
+        for (const table of ['checkpoint_writes', 'checkpoint_blobs', 'checkpoints']) {
+            const { rows } = await sql<{ present: boolean }>`select to_regclass(${`langgraph.${table}`}) is not null as present`.execute(this.trx);
+
+            if (rows[0].present)
+                await sql`delete from ${sql.table(`langgraph.${table}`)}`.execute(this.trx);
+        }
+    }
+
+    /**
      * The replay pipelines' runs, and the forecast runs reported (gridsense.run): a run reported again with the same
      * issue_ts is taken as a duplicate and checked by no one, so a replay started over must find none.
      */

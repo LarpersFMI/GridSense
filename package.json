@@ -9,13 +9,14 @@
         "dev:all": "npm run env && npm run infra && npm run dev",
         "env": "test -f .env || cp .env.example .env",
         "infra": "docker compose up -d --wait postgres redis",
-        "dev": "concurrently -n server,watchdog,pipelines,frontend -c cyan,magenta,yellow,green \"npm:dev:server\" \"npm:dev:watchdog\" \"npm:dev:pipeline-runner\" \"npm:dev:frontend\"",
+        "dev": "concurrently -n server,watchdog,pipelines,agent,frontend -c cyan,magenta,yellow,blue,green \"npm:dev:server\" \"npm:dev:watchdog\" \"npm:dev:pipeline-runner\" \"npm:dev:central-agent\" \"npm:dev:frontend\"",
         "dev:server": "npm run dev --workspace=packages/server",
         "dev:watchdog": "npm run dev --workspace=packages/watchdog",
         "dev:pipeline-runner": "npm run dev --workspace=packages/pipeline-runner",
+        "dev:central-agent": "npm run dev --workspace=packages/central-agent",
         "dev:frontend": "npm run dev --workspace=packages/frontend",
         "test": "npm run test --workspace=packages/shared --workspace=packages/pipeline-runner",
-        "typecheck": "npm run typecheck --workspace=packages/shared --workspace=packages/server --workspace=packages/watchdog --workspace=packages/pipeline-runner --workspace=packages/frontend"
+        "typecheck": "npm run typecheck --workspace=packages/shared --workspace=packages/server --workspace=packages/watchdog --workspace=packages/pipeline-runner --workspace=packages/central-agent --workspace=packages/frontend"
     },
     "dependencies": {
         "@duckdb/node-api": "1.4.5-r.1",

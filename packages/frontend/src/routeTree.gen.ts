@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ActivityRouteImport } from './routes/activity'
+import { Route as AgentRouteImport } from './routes/agent'
 import { Route as PipelinesRouteImport } from './routes/pipelines'
 import { Route as DatasetsIndexRouteImport } from './routes/datasets/index'
 import { Route as DatasetsNameRouteImport } from './routes/datasets/$name'
@@ -25,6 +26,11 @@ const IndexRoute = IndexRouteImport.update({
 const ActivityRoute = ActivityRouteImport.update({
   id: '/activity',
   path: '/activity',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AgentRoute = AgentRouteImport.update({
+  id: '/agent',
+  path: '/agent',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PipelinesRoute = PipelinesRouteImport.update({
@@ -56,6 +62,7 @@ const TriggersIdRoute = TriggersIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
+  '/agent': typeof AgentRoute
   '/pipelines': typeof PipelinesRoute
   '/datasets/$name': typeof DatasetsNameRoute
   '/triggers/$id': typeof TriggersIdRoute
@@ -65,6 +72,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
+  '/agent': typeof AgentRoute
   '/pipelines': typeof PipelinesRoute
   '/datasets/$name': typeof DatasetsNameRoute
   '/triggers/$id': typeof TriggersIdRoute
@@ -75,6 +83,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
+  '/agent': typeof AgentRoute
   '/pipelines': typeof PipelinesRoute
   '/datasets/$name': typeof DatasetsNameRoute
   '/triggers/$id': typeof TriggersIdRoute
@@ -86,6 +95,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/activity'
+    | '/agent'
     | '/pipelines'
     | '/datasets/$name'
     | '/triggers/$id'
@@ -95,6 +105,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/activity'
+    | '/agent'
     | '/pipelines'
     | '/datasets/$name'
     | '/triggers/$id'
@@ -104,6 +115,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/activity'
+    | '/agent'
     | '/pipelines'
     | '/datasets/$name'
     | '/triggers/$id'
@@ -114,6 +126,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ActivityRoute: typeof ActivityRoute
+  AgentRoute: typeof AgentRoute
   PipelinesRoute: typeof PipelinesRoute
   DatasetsNameRoute: typeof DatasetsNameRoute
   TriggersIdRoute: typeof TriggersIdRoute
@@ -135,6 +148,13 @@ declare module '@tanstack/react-router' {
       path: '/activity'
       fullPath: '/activity'
       preLoaderRoute: typeof ActivityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agent': {
+      id: '/agent'
+      path: '/agent'
+      fullPath: '/agent'
+      preLoaderRoute: typeof AgentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pipelines': {
@@ -178,6 +198,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ActivityRoute: ActivityRoute,
+  AgentRoute: AgentRoute,
   PipelinesRoute: PipelinesRoute,
   DatasetsNameRoute: DatasetsNameRoute,
   TriggersIdRoute: TriggersIdRoute,

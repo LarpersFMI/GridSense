@@ -1,6 +1,7 @@
 import { Pipeline, Replay } from '@gridsense/shared/domain'
 import { api, describeError, errorMessage } from '../../api'
 import { ActionGroup, log } from '../../core'
+import { AgentSDK } from '../../AgentSDK/sdk'
 import { ForecasterSDK } from '../../ForecasterSDK/sdk'
 import { NotificationSDK } from '../../NotificationSDK/sdk'
 import { PipelineSDK } from '../../PipelineSDK/sdk'
@@ -92,6 +93,10 @@ function forgetBeforeReset(): void {
     })
     ForecasterSDK.setState(state => {
         state.runs = {}
+    })
+    AgentSDK.setState(state => {
+        state.threads = {}
+        state.slots = {}
     })
 
     void QuerySDK.client.invalidateQueries()

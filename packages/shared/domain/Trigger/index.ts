@@ -5,6 +5,7 @@ import * as ConditionMod from "./Condition"
 import * as GroupingMod  from "./Grouping"
 import * as CheckMod     from "./Check"
 import * as HitMod       from "./Hit"
+import * as PlaybookMod  from "./Playbook"
 import * as EvaluateMod  from "./evaluate"
 import * as ApiMod       from "./api"
 
@@ -32,6 +33,9 @@ export namespace Trigger {
 
     /** One check: its cause, its run, its hours. */
     export import Check = CheckMod.Check
+
+    /** What the agent does with its hits. */
+    export import Playbook = PlaybookMod.Playbook
 
     /** What the Watchdog hands the agent. */
     export import Hit = HitMod.Hit

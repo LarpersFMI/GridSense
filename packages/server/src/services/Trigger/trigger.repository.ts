@@ -18,6 +18,7 @@ export namespace TriggerDB {
         conditions:       Trigger.Condition.Schema.array(),
         hit_grouping:     Trigger.Grouping.Schema,
         cooldown_minutes: z.number().int(),
+        playbook:         Trigger.Playbook.Schema,
         watermark:        z.date().nullable(),   // the Watchdog's: how far it has read the dataset's incremental column
         created_at:       z.date(),
         updated_at:       z.date(),
@@ -34,6 +35,7 @@ export namespace TriggerDB {
         conditions:      row.conditions,
         grouping:        row.hit_grouping,
         cooldownMinutes: row.cooldown_minutes,
+        playbook:        row.playbook,
     });
 
     /** The columns a trigger sets, on insert and update alike — all but its id. */
@@ -46,6 +48,7 @@ export namespace TriggerDB {
         conditions:       json(trigger.conditions),
         hit_grouping:     json(trigger.grouping),
         cooldown_minutes: trigger.cooldownMinutes,
+        playbook:         trigger.playbook,
     });
 
     export interface Tables {

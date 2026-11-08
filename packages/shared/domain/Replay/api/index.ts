@@ -23,7 +23,7 @@ export namespace API {
 
     /**
      * Starts over from the same day: the replay's dataset files and forecast runs removed, the triggers' watermarks reset (prices ones past
-     * the history the first `prices` run adds), the agent's queued hits and the Watchdog's cooldowns cleared, the replay
+     * the history the first `prices` run adds), the agent's queued hits, threads, slots and checkpoints and the Watchdog's cooldowns cleared, the replay
      * pipelines' runs forgotten.
      */
     export namespace Reset {}

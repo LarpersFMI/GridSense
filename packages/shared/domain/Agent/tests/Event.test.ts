@@ -7,20 +7,33 @@ const threadId = Foundations.Thread.Id.parse("trigger_20260509T0600Z-20260509T11
 
 describe("Agent.Event", () => {
 
-    it("addresses a thread's events to its own channel", () => {
-        expect(Event.getThreadChannel(threadId)).toBe(`agent:thread:${threadId}`)
-    })
-
-    it("builds an event its schema accepts once the publisher adds the channel", () => {
+    it("builds a thread event its schema accepts once the publisher adds the channel", () => {
         const event = {
             ...Event.create("agent:thread:updated", {
-                threadId,
-                triggerId: Trigger.createId(),
-                status:    "running",
-                step:      "decide",
-                updatedAt: new Date("2026-05-07T07:01:00Z"),
+                thread: {
+                    id:        threadId,
+                    triggerId: Trigger.createId(),
+                    playbook:  "announce-slot",
+                    status:    "running",
+                    hit: {
+                        triggerId:    Trigger.createId(),
+                        cause:        { type: "schedule", firedAt: new Date("2026-05-07T07:00:00Z") },
+                        runId:        null,
+                        window:       null,
+                        matchedHours: 0,
+                        evidence:     {},
+                    },
+                    decision:  null,
+                    analysis:  null,
+                    messages:  [],
+                    actions:   [],
+                    steps:     [],
+                    review:    null,
+                    createdAt: new Date("2026-05-07T07:01:00Z"),
+                    updatedAt: new Date("2026-05-07T07:01:00Z"),
+                },
             }),
-            channel: Event.getThreadChannel(threadId),
+            channel: Event.THREADS_CHANNEL,
         }
 
         expect(Event.Schema.parse(event).type).toBe("agent:thread:updated")

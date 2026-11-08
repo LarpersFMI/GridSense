@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { QueueModule } from '@gridsense/shared/server/queue';
 import { RealtimeModule } from '@gridsense/shared/server/realtime';
 import { HealthController } from './http/health.controller';
+import { AgentModule } from './services/Agent/agent.module';
 import { DatasetModule } from './services/Dataset/dataset.module';
 import { ForecasterModule } from './services/Forecaster/forecaster.module';
 import { HitModule } from './services/Hit/hit.module';
@@ -21,6 +22,7 @@ import { TriggerModule } from './services/Trigger/trigger.module';
         HitModule,
         PipelineModule,
         ReplayModule,
+        AgentModule,
         DatasetModule,
     ],
     controllers: [HealthController],

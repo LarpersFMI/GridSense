@@ -81,6 +81,7 @@ export class ReplayService {
             prices:      new Date(Time.Local.startOfDay(nextDay).getTime() - HOUR_MS),
         });
         await this.replay.deleteRuns(PIPELINES);
+        await this.replay.clearAgent();
 
         for (const definition of [Agent.Queue.HandleHit.Definition, Agent.Queue.Resume.Definition]) {
             const queue = new Queue(definition.name, { connection: redisConnection(), prefix: QUEUE_PREFIX });

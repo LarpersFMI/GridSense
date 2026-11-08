@@ -3,6 +3,7 @@ import { TriggerId } from "../ids"
 import { Condition } from "./Condition"
 import { Grouping } from "./Grouping"
 import { On } from "./On"
+import { Playbook } from "./Playbook"
 
 /**
  * A trigger as an admin writes it and the server stores it. Its id is made where it's written (`Trigger.createId()`,
@@ -18,6 +19,7 @@ export const Schema = z.object({
     conditions:      Condition.Schema.array(),
     grouping:        Grouping.Schema,
     cooldownMinutes: z.number().int().nonnegative(),   // after a hit, the same window can't hit again for this long
+    playbook:        Playbook.Schema.default("alert"),  // what the agent does with its hits
 }).superRefine((trigger, context) => {
     if (trigger.on.type === "schedule" && trigger.conditions.length > 0)
         context.addIssue({
